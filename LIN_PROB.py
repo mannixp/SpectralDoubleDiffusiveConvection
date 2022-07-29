@@ -4,7 +4,7 @@ import numpy as np
 import os, time, sys
 import matplotlib.pyplot as plt
 
-from EigenVals import ML_0, Ll_0, cheb_radial
+from Linear_Matrix_Operators import ML_0, Ll_0, cheb_radial
 
 
 def Eig_Vals(Ra1,l,d,Nvals, Ra_s=500,Pr=1,Tau=1./15., Nr = 30):	
