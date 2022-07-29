@@ -1,2 +1,12 @@
-# Parrallelised-Spectral-Code-for-Double-Diffusive-Convection
-This code approximates the system of partial differential equations, by making use of an expansion and projection onto a basis of N Legendre polynomials. Although accurate this expansion incurs a complexity of ~ N^3, making this code impractical for large N without parallelisation. Using Fortran wrappers and open MPI directives, this code implements time-stepping using a Crank-Nicolson or Euler Implicit scheme.
+# AxisymmetricSphericalDoubleDiffusiveConvection
+
+**Linear Stability Code**
+
+This code approximates the system of linearised partial differential equations, by making use of an expansion and projection onto a basis of $N_{\theta}$ Legendre polynomials and $N_r$ Chebyshev collocation points in the radial direction. Activating an Anaconda environment with the appropriate dependencies installed `numpy, matplotlib, scipy` and then executing 
+
+`python3 LIN_PROB.py`
+
+computes and plots the neutral curves shown in figure 2 of (Mannix et al. JFM 202?).
+
+
+**Steady state code**
