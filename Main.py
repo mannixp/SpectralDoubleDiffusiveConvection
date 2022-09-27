@@ -8,15 +8,15 @@ import sys, os, time, warnings, h5py
 warnings.simplefilter('ignore', np.RankWarning)
 
 # ~~~~~~~~~~~~~~~ Global Parameters ~~~~~~~~~~~~~~~
-Tau = 1.; Pr = 1.0; Ra_s = 500.0; Lx = np.pi;
+Tau = 1.; Pr = 1.; Lx = np.pi; Ra_s = .0;
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # ~~~~~~~~~~~~~~~ Gap widths l=10~~~~~~~~~~~~~~~
-d = 0.353; Ra_HB_c = 2967.37736364 ; Ra_SS_c = 9853.50008503;
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#d = 0.353; Ra_HB_c = 2967.37736364 ; Ra_SS_c = 9853.50008503;
 
 # ~~~~~~~~~~~~~~~ Gap widths l=2~~~~~~~~~~~~~~~
-#d = 1.; Ra_HB_c = 2967.37736364 ; Ra_SS_c = 9853.50008503;
+d  = 2.0; Ra = 7.267365e+03 + 10.; 
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Self-made packages
@@ -39,14 +39,13 @@ def Base_State_Coeffs(d):
 	B_T =      R_1 /(R_1 - R_2)
 	
 	#D,R = cheb_radial(20,d); 
-	#plt.plot(R,-A_T/R + B_T*np.ones(len(R)));
+	#plt.plot(R,-A_T/R + B_T*np.ones(len(R)),'k-');
+	#plt.plot(R,A_T/(R*R),'b:');
 	#plt.xlim([R[0],R[-1]])
 	#plt.show()
 
 	return A_T,B_T;
 
-# There may be a problem with this formulae or the code??
-# In any case it needs weighting to give the correct value
 #@njit(fastmath=True)
 def Nusselt(T_hat, R,D,N_fm,nr):
 
@@ -56,39 +55,22 @@ def Nusselt(T_hat, R,D,N_fm,nr):
 	Nu−1 = ( ∫ ∂_r T(r,θ) sinθ dθ )/( ∫ ∂_r T_0(r) sinθ dθ)
 
 	"""
-	#'''
-
-	
-	# 1) Build wave-number weights
-	# ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~
-	from scipy.fft import dct
-	# Use correct grid for DCT-II
-	θ = np.zeros(N_fm);
-	for n in range(N_fm):
-		θ[n] = Lx*( (2*n+1.0)/(2.0*N_fm) );	# x in [0,L] 
-	
-	#x = [ Lx*( (n+.5)/(N_fm) ) for n in range(N_fm) ];	
-	const = dct(np.cos(0.*θ),type=2,norm='ortho')[0]; # cosine
-	# ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~	
 
 	# Compute coefficients
 	A_T    = Base_State_Coeffs(d)[0];
-	A_T_hat= const*A_T; # Puts the base state into spectral space i.e. the space of T_hat using DCT 
 	NuM1   = np.zeros(len(R)); 
 
 	# Take every-second component
 	for k in range(0,N_fm,2):
-
 		TT       = np.zeros(len(R));
 		TT[1:-1] = T_hat[k*nr:(k+1)*nr]; 
-		NuM1    += (D.dot(TT))/(1.-(k**2)); # Factor of 2 drops out from integral when divided by T'_0(r)
+		NuM1    += (D@TT)/(1.-(k**2));
 
-	NuM1 = NuM1/(A_T_hat/(R**2)); 
+	NuM1 = ((R**2)/A_T)*(NuM1/N_fm); # Scale by 1/N due to dct ?
 
-	#print("Inner Nu ",NuM1[0])
-	#print("Outer Nu ",NuM1[-1])
-	return abs(NuM1[0]);
-
+	print("|Nu(R_1) - Nu(R_2)|/|Nu(R_1)| = ",(abs(NuM1[-1] - NuM1[0])/abs(NuM1[0]) ) )
+	print("Inner Nu= %e, Outer Nu=%e"%(NuM1[0],NuM1[-1]),"\n")
+	return NuM1[0];
 
 def Kinetic_Enegery(X_hat, R,D,N_fm,nr, symmetric = True):
 
@@ -258,14 +240,16 @@ def Build_Matrix_Operators(N_fm,N_r,d):
 		ks = k + 1;
 		kc = k; 
 		akc[k] = 1.0/dct(np.cos(kc*θ),type=2,norm='ortho')[k]; # cosine
-		aks[k] = 1.0/dst(np.sin(ks*θ),type=2,norm='ortho')[k]; # sin
+		aks[k] = 1.0/dst(np.sin(ks*θ),type=2,norm='ortho')[k]; # sine
 
-	# Multiply the zero cosine mode by 2, to correspond with the analytical definition used eqn. A.36 (b)
-	akc[0] = 2.*akc[0];
+	
+	#print("f=",f,"\n")
+	#print("aks=",aks,"\n")
+	#sys.exit()	
 	# ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~	
 
-	Rsq   =        R2(R,N_fm); 
-	gr_K  = Pr*kGR_RT(R,N_fm,d); 
+	Rsq   =       R2(R,N_fm); 
+	gr_K  = kGR_RT(R,N_fm,d); 
 
 	# For T0_J_Theta, as a vector!!!
 	A_T = Base_State_Coeffs(d)[0];
@@ -326,6 +310,7 @@ def Build_Matrix_Operators_TimeStep(N_fm,N_r,d):
 
 	return D,R,	Rsq,DT0,gr_K, N_fm,nr, args_Nab2,args_A4,args_FXS;
 
+
 def _Newton(X,Ra, N_fm,N_r,d, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-04,Krylov_Space_Size = 150, symmetric = True):
 	
 	"""
@@ -347,23 +332,31 @@ def _Newton(X,Ra, N_fm,N_r,d, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-04,K
 
 	"""
 
-	from Matrix_Operators import NLIN_FX  as FX
 	from Matrix_Operators import NLIN_DFX as DFX
+	from Matrix_Operators import NLIN_FX as FX
 	from Matrix_Operators import DT0_theta,A2_SINE
 	
 	D,R,	Rsq,DT0,gr_k,N_fm,nr,	args_Nab2,args_A4,args_FX = Build_Matrix_Operators_TimeStep(N_fm,N_r,d);
 
-	from Matrix_Operators import A4_BSub_TSTEP_V2   as A4_BSub_TSTEP
+	'''
+	args_Nab2_T = args_Nab2; args_Nab2_S = args_Nab2;
+	from Matrix_Operators import A4_BSub_TSTEP, NAB2_BSub_TSTEP
+	'''
+	from Matrix_Operators import A4_BSub_TSTEP_V2   as   A4_BSub_TSTEP
 	from Matrix_Operators import NAB2_BSub_TSTEP_V2 as NAB2_BSub_TSTEP
 	
-	from Matrix_Operators import A4_TSTEP_MATS
+	from Matrix_Operators import   A4_TSTEP_MATS
 	from Matrix_Operators import NAB2_TSTEP_MATS
 
-	L4_inv   = A4_TSTEP_MATS(   Pr*dt,N_fm,nr,D,R); args_A4     = (L4_inv,D,R,N_fm,nr);
+	L4_inv   =   A4_TSTEP_MATS( Pr*dt,N_fm,nr,D,R); args_A4     = (L4_inv,D,R,N_fm,nr);
 	L2_inv_T = NAB2_TSTEP_MATS(    dt,N_fm,nr,D,R); args_Nab2_T = (L2_inv_T,N_fm,nr);
 	L2_inv_S = NAB2_TSTEP_MATS(Tau*dt,N_fm,nr,D,R); args_Nab2_S = (L2_inv_S,N_fm,nr);
+	#'''
 
-	
+	#from Matrix_Operators import kGR
+	#Gr = kGR(R,N_fm,d)
+
+
 	import scipy.sparse.linalg as spla # Used for Gmres Netwon Sovler
 
 	nr = int( X.shape[0]/(3*N_fm) );
@@ -453,7 +446,7 @@ def _Newton(X,Ra, N_fm,N_r,d, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-04,K
 		X 		= X - dv;
 		error 	= np.linalg.norm(dv,2)/np.linalg.norm(X,2);
 
-		print('Iteration = %e, Error = %e'%(iteration,error),"\n")
+		print('Iteration = %d, Error = %e'%(iteration,error),"\n")
 		iteration+=1
 
 	# Compute diagnoistics	
@@ -479,9 +472,10 @@ def Newton(filename='blah',frame=-1):
 
 	"""
 
-	N_fm = 2*40; 
-	N_r  = 30;
-	d    = 0.353;
+	# l =2 mode
+	N_fm = 20; 
+	N_r  = 20;
+	d    = 2.0; Ra = 7.267365e+03 + 10.
 
 	# ~~~~~~~~~ Random Initial Conditions ~~~~~~~~~~~~~~~~
 	D,R  = cheb_radial(N_r,d); 
@@ -491,7 +485,7 @@ def Newton(filename='blah',frame=-1):
 	X = np.random.rand(3*N);
 	X = 1e-03*(X/np.linalg.norm(X,2))
 
-	Ra = Ra_HB_c + 2.;
+	#Ra = Ra_HB_c + 2.;
 	start_time = 0.;
 	# ~~~~~~~~~ Old Initial Conditions ~~~~~~~~~~~~~~~~~~
 	if filename.endswith('.npy'):
@@ -511,15 +505,20 @@ def Newton(filename='blah',frame=-1):
 		N_r    = f['Parameters']["N_r"][()]
 		d 	   = f['Parameters']["d"][()]
 		#start_time = f['Parameters']["start_time"][()];
-		start_time  = f['Scalar_Data/Time'][()][-1]
-		f.close();    
+		try:
+			start_time  = f['Scalar_Data/Time'][()][frame]
+		except:
+			pass;
+		f.close();
 
-	# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
-	#D_o,R_o = cheb_radial(15,d); X = INTERP_RADIAL(R,R_o,X)
-	#X = INTERP_THETA_DOWN(N_fm,400,X);
-	#X = INTERP_THETA_UP(N_fm,100,X); 
-	#STR_FRAME = "Y_Nt300_Nr30_l10_Ra100.npy"
-	# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		print("\n Loading time-step %e with parameters Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(start_time,Ra,d,N_fm,N_r))    
+
+		
+		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
+		from Matrix_Operators import INTERP_RADIAL, INTERP_THETAS
+		fac_R =1; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
+		fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
+		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	# Save all data in the same structure as time-stepping	
 	X_DATA  = [];
@@ -527,7 +526,7 @@ def Newton(filename='blah',frame=-1):
 	NuT = []; 
 	NuS = [];
 
-	X_new,ke,nuS,nuT = _Newton(X,Ra + 10., N_fm,N_r,d, Krylov_Space_Size = 150, symmetric = False)
+	X_new,ke,nuS,nuT = _Newton(X,Ra, N_fm,N_r,d, Krylov_Space_Size = 150, symmetric = False)
 		
 	KE.append( ke );
 	NuT.append( nuT );
@@ -576,10 +575,10 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 	from Matrix_Operators import   A4_TSTEP_MATS
 	from Matrix_Operators import NAB2_TSTEP_MATS
 
-	L4_inv   =   A4_TSTEP_MATS(   Pr*dt,N_fm,nr,D,R); args_A4     = (L4_inv,D,R,N_fm,nr);
-	L2_inv_T = NAB2_TSTEP_MATS(    dt,N_fm,nr,D,R);   args_Nab2_T = (L2_inv_T,N_fm,nr);
-	L2_inv_S = NAB2_TSTEP_MATS(Tau*dt,N_fm,nr,D,R);   args_Nab2_S = (L2_inv_S,N_fm,nr);
-	
+	L4_inv   =   A4_TSTEP_MATS( Pr*dt,N_fm,nr,D,R); args_A4     = (L4_inv,D,R,N_fm,nr);
+	L2_inv_T = NAB2_TSTEP_MATS(    dt,N_fm,nr,D,R); args_Nab2_T = (L2_inv_T,N_fm,nr);
+	L2_inv_S = NAB2_TSTEP_MATS(Tau*dt,N_fm,nr,D,R); args_Nab2_S = (L2_inv_S,N_fm,nr);
+	#'''
 
 	Time    = []; 
 	X_DATA  = [];
@@ -601,6 +600,9 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 	N_print   = 100;
 	N         = int(X.shape[0]/3)
 
+	#from Matrix_Operators import kGR
+	#Gr = kGR(R,N_fm,d)
+
 	#@profile
 	def Step_Python(Xn,kinetic=False):
 
@@ -610,12 +612,14 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 		T = Xn[N:2*N];
 		S = Xn[2*N:3*N];
 
+		#'''
 		if kinetic == True:
 			OUT 	= 		 FX(Xn, *args_FX,     symmetric,kinetic); # 36% FIX
 			NX[:],KE= -1.*dt*OUT[0],OUT[1];
 		else:
-			NX[:]	= -1.*dt*FX(Xn, *args_FX,     symmetric); # 36% FIX
-		
+			NX[:]	= -1.*dt*FX(Xn, *args_FX,     symmetric,kinetic); # 36% FIX
+		#'''
+		#KE = Kinetic_Enegery(Xn, R,D,N_fm,nr, symmetric);
 		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric);
 		Ω     = A2_SINE(ψ,   D,R,N_fm,nr, symmetric); 
 
@@ -646,11 +650,12 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 		#KE = Kinetic_Enegery(Xn, R,D,N_fm,nr, symmetric);
 		#val = Kinetic_Enegery(X, R,D,N_fm,nr, symmetric = False); print(val)	
 
+		#NuT.append( np.linalg.norm(X_new,2) )
+		#NuS.append( np.linalg.norm(X_new[2*N:3*N],2) )
+
 		KE.append(  abs(kinetic) );
-		NuT.append( np.linalg.norm(X_new,2) )
-		NuS.append( np.linalg.norm(X_new[2*N:3*N],2) )
-		#NuT.append( Nusselt(X_new[N:2*N]  ,R,D,N_fm,nr) );
-		#NuS.append( Nusselt(X_new[2*N:3*N],R,D,N_fm,nr) );
+		NuT.append( Nusselt(X_new[N:2*N]  ,R,D,N_fm,nr) );
+		NuS.append( Nusselt(X_new[2*N:3*N],R,D,N_fm,nr) );
 		Time.append(start_time + dt*iteration);
 
 		if iteration%N_print == 0:
@@ -709,15 +714,15 @@ def Time_Step(filename='blah',frame=-1):
 	"""
 
 	# l=10 mode
-	N_fm = 2*10; 
-	N_r  = 20;
-	d    = 0.353; Ra = 2853.5 + 1. 
+	#N_fm = 2*10; 
+	#N_r  = 20;
+	#d    = 0.353; Ra = 2853.5 + 1. 
 
 	# l =2 mode
-	N_fm = 40; 
+	N_fm = 20; 
 	N_r  = 20;
-	d    = 2.0; Ra = 7.267365e+03 + 10.
-
+	#d    = 2.0; Ra = 7.267365e+03 + 10.
+	d    = 2.0; Ra = 6.77*(10**3) + 1.
 
 	# ~~~~~~~~~ Random Initial Conditions ~~~~~~~~~~~~~~~~
 	D,R  = cheb_radial(N_r,d); 
@@ -745,28 +750,34 @@ def Time_Step(filename='blah',frame=-1):
 		N_fm   = f['Parameters']["N_fm"][()]
 		N_r    = f['Parameters']["N_r"][()]
 		d 	   = f['Parameters']["d"][()]
-		#start_time = f['Parameters']["start_time"][()];
-		start_time  = f['Scalar_Data/Time'][()][-1]
+		try:
+			start_time  = f['Scalar_Data/Time'][()][frame]
+		except:
+			pass;
 		f.close();    
 
-	# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
-	#D_o,R_o = cheb_radial(15,d); X = INTERP_RADIAL(R,R_o,X)
-	#X = INTERP_THETA_DOWN(N_fm,400,X);
-	#X = INTERP_THETA_UP(N_fm,100,X); 
-	#STR_FRAME = "Y_Nt300_Nr30_l10_Ra100.npy"
-	# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		print("\n Loading time-step %e with parameters Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(start_time,Ra,d,N_fm,N_r))    
 
-	Total_time = 2*(10**3)*(1./Tau);
+		
+		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
+		from Matrix_Operators import INTERP_RADIAL, INTERP_THETAS
+		fac_R =1; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
+		fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
+		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	X_new = _Time_Step(X,Ra, N_fm,N_r,d, start_time, Total_time, dt=1e-02, symmetric = True);
+	Total_time = 5*(10**3)*(1./Tau);
+
+	X_new = _Time_Step(X,Ra, N_fm,N_r,d, start_time, Total_time, dt=5e-02, symmetric = False);
 
 	return None;
+
 
 # Execute main
 if __name__ == "__main__":
 	
-	file = 'Time_Integration_Data.h5'
-	frame = -1;
+	file = 'Time_Integration_Data.h5'; frame = -1;
 	
-	#Newton(file,frame);
-	Time_Step();
+	Newton(file,frame);
+	
+	#file ='Newton_Iteration_Data.h5'; frame = 0;
+	#Time_Step();#(file,frame);
