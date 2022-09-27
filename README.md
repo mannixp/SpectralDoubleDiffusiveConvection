@@ -8,5 +8,8 @@ This code approximates the system of linearised partial differential equations, 
 
 computes and plots the neutral curves shown in figure 2 of (Mannix et al. JFM 202?).
 
+**Time stepping**
 
 **Steady state code**
+
+**Continuation**
