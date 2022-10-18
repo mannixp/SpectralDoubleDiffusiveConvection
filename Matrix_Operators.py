@@ -1,6 +1,3 @@
-
-#!/usr/bin/env python
-
 from numba import njit
 import numpy as np
 import sys, os, time
@@ -27,21 +24,6 @@ def cheb_radial(N,d):
 		D -= np.diag(np.sum(D.T,axis=0))
 	
 	return D, x.reshape(N+1);
-
-'''
-# Check the Matrix works
-D,R=cheb_radial(10,1)
-
-f = np.sin(R)[1:-1];
-f_num = D[1:-1,1:-1].dot(f)
-print(f_num);
-
-f_anal = np.cos(R)
-print(f_anal);
-
-#print(np.linalg.norm(f_anal - f_num,np.inf));
-sys.exit()
-'''
 
 # ~~~~~~~~~~~~ Main Linear Operators ~~~~~~~~~~
 
@@ -138,6 +120,9 @@ def kGR_RT(R,N_fm,d): # Correct
 
 	return bmat(A1,format="csr")
 
+
+
+
 @njit(fastmath=True) # Just check dT_0/dr form and sign
 def DT0_theta(g, dT0,N_fm,nr, symmetric = False): 
 	
@@ -165,40 +150,36 @@ def DT0_theta(g, dT0,N_fm,nr, symmetric = False):
 
 	f = np.zeros(g.shape); # In Cosine
 
-	if symmetric == False:
-		b = np.zeros(nr);
-		for jj in range(0,N_fm,2): # j cosine [0,N_Fm -1]
-			
-			j = (N_fm - (jj + 1) );
-			ind_j = j*nr;
-			ind_k = (j-1)*nr;
-
-			#print("Odds j=",j)
-			#print("Seg j-1",(j-1))
-			
-			if (j < (N_fm - 1 ) ):
-				b += g[ind_k+2*nr:ind_k+3*nr];	
-
-			f[ind_j:ind_j+nr] = dT0*( (j + 1.0)*g[ind_k:ind_k+nr] + 2.0*b );	
-			
-	#print("\n")		 
 	b = np.zeros(nr);
-	for jj in range(1,N_fm,2): # j cosine [0,N_Fm -1]
+	for jj in range(0,N_fm,2): 
 		
-		j = (N_fm - (jj + 1) );
+		j = (N_fm - 2 - jj ); # j cosine [0,2,4,....,N_Fm -2]
 		ind_j = j*nr;
-		ind_k = (j-1)*nr;
-		
-		#print("Evens j=",j)
-		#print("Seg j-1",(j-1))
 
+		#print("Row",j,"Cosine j=",j)
+		
 		if (j < (N_fm - 1 ) ):
-			b += g[ind_k+2*nr:ind_k+3*nr];
+			b += g[ind_j+nr:ind_j+2*nr];	
 
 		if j == 0:
 			f[ind_j:ind_j+nr] = dT0*b;
 		else:	
-			f[ind_j:ind_j+nr] = dT0*( (j + 1.0)*g[ind_k:ind_k+nr] + 2.0*b );		 
+			f[ind_j:ind_j+nr] = dT0*( (j + 1.0)*g[ind_j-nr:ind_j] + 2.0*b );	
+
+	if symmetric == False:
+		
+		b = np.zeros(nr);
+		for jj in range(1,N_fm,2): 
+			
+			j = (N_fm - jj); # j cosine [1,3,5,.....,N_Fm -1]
+			ind_j = j*nr;
+			
+			#print("Row",j,"Cosine j=",j)
+
+			if (j < (N_fm - 1 ) ):
+				b += g[ind_j+nr:ind_j+2*nr];
+
+			f[ind_j:ind_j+nr] = dT0*( (j + 1.0)*g[ind_j-nr:ind_j] + 2.0*b );
 
 	return f;	
 
@@ -231,22 +212,26 @@ def A2_SINE(g,  D,R,N_fm,nr, symmetric = False):
 	D2 = np.ascontiguousarray(D2);
 
 
+	
 	f_e = np.zeros(nr); 
 	for jj in range(0,N_fm,2):
 
 		j = N_fm-jj; 
 		ind_j = (j-1)*nr; # Row ind
 
+		#print("Evens Row row=%i"%(j-1),"Sine mode j=%i"%j)
+
 		f[ind_j:ind_j+nr] = D2.dot(g[ind_j:ind_j+nr]) -j*IR2*( (j+1)*g[ind_j:ind_j+nr] + 2.*f_e);
 		f_e += g[ind_j:ind_j+nr];
 	
-	if symmetric == False:
-		
+	if symmetric == False:	
 		f_e = np.zeros(nr); 
 		for jj in range(1,N_fm,2):
 
 			j = N_fm-jj; 
 			ind_j = (j-1)*nr; # Row ind
+
+			#print("Odds Row row=%i"%(j-1),"Sine mode j=%i"%j)
 
 			f[ind_j:ind_j+nr] = D2.dot(g[ind_j:ind_j+nr]) -j*IR2*( (j+1)*g[ind_j:ind_j+nr] + 2.*f_e);
 			f_e += g[ind_j:ind_j+nr];	
@@ -294,7 +279,7 @@ def NAB2_BSub_TSTEP(g, R2_Nab2,R2,I,N_fm,nr,dt, symmetric = False):
 			j = (N_fm - (jj + 1) );
 			ind_j = j*nr;
 			
-			#print("Odds Row j=%i"%j)
+			#print("Odds Row j=%i"%j,"Cosine j=%i"%j)
 			bj = -j*(j + 1.0)
 			A  = R2 - dt*(R2_Nab2 + bj*I)
 
@@ -316,7 +301,7 @@ def NAB2_BSub_TSTEP(g, R2_Nab2,R2,I,N_fm,nr,dt, symmetric = False):
 		j = (N_fm - (jj + 1) );
 		ind_j = j*nr;
 
-		#print("Evens Row j=%i"%j)
+		#print("Evens Row j=%i"%j,"Cosine j=%i"%j)
 		bj = -j*(j + 1.0)
 		if j == 0:
 			A = R2 - dt*R2_Nab2
@@ -374,6 +359,7 @@ def A4_BSub_TSTEP(g,  D4,IR4, D2,A2,IR2, N_fm,nr,dt, symmetric = False):
 
 	N = nr*N_fm; f = np.zeros(N); 
 	
+	
 	# ~~~~~~~~~~~~~~~ EVENS ~~~~~~~~~~~~~~~~~~~~
 	f_e = np.zeros(nr); bf_e = np.zeros(nr); 
 	for jj in range(0,N_fm,2):
@@ -383,6 +369,8 @@ def A4_BSub_TSTEP(g,  D4,IR4, D2,A2,IR2, N_fm,nr,dt, symmetric = False):
 		j = N_fm-jj; # Remeber sine counting is from 1 - N_theta
 		bj = -j*(j + 1.); bjt = -2.*j;
 		
+		#print("Evens Row row=%i"%row,"Sine mode j=%i"%j)
+
 		L1 = D2 + bj*IR4; 
 
 		L = (A2 + bj*IR2) - dt*(D4 + bj*L1);
@@ -416,6 +404,8 @@ def A4_BSub_TSTEP(g,  D4,IR4, D2,A2,IR2, N_fm,nr,dt, symmetric = False):
 			j = N_fm-jj; # Remeber sine counting is from 1 - N_theta
 			bj = -j*(j + 1.); bjt = -2.*j;
 			
+			#print("Odds Row row=%i"%row,"Sine mode j=%i"%j)
+
 			L1 = D2 + bj*IR4
 			
 			L = (A2 + bj*IR2) - dt*(D4 + bj*L1);
@@ -441,9 +431,15 @@ def A4_BSub_TSTEP(g,  D4,IR4, D2,A2,IR2, N_fm,nr,dt, symmetric = False):
 #~~~~~~~~~~~~~
 
 
+
+
+
+
 # O(Nr^2 N_theta) complexity & Memory
 #~~~~~~~~~~~~~
-# Fixed an error corresponding to the zero mode needing to be multiplied by 2
+
+# ERROR IN THESE SOMEWHERE??
+
 def NAB2_TSTEP_MATS(dt,N_fm,nr,D,R):
 
 
@@ -595,48 +591,21 @@ def A4_BSub_TSTEP_V2(g,  L_inv,D,R,N_fm,nr,dt, symmetric = False):
 	IR2 = np.ascontiguousarray(IR2);
 	IR4 = IR2@IR2;
 
-	# ~~~~~~~~~~~~~~~ EVENS ~~~~~~~~~~~~~~~~~~~~
-	f_e = np.zeros(nr); bf_e = np.zeros(nr); 
-	for jj in range(0,N_fm,2):
-
-		row = (N_fm - (jj + 1) ); 
-		ind_j = row*nr; # Row ind
-		j = N_fm-jj; # Remeber sine counting is from 1 - N_theta
-		bj = -j*(j + 1.); bjt = -2.*j;
-		
-		L1 = D2 + bj*IR4;
-		A  = np.ascontiguousarray(L_inv[:,:,jj]);
-		
-
-		if row < (N_fm - 2 ):
-		
-			f_e += f[(row+2)*nr:(row+3)*nr];
-
-			# Add time component
-			b_test = dt*bjt*( L1.dot( f_e ) + IR4.dot( bf_e) ) - bjt*IR2.dot(f_e);
-			f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]+b_test);   #O(Nr^2 N_theta)
-
-
-			# Add sums after to get +2 lag
-			bf_e += bj*f[ind_j:ind_j+nr] + bjt*f_e;
-
-		else:
-			f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]);
-			bf_e += bj*f[ind_j:ind_j+nr];
-
-
-	if symmetric == False:		
-		# ~~~~~~~~~~~~~~~ ODDS ~~~~~~~~~~~~~~~~~~~~		
+	if symmetric == False:
+		# ~~~~~~~~~~~~~~~ EVENS ~~~~~~~~~~~~~~~~~~~~
 		f_e = np.zeros(nr); bf_e = np.zeros(nr); 
-		for jj in range(1,N_fm,2):
+		for jj in range(0,N_fm,2):
 
 			row = (N_fm - (jj + 1) ); 
 			ind_j = row*nr; # Row ind
 			j = N_fm-jj; # Remeber sine counting is from 1 - N_theta
 			bj = -j*(j + 1.); bjt = -2.*j;
 			
-			L1 = D2 + bj*IR4
+			L1 = D2 + bj*IR4;
 			A  = np.ascontiguousarray(L_inv[:,:,jj]);
+			
+			#print("Evens Row row=%i"%row)
+			#print("Sine mode j=%i"%j)
 
 			if row < (N_fm - 2 ):
 			
@@ -646,56 +615,92 @@ def A4_BSub_TSTEP_V2(g,  L_inv,D,R,N_fm,nr,dt, symmetric = False):
 				b_test = dt*bjt*( L1.dot( f_e ) + IR4.dot( bf_e) ) - bjt*IR2.dot(f_e);
 				f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]+b_test);   #O(Nr^2 N_theta)
 
+
 				# Add sums after to get +2 lag
 				bf_e += bj*f[ind_j:ind_j+nr] + bjt*f_e;
 
 			else:
-
-				#f[ind_j:ind_j+nr] = np.linalg.solve(L,g[ind_j:ind_j+nr]);
 				f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]);
 				bf_e += bj*f[ind_j:ind_j+nr];
 
+
+	# ~~~~~~~~~~~~~~~ ODDS ~~~~~~~~~~~~~~~~~~~~		
+	f_e = np.zeros(nr); bf_e = np.zeros(nr); 
+	for jj in range(1,N_fm,2):
+
+		row = (N_fm - (jj + 1) ); 
+		ind_j = row*nr; # Row ind
+		j = N_fm-jj; # Remeber sine counting is from 1 - N_theta
+		bj = -j*(j + 1.); bjt = -2.*j;
+		
+		#print("Odds Row row=%i"%row)
+		#print("Sine mode j=%i"%j)
+
+		L1 = D2 + bj*IR4
+		A  = np.ascontiguousarray(L_inv[:,:,jj]);
+
+		if row < (N_fm - 2 ):
+		
+			f_e += f[(row+2)*nr:(row+3)*nr];
+
+			# Add time component
+			b_test = dt*bjt*( L1.dot( f_e ) + IR4.dot( bf_e) ) - bjt*IR2.dot(f_e);
+			f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]+b_test);   #O(Nr^2 N_theta)
+
+			# Add sums after to get +2 lag
+			bf_e += bj*f[ind_j:ind_j+nr] + bjt*f_e;
+
+		else:
+
+			#f[ind_j:ind_j+nr] = np.linalg.solve(L,g[ind_j:ind_j+nr]);
+			f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]);
+			bf_e += bj*f[ind_j:ind_j+nr];
+
 	return f;
+
 #~~~~~~~~~~~~~
+
+
+
+
+
 
 
 @njit(fastmath=True)
 def J_theta_RT(g,     nr,N_fm, symmetric = False):
 	
 	f = np.zeros(g.shape); # In Cosine
-	#g # in sine
-
-	if symmetric == False:
-		b = np.zeros(nr);
-		for jj in range(0,N_fm,2): # j cosine [0,N_Fm -1], odds as j cosine [1,3,5,7,...,N_Fm -1]
-			
-			j = (N_fm - (jj + 1) );
-			ind_j = j*nr;
-			ind_k = (j -1)*nr; # k sine wave numbers [1,3,5,7,...,N_Fm -1] indecies k = [0,2,4,6,...,N_Fm]
-			
-			if (j < (N_fm - 1 ) ):
-				b += g[ind_k+2*nr:ind_k+3*nr];	
-
-			if j == 0:
-				f[ind_j:ind_j+nr] = b;
-			else:	
-				f[ind_j:ind_j+nr] = (j + 1.0)*g[ind_k:ind_k+nr] + 2.0*b;	
-
 
 	b = np.zeros(nr);
-	for jj in range(1,N_fm,2): # j cosine [0,N_Fm -1], evens as j cosine [0,2,4,5,...,N_Fm -1]
+	for jj in range(0,N_fm,2): 
 		
-		j = (N_fm - (jj + 1) );
+		j = (N_fm - 2 - jj ); # j cosine [0,2,4,....,N_Fm -2]
 		ind_j = j*nr;
-		ind_k = (j -1)*nr;
+
+		#print("Row",j,"Cos(j*x) =",j)
 		
 		if (j < (N_fm - 1 ) ):
-			b += g[ind_k+2*nr:ind_k+3*nr];
+			b += g[ind_j+nr:ind_j+2*nr];	
 
 		if j == 0:
 			f[ind_j:ind_j+nr] = b;
 		else:	
-			f[ind_j:ind_j+nr] = (j + 1.0)*g[ind_k:ind_k+nr] + 2.0*b;		 
+			f[ind_j:ind_j+nr] = (j + 1.0)*g[ind_j-nr:ind_j] + 2.0*b;	
+
+	if symmetric == False:
+		
+		b = np.zeros(nr);
+		for jj in range(1,N_fm,2): 
+			
+			j = (N_fm - jj); # j cosine [1,3,5,.....,N_Fm -1]
+			ind_j = j*nr;
+			
+			#print("Row",j,"Cos(j*x)=",j)
+
+			if (j < (N_fm - 1 ) ):
+				b += g[ind_j+nr:ind_j+2*nr];
+
+			f[ind_j:ind_j+nr] = (j + 1.0)*g[ind_j-nr:ind_j] + 2.0*b;		 
 
 	return f;
 
@@ -725,22 +730,27 @@ def A2_SINE_R2(g, N_fm,nr,D,R, symmetric = False):
 	D2  = ( np.diag( (1.0/R**2) )@(D@D) )[1:-1,1:-1]
 	D2 = np.ascontiguousarray(D2);
 
+	
 	f_e = np.zeros(nr); 
 	for jj in range(0,N_fm,2):
 
 		j = N_fm-jj; # k_s wave-number, will be even
 		ind_j = (j-1)*nr; # Row ind
 
+		#print("Evens Row row=%i"%(j-1),"Sin(j*x)=%i"%j)
+
 		f[ind_j:ind_j+nr] = D2.dot(g[ind_j:ind_j+nr]) -j*IR4.dot( (j+1)*g[ind_j:ind_j+nr] + 2.*f_e);
 		f_e += g[ind_j:ind_j+nr];
 
-	if symmetric == False:
-		
+	
+	if symmetric == False:	
 		f_e = np.zeros(nr); 
 		for jj in range(1,N_fm,2):
 
 			j = N_fm-jj; # k_s wave-number, will be odd
 			ind_j = (j-1)*nr; # Row ind
+
+			#print("Odds Row row=%i"%(j-1),"Sin(j*x)=%i"%j)
 
 			f[ind_j:ind_j+nr] = D2.dot(g[ind_j:ind_j+nr]) -j*IR4.dot( (j+1)*g[ind_j:ind_j+nr] + 2.*f_e);
 			f_e += g[ind_j:ind_j+nr];	
@@ -767,12 +777,14 @@ def Vecs_To_NX(PSI,T,C, aks,akc, N_fm,nr, symmetric = False):
 
 		for ii in range(1,N_fm,2): 
 			
+			#print("Row ii=%i, Sin(k_s*x) = %i"%(ii,ii+1))
 			# a) psi parts
 			ind_p = ii*nr;
 			NX[ind_p:ind_p+nr] = PSI[:,ii];
 		
-		for ii in range(0,N_fm,2):
+		for ii in range(0,N_fm,2): 	
 			
+			#print("Row ii=%i, Cos(k_c*x) = %i"%(ii,ii))
 			# b) T parts
 			ind_T = N + ii*nr; 
 			NX[ind_T:ind_T+nr] = T[:,ii];
@@ -822,28 +834,35 @@ def Derivatives(X_hat,JPSI,OMEGA, Dr, N_fm,nr, symmetric = False):
 	
 	# Take Radial Deriv, Reshape ; nr*N_fm -> nr x N_fm 
 
-	if symmetric == True:
+	if symmetric == True: 
 
 		# O(nr^2*N_fm/2)
 		for ii in range(1,N_fm,2): # Sine [1,N_fm]
 
 			k_s = ii + 1; # [1,N_fm]
 			
-			# a) ~~~~~~~ psi parts ~~~~~~~~~~~~ ???
+			#print("Row ii=%i, Sin(k_s*x) = %i"%(ii,k_s))
+
+			# a) ~~~~~~~ psi parts ~~~~~~~~~~~~  # Correct
 			ind_p = ii*nr; 
 			psi   = X_hat[ind_p:ind_p+nr];
 
 			Dpsi_hat[:,ii]    = Dr.dot(psi);
 			kDpsi_hat[:,ii]   = k_s*Dpsi_hat[:,ii]; # Sine -> Cosine
 					
-			JT_psi_hat[:,ii]  = JPSI[ind_p:ind_p+nr]; # Sine -> Cosine
-
+		
 			omega_hat[:,ii]   = OMEGA[ind_p:ind_p+nr];
 			komega_hat[:,ii]  = k_s*omega_hat[:,ii] # Sine -> Cosine 
 
-		for ii in range(0,N_fm,2): # Cosine [0,N_fm-1]
-
+		for ii in range(0,N_fm,2): # cosine [0,N_fm-1]
+			
 			k_c = ii;     # [0,N_fm-1]
+
+			#print("Row ii=%i, Cosine(k_c*x) = %i"%(ii,k_c) )
+
+			# a) ~~~~~~~ psi parts ~~~~~~~~~~~~  # Correct
+			ind_p = ii*nr; 
+			JT_psi_hat[:,ii]  = JPSI[ind_p:ind_p+nr]; # Sine -> Cosine
 
 			# b) ~~~~~~~~~~ T parts ~~~~~~~~~~~~~ # Correct
 			ind_T = N + ii*nr; 
@@ -1116,6 +1135,10 @@ def NLIN_DFX(dv_hat,X_hat,	inv_D,D,R,N_fm,nr,aks,akc, symmetric = False):
 	return Vecs_To_NX(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	aks,akc,	N_fm,nr, symmetric);	
 
 
+
+
+
+
 # ~~~~~~~~~~~~ Interpolation functions ~~~~~~~~~~~~~~
 
 def INTERP_RADIAL(N_n,N_o,X_o,d):
@@ -1273,7 +1296,6 @@ def NABLA2_COS(D,R,N_fm):
 def T0J_theta(R,N_fm,d): 
 	
 	# Includes -T'_0; #/r^2
-	s
 	from scipy.sparse  import diags
 	from scipy.sparse  import bmat
 

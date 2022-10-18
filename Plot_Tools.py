@@ -469,13 +469,13 @@ def Energy(filename,frame):
 	LLc = np.arange(0,N_fm  ,1)[:]; # Cosine modes
 	LLs = np.arange(1,N_fm+1,1)[:]; #   Sine modes
 
-	plt.semilogy(LLs[:],E_PSI[:], 'k.',label=r'$\hat{\psi}$')
+	plt.semilogy(LLc[:],E_PSI[:], 'k.',label=r'$\hat{\psi} \sim \sin(k \theta)$')
 	plt.semilogy(LLc[:],  E_T[:], 'r.',label=r'$\hat{T}$')
-	plt.semilogy(LLc[:],  E_S[:], 'b.',label=r'$\hat{S}$')
+	#plt.semilogy(LLc[:],  E_S[:], 'b.',label=r'$\hat{S}$')
 
 	plt.xlabel(r'Fourier-mode $k$', fontsize=26); #plt.xticks(np.arange(0,N_Modes,10))
 	plt.ylabel(r'$||X_k||$', fontsize=26)
-	plt.xlim([0,N_fm])
+	plt.xlim([-2,N_fm+2])
 	plt.grid()
 	plt.legend()
 	plt.tight_layout()
@@ -736,7 +736,7 @@ def Uradial_plot(filename,frame):
 # Execute main
 if __name__ == "__main__":
 
-	filename ='Time_Integration_Data.h5'; frame = -1;
+	filename ='Time_Integration_Data_SYM.h5'; frame = -1;
 	Plot_Time_Step(filename);
 	#sys.exit()
 

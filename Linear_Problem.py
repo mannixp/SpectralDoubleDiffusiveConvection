@@ -134,7 +134,7 @@ def Ra_Stability_Trace(Ra_c,d,Nvals):
 
 	eps = np.linspace(-0.1,0.1,N);
 
-	for l in range(8,12,2):
+	for l in range(1,3,1):
 
 		#l = 20
 		print("l=",l,"\n")
@@ -323,11 +323,11 @@ def main_program():
 	#l = 20.0; Ra_c_steady = 9494.5009440;
 
 	# ~~~~~# L = 10 Gap #~~~~~~~~~#
-	d = 0.353;
+	#d = 0.353;
 	# Hopf-bifurcation omega = 7.5; 
-	l = 10.0; Ra_c_hopf = 2967.37736364 
+	#l = 10.0; Ra_c_hopf = 2967.37736364 
 	## Steady-bifurcation
-	l = 10.0; Ra_c_steady = 9853.50008503; 
+	#l = 10.0; Ra_c_steady = 9853.50008503; 
 
 	#Eig_val = Eig_Vals(Ra_c,l,d,0);
 	#Eig_vec = Eig_Vec( Ra_c,l,d,0);
@@ -335,7 +335,7 @@ def main_program():
 	Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=0,Pr=.1,Tau=1., Nr = 20);
 	print(Eig_val)
 
-	#Ra_Stability_Trace(Ra_c,d,2)
+	Ra_Stability_Trace(Ra_c,d,2)
 
 	#Neutral(Ra_c_hopf,Ra_c_steady,l,d)
 

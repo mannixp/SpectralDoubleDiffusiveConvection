@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from numba import njit
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,14 +6,14 @@ import sys, os, time, warnings, h5py
 warnings.simplefilter('ignore', np.RankWarning)
 
 # ~~~~~~~~~~~~~~~ Global Parameters ~~~~~~~~~~~~~~~
-Tau = 1.; Pr = 1.; Lx = np.pi; Ra_s = .0;
+Tau = 1./15.; Pr = 1.0; Lx = np.pi; Ra_s = 500.0;
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # ~~~~~~~~~~~~~~~ Gap widths l=10~~~~~~~~~~~~~~~
-#d = 0.353; Ra_HB_c = 2967.37736364 ; Ra_SS_c = 9853.50008503;
+d = 0.353; Ra_HB_c = 2967.37736364 ; Ra_SS_c = 9853.50008503;
 
 # ~~~~~~~~~~~~~~~ Gap widths l=2~~~~~~~~~~~~~~~
-d  = 2.0; Ra = 7.267365e+03 + 10.; 
+#d  = 2.0; Ra = 7.267365e+03 + 10.; 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -52,8 +50,9 @@ def Nusselt(T_hat, R,D,N_fm,nr):
 	"""
 	Compute the convective Nusselt number:
 
-	Nu−1 = ( ∫ ∂_r T(r,θ) sinθ dθ )/( ∫ ∂_r T_0(r) sinθ dθ)
+	Nu−1 = ( ∫ ∂_r T(r,θ) sinθ dθ )/( ∫ ∂_r T_0(r) sinθ dθ) for r=R2 or R1
 
+	comes from volume integrating the eqns w.r.t bcss 
 	"""
 
 	# Compute coefficients
@@ -68,10 +67,11 @@ def Nusselt(T_hat, R,D,N_fm,nr):
 
 	NuM1 = ((R**2)/A_T)*(NuM1/N_fm); # Scale by 1/N due to dct ?
 
-	print("|Nu(R_1) - Nu(R_2)|/|Nu(R_1)| = ",(abs(NuM1[-1] - NuM1[0])/abs(NuM1[0]) ) )
-	print("Inner Nu= %e, Outer Nu=%e"%(NuM1[0],NuM1[-1]),"\n")
+	#print("|Nu(R_1) - Nu(R_2)|/|Nu(R_1)| = ",(abs(NuM1[-1] - NuM1[0])/abs(NuM1[0]) ) )
+	#print("Inner Nu= %e, Outer Nu=%e"%(NuM1[0],NuM1[-1]),"\n")
 	return NuM1[0];
 
+#Fix
 def Kinetic_Enegery(X_hat, R,D,N_fm,nr, symmetric = True):
 
 	"""
@@ -186,12 +186,15 @@ def Eq_SYM(X1,R):
 
 	for k in range(N_fm):
 
-		if k%2 == 0: # eliminate 1,3,5,7, ... (k=0 contains sin(1*\theta), k=1, sin(2*\theta) etc)
+		if k%2 == 0: 
+
+			# eliminate modes 1,3,5,7, ... (k=0 contains sin(1*\theta), k=1, sin(2*\theta) etc)
 			# ψ
 			ind = k*nr;
 			X_sym[ind:ind+nr] = 0.;
-
-		if k%2 == 1: # eliminate 1,3,5,7, ...
+		
+		if k%2 == 1: 	
+			# eliminate 1,3,5,7, ...
 			# T
 			ind = N + k*nr;
 			X_sym[ind:ind+nr] = 0.;
@@ -338,7 +341,7 @@ def _Newton(X,Ra, N_fm,N_r,d, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-04,K
 	
 	D,R,	Rsq,DT0,gr_k,N_fm,nr,	args_Nab2,args_A4,args_FX = Build_Matrix_Operators_TimeStep(N_fm,N_r,d);
 
-	'''
+	#'''
 	args_Nab2_T = args_Nab2; args_Nab2_S = args_Nab2;
 	from Matrix_Operators import A4_BSub_TSTEP, NAB2_BSub_TSTEP
 	'''
@@ -351,7 +354,7 @@ def _Newton(X,Ra, N_fm,N_r,d, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-04,K
 	L4_inv   =   A4_TSTEP_MATS( Pr*dt,N_fm,nr,D,R); args_A4     = (L4_inv,D,R,N_fm,nr);
 	L2_inv_T = NAB2_TSTEP_MATS(    dt,N_fm,nr,D,R); args_Nab2_T = (L2_inv_T,N_fm,nr);
 	L2_inv_S = NAB2_TSTEP_MATS(Tau*dt,N_fm,nr,D,R); args_Nab2_S = (L2_inv_S,N_fm,nr);
-	#'''
+	'''
 
 	#from Matrix_Operators import kGR
 	#Gr = kGR(R,N_fm,d)
@@ -431,7 +434,7 @@ def _Newton(X,Ra, N_fm,N_r,d, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-04,K
 
 		return np.hstack((ψ_new,T_new,S_new));	
 
-	while error > tol_newton:
+	while (error > tol_newton) and (iteration < 20):
 		
 		X = X_SYM*X;	
 		
@@ -446,15 +449,20 @@ def _Newton(X,Ra, N_fm,N_r,d, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-04,K
 		X 		= X - dv;
 		error 	= np.linalg.norm(dv,2)/np.linalg.norm(X,2);
 
-		print('Iteration = %d, Error = %e'%(iteration,error),"\n")
+		print('Newton Iteration = %d, Error = %e'%(iteration,error),"\n")
 		iteration+=1
 
-	# Compute diagnoistics	
-	KE = Kinetic_Enegery(X[0:N], R,D,N_fm,nr, symmetric)
-	NuT= Nusselt(X[N:2*N]  ,R,D,N_fm,nr);
-	NuS= Nusselt(X[2*N:3*N],R,D,N_fm,nr);
+	if (iteration == 20) or (exit != 0):
+		
+		return _,_,_,_,False;
 
-	return X,KE,NuT,NuS;
+	else:	
+		# Compute diagnoistics	
+		KE = Kinetic_Enegery(X[0:N], R,D,N_fm,nr, symmetric)
+		NuT= Nusselt(X[N:2*N]  ,R,D,N_fm,nr);
+		NuS= Nusselt(X[2*N:3*N],R,D,N_fm,nr);
+
+		return X,KE,NuT,NuS,True;
 
 def Newton(filename='blah',frame=-1):
 
@@ -473,8 +481,8 @@ def Newton(filename='blah',frame=-1):
 	"""
 
 	# l =2 mode
-	N_fm = 20; 
-	N_r  = 20;
+	N_fm = 300; 
+	N_r  = 30;
 	d    = 2.0; Ra = 7.267365e+03 + 10.
 
 	# ~~~~~~~~~ Random Initial Conditions ~~~~~~~~~~~~~~~~
@@ -489,9 +497,11 @@ def Newton(filename='blah',frame=-1):
 	start_time = 0.;
 	# ~~~~~~~~~ Old Initial Conditions ~~~~~~~~~~~~~~~~~~
 	if filename.endswith('.npy'):
-		Y  = np.load("Y_Nt300_Nr30_l10_Ra100.npy");
-		X  = Y[0:-1]; 
+		Y  = np.load(filename);
+		X  = Y[0:-1,0]; 
 		Ra = Y[-1,0];
+		print(X.shape);
+		print(Ra)
 
 	# ~~~~~~~~~ New Initial Conditions ~~~~~~~~~~~~~~~~~~
 	if filename.endswith('.h5'):
@@ -526,8 +536,12 @@ def Newton(filename='blah',frame=-1):
 	NuT = []; 
 	NuS = [];
 
-	X_new,ke,nuS,nuT = _Newton(X,Ra, N_fm,N_r,d, Krylov_Space_Size = 150, symmetric = False)
-		
+	X_new,ke,nuS,nuT,BOOL = _Newton(X,Ra, N_fm,N_r,d, Krylov_Space_Size = 150, symmetric = True)
+	
+	if BOOL == False:
+		print("\n !! Not converged !! \n");
+		sys.exit()
+
 	KE.append( ke );
 	NuT.append( nuT );
 	NuS.append( nuS );
@@ -565,7 +579,7 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 	
 	D,R,	Rsq,DT0,gr_k,N_fm,nr,	args_Nab2,args_A4,args_FX = Build_Matrix_Operators_TimeStep(N_fm,N_r,d);
 
-	'''
+	#'''
 	args_Nab2_T = args_Nab2; args_Nab2_S = args_Nab2;
 	from Matrix_Operators import A4_BSub_TSTEP, NAB2_BSub_TSTEP
 	'''
@@ -576,9 +590,9 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 	from Matrix_Operators import NAB2_TSTEP_MATS
 
 	L4_inv   =   A4_TSTEP_MATS( Pr*dt,N_fm,nr,D,R); args_A4     = (L4_inv,D,R,N_fm,nr);
-	L2_inv_T = NAB2_TSTEP_MATS(    dt,N_fm,nr,D,R); args_Nab2_T = (L2_inv_T,N_fm,nr);
-	L2_inv_S = NAB2_TSTEP_MATS(Tau*dt,N_fm,nr,D,R); args_Nab2_S = (L2_inv_S,N_fm,nr);
-	#'''
+	L2_inv_T = NAB2_TSTEP_MATS(    dt,N_fm,nr,D,R); args_Nab2_T = (L2_inv_T,  N_fm,nr);
+	L2_inv_S = NAB2_TSTEP_MATS(Tau*dt,N_fm,nr,D,R); args_Nab2_S = (L2_inv_S,  N_fm,nr);
+	'''
 
 	Time    = []; 
 	X_DATA  = [];
@@ -593,18 +607,15 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 	else:
 		X_SYM  = np.ones(X.shape);
 
+	X_SYM  = Eq_SYM(X,R);	
 	error     = 1.0;
 	iteration = 0;
 	N_iters   = int(Total_time/dt);
-	N_save    = N_iters/10;
-	N_print   = 100;
+	N_save    = 10;#N_iters/10;
+	N_print   = 10;
 	N         = int(X.shape[0]/3)
 
-	#from Matrix_Operators import kGR
-	#Gr = kGR(R,N_fm,d)
-
-	#@profile
-	def Step_Python(Xn,kinetic=False):
+	def Step_Python(Xn,kinetic=True):
 
 		NX= np.zeros(3*N);
 
@@ -620,12 +631,13 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 			NX[:]	= -1.*dt*FX(Xn, *args_FX,     symmetric,kinetic); # 36% FIX
 		#'''
 		#KE = Kinetic_Enegery(Xn, R,D,N_fm,nr, symmetric);
-		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric);
+		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric); 
 		Ω     = A2_SINE(ψ,   D,R,N_fm,nr, symmetric); 
+
 
 		# 1) Vorticity - Ω
 		NX[0:N]     += Ω + dt*Pr*gr_k.dot(Ra*T - Ra_s*S);
-		ψ_new        =   A4_BSub_TSTEP(NX[0:N],     *args_A4,     Pr*dt, symmetric);
+		ψ_new        =   A4_BSub_TSTEP(NX[0:N],     *args_A4,     Pr*dt, symmetric); 
 
 		# 2) Temperature - T
 		NX[N:2*N]   += Rsq.dot(T) - dt*ψ_T0;
@@ -633,7 +645,8 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 
 		# 3) Solute - S
 		NX[2*N:3*N] += Rsq.dot(S) - dt*ψ_T0;
-		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2_S,Tau*dt, symmetric);
+		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2_S,Tau*dt, symmetric);  
+
 
 		if kinetic == True:
 			return np.hstack((ψ_new,T_new,S_new)),KE;
@@ -658,9 +671,9 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 		NuS.append( Nusselt(X_new[2*N:3*N],R,D,N_fm,nr) );
 		Time.append(start_time + dt*iteration);
 
-		if iteration%N_print == 0:
+		#if iteration%N_print == 0:
 			
-			print("Iteration =%i, Time = %e, Energy = %e \n "%(iteration,start_time + dt*iteration,KE[-1]))
+		print("Iteration =%i, Time = %e, Energy = %e, NuT = %e \n "%(iteration,start_time + dt*iteration,KE[-1],NuT[-1]))
 
 		if iteration%N_save == 0:	
 
@@ -669,7 +682,7 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 			X_DATA.append(X_new);
 
 			# Save the different errors 
-			Tstep_file = h5py.File('Time_Integration_Data.h5', 'w')
+			Tstep_file = h5py.File('Time_Integration_Data_SYM.h5', 'w')
 
 			# Checkpoints
 			Checkpoints = Tstep_file.create_group("Checkpoints");
@@ -714,15 +727,15 @@ def Time_Step(filename='blah',frame=-1):
 	"""
 
 	# l=10 mode
-	#N_fm = 2*10; 
-	#N_r  = 20;
-	#d    = 0.353; Ra = 2853.5 + 1. 
+	N_fm = 300; 
+	N_r  = 30;
+	d    = 0.353; Ra = 9853.50008503 - 5.; 
 
 	# l =2 mode
-	N_fm = 20; 
-	N_r  = 20;
+	#N_fm = 20; 
+	#N_r  = 20;
 	#d    = 2.0; Ra = 7.267365e+03 + 10.
-	d    = 2.0; Ra = 6.77*(10**3) + 1.
+	#d    = 2.0; Ra = 6.77*(10**3) + 10.
 
 	# ~~~~~~~~~ Random Initial Conditions ~~~~~~~~~~~~~~~~
 	D,R  = cheb_radial(N_r,d); 
@@ -734,10 +747,485 @@ def Time_Step(filename='blah',frame=-1):
 	
 	start_time = 0.;
 	# ~~~~~~~~~ Old Initial Conditions ~~~~~~~~~~~~~~~~~~
+	# ~~~~~~~~~ Old Initial Conditions ~~~~~~~~~~~~~~~~~~
 	if filename.endswith('.npy'):
-		Y  = np.load("Y_Nt300_Nr30_l10_Ra100.npy");
-		X  = Y[0:-1]; 
+		Y  = np.load(filename);
+		X  = Y[0:-1,0]; 
 		Ra = Y[-1,0];
+		print(X.shape);
+		print(Ra)
+
+	# ~~~~~~~~~ New Initial Conditions ~~~~~~~~~~~~~~~~~~
+	if filename.endswith('.h5'):
+
+		f = h5py.File(filename, 'r+')
+
+		# Problem Params
+		X      = f['Checkpoints/X_DATA'][frame];
+		Ra     = f['Parameters']["Ra"][()];
+		N_fm   = f['Parameters']["N_fm"][()]
+		N_r    = f['Parameters']["N_r"][()]
+		d 	   = f['Parameters']["d"][()]
+		start_time  = f['Scalar_Data/Time'][()][frame]
+		#try:	except:pass;
+		f.close();    
+
+		print("\n Loading time-step %e with parameters Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(start_time,Ra,d,N_fm,N_r))    
+
+		
+		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
+		from Matrix_Operators import INTERP_RADIAL, INTERP_THETAS
+		fac_R =1; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
+		fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
+		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	Total_time = .005*(1./Tau);
+
+	X_new = _Time_Step(X,Ra, N_fm,N_r,d, start_time, Total_time, dt=1e-04, symmetric =True);
+
+	return None;
+
+
+
+class result():
+    
+	"""
+	class for result of continuation
+
+	Inputs:
+	None
+
+	Returns:
+	None
+	"""
+
+	def __init__(self):
+
+		self.NuT = []; 
+		self.NuS = []; 
+		self.KE  = [];
+
+		self.Ra     = [];
+		self.Ra_dot = []; 
+		self.Y_FOLD = [];
+
+		self.X_DATA  = [];
+		self.Ra_DATA = [];
+
+		self.Iterations = 0;
+
+	def __str__(self):
+
+		s= ( 'Continuation succeed \n'
+			+'Total iterations  = '+str(self.Iterations)        	  +'\n'
+			+'Ra                = '+str(self.Ra[    self.Iterations]) +'\n'
+			+'Ra_dot            = '+str(self.Ra_dot[self.Iterations]) +'\n'
+			+'NuT               = '+str(self.NuT[   self.Iterations]) +'\n'
+			+'NuS               = '+str(self.NuS[   self.Iterations]) +'\n'
+			+'KE                = '+str(self.KE[   self.Iterations]) +'\n'
+			);
+		return s
+
+def _NewtonC(		 Y  ,sign,ds, *args_f):
+	
+	"""
+
+	"""
+
+	Iteration = 0;
+	while (Iteration < 10):
+	
+		# Shallow copy as mutable
+		X  = Y[0:-1].copy();
+		Ra = Y[-1].copy() + sign*ds;
+
+		X_new,	KE,NuT,NuS, exitcode = _Newton(X,Ra, *args_f);
+
+		if exitcode == True:
+			Y_new = np.hstack( (X_new,Ra) )
+			return Y_new,sign,ds,	KE,NuT,NuS,	exitcode;
+		else:
+			ds*=0.5;
+			Iteration+=1;		
+
+	return Y,sign,ds,	KE,NuT,NuS,	exitcode;
+
+def _ContinC(Y_0_dot,Y_0,sign,ds, *args_f):
+
+	"""
+	
+	
+
+	"""
+	from Matrix_Operators import NLIN_DFX as DFX
+	from Matrix_Operators import NLIN_FX as FX
+	from Matrix_Operators import DT0_theta,A2_SINE
+	
+	D,R,	Rsq,DT0,gr_k,N_fm,nr,	args_Nab2,args_A4,args_FX = Build_Matrix_Operators_TimeStep(N_fm,N_r,d);
+
+
+	args_Nab2_T = args_Nab2; 
+	args_Nab2_S = args_Nab2;
+	from Matrix_Operators import A4_BSub_TSTEP, NAB2_BSub_TSTEP
+
+	import scipy.sparse.linalg as spla # Used for Gmres Netwon Sovler
+
+	
+	# Shallow copy as mutable
+	X_0  = Y_0[0:-1].copy();
+	µ_0  = Y_0[  -1].copy();
+
+	if symmetric == True:
+		X_SYM  = Eq_SYM(X_0,R);
+		X_0    = X_SYM*X_0;
+	
+	nr = int( X_0.shape[0]/(3*N_fm) );
+	N  = N_fm*nr; 
+	dv = np.random.randn(X_0.shape[0]);
+
+	# Hyper-parameter to balance IP
+	δ  = 1./(3.*N);
+	
+	def PFX(Xn,Ra):
+
+		NX 	= np.zeros(3*N);
+		
+		ψ = Xn[0:N];
+		T = Xn[N:2*N];
+		S = Xn[2*N:3*N];
+
+		# Linear
+		NX[:] = -1.*dt*FX(Xn, *args_FX,     symmetric); # 36% FIX
+		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric);
+		Ω     = A2_SINE(ψ,     D,R,N_fm,nr, symmetric); 
+
+		# 1) Vorticity - Ω
+		NX[0:N]     += Ω + dt*Pr*gr_k.dot(Ra*T - Ra_s*S);
+		ψ_new        =   A4_BSub_TSTEP(NX[0:N],     *args_A4,     Pr*dt, symmetric) - ψ;
+
+		# 2) Temperature - T
+		NX[N:2*N]   += Rsq.dot(T) - dt*ψ_T0;
+		T_new        = NAB2_BSub_TSTEP(NX[N:2*N],   *args_Nab2_T,    dt, symmetric) - T;
+
+		# 3) Solute - S
+		NX[2*N:3*N] += Rsq.dot(S) - dt*ψ_T0;
+		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2_S,Tau*dt, symmetric) - S;
+
+		return np.hstack((ψ_new,T_new,S_new));
+
+	def PDFX(dv,Xn,Ra):
+
+		NX 	   = np.zeros(3*N);
+
+		δψ = dv[0:N];
+		δT = dv[N:2*N];
+		δS = dv[2*N:3*N];
+
+		ψ = Xn[0:N];
+		T = Xn[N:2*N];
+		S = Xn[2*N:3*N];
+
+		# Linear
+		NX[:]  = -1.*dt*DFX(dv,Xn, *args_FX,     symmetric); # 36% FIX
+		δψ_T0  = DT0_theta(δψ,   	DT0,N_fm,nr, symmetric);
+		δΩ     = A2_SINE(δψ,     	D,R,N_fm,nr, symmetric); 
+
+		# 1) Vorticity - ∆Ω
+		NX[0:N]     += δΩ + dt*Pr*gr_k.dot(Ra*δT - Ra_s*δS);
+		ψ_new        =   A4_BSub_TSTEP(NX[0:N],     *args_A4,     Pr*dt, symmetric) - δψ;
+
+		# 2) Temperature - ∆T
+		NX[N:2*N]   += Rsq.dot(δT) - dt*δψ_T0;
+		T_new        = NAB2_BSub_TSTEP(NX[N:2*N],   *args_Nab2_T,    dt, symmetric) - δT;
+
+		# 3) Solute - ∆S
+		NX[2*N:3*N] += Rsq.dot(δS) - dt*δψ_T0;
+		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2_S,Tau*dt, symmetric) - δS;
+
+		return np.hstack((ψ_new,T_new,S_new));
+
+	def PDFµ(Xn):
+		
+		ψ = Xn[0:N];
+		T = Xn[N:2*N];
+		S = Xn[2*N:3*N];
+
+		# DF(X,µ)_µ
+		dfµ       = np.zeros(Xn.shape[0])
+		fµ		  = dt*Pr*gr_k.dot(T)	
+		dfµ[0:N]  = A4_BSub_TSTEP( fµ , *args_A4, Pr*dt, symmetric);
+	
+		return dfµ;
+
+
+	# 1) ~~~~~~~~~~~~~~~~~ Compute Prediction ~~~~~~~~~~~~~~~~~ 
+	if np.linalg.norm(Y_dot,2) == 0:
+		
+		# P*DF(X,µ)_µ	
+		dfµ  = (-1.)*PDFµ(X_0)
+
+		# P*DF(X,µ)_X
+		DF_X = lambda dv: PDFX(dv,X_0,µ_0);
+		dfx  = spla.LinearOperator((X.shape[0],X.shape[0]),matvec=DF_X,dtype='float64');
+
+		# a) Solve pre-conditioned P*DF_X(X_0)*ξ = (-1)*P*DF_µ(X); 
+		b_norm 	= np.linalg.norm(dfµ,2);
+		ξ,exit  = spla.lgmres(dfx,dfµ, tol = tol_gmres*b_norm, maxiter=250, inner_m = Krylov_Space_Size);
+
+		if (exit != 0): 
+			print("\n Warning: couldn't compute prediction for ξ \n")
+			return _,_,_,_,_,False;
+
+		# b) ~~~~~~~~~~~~~~~~~ Compute x_dot, µ_dot algebra ~~~~~~~~~~
+		µ_dot = sign/np.sqrt( 1.0 + δ*(np.linalg.norm(ξ,2)-1.0) );
+		X_dot = µ_dot*ξ; 
+		
+		print("mu_dot ",mu_dot);
+
+	else:
+
+		# Shallow copy as mutable
+		X_dot = Y_0_dot[0:-1].copy(); 
+		µ_dot = Y_0_dot[  -1].copy();	
+
+	# Make prediction	
+	X = X_0 + X_dot*ds; 
+	µ = µ_0 + µ_dot*ds;
+	Y = np.hstack( (X,µ) );
+		
+	#~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~
+
+	G  = np.zeros(Y.shape[0])
+	
+	err_X,err_µ = 1.0,1.0; 
+	iteration   = 0; 
+	exit        = 1.0; 
+
+	while ( (err_X > tol_netwon) or (err_µ > tol_netwon) ):
+		
+		X  = Y[0:-1].copy();
+		µ  = Y[  -1].copy();
+
+		# P*DF(X,µ)_X & P*F(X,µ)_µ
+		DF_X    = lambda dv: PDFX(dv,X,µ);
+		DF_µ    =            PDFµ(X)
+		
+		# F(X,µ) & p(X,µ,s) 
+		G[0:-1] = PFX(X,µ)
+		G[  -1] = δ*np.dot(X_dot,X - X_0)  + (1.-δ)*µ_dot*(µ - µ_0) - ds;
+		
+		# 3) Compute DG_y
+		#~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~
+		DG  = lambda dY: np.vstack( ( DF_X(          dY[0:-1]) 		   + DF_µ*dY[-1], \
+									  δ*np.dot(X_dot,dY[0:-1]) + (1.-δ)*µ_dot*dY[-1] ) );
+		
+		DGy = spla.LinearOperator((Y.shape[0],Y.shape[0]),matvec=DG,dtype='float64');
+
+		b_norm  = np.sqrt( δ*np.dot(G[0:-1],G[0:-1]) + (1.-δ)*(G[-1]**2) );
+		dY,exit = spla.lgmres(DGy,G, tol = tol_gmres*b_norm, maxiter=250, inner_m = Krylov_Space_Size);
+		Y 		= Y - dY;
+
+		# 4) ~~~~~~~~~~~~~~~~~ Compute error ~~~~~~~~~~~~~~~~~
+		err_X = np.linalg.norm(dY[0:-1],2)/np.linalg.norm(X,2);
+		err_µ = abs(dY[-1])/abs(µ);
+		
+		print('Psuedo-Arc Iteration = %d, Error X = %e, Error µ = %e'%(iteration,err_X,err_µ),"\n") 
+		iteration+=1;
+
+		# 5)  ~~~~~~~~~~~~~~~~~  ds control  ~~~~~~~~~~~~~~~~~ 
+		if (iteration > 10) or (exit != 0):
+			
+			iteration=0;
+			ds*=0.5;
+
+			X = X_0 + X_dot*ds; 
+			µ = µ_0 + µ_dot*ds;	
+			Y = np.hstack( (X,µ) );
+
+			if ds < 1e-06:
+				print("\n Warning small step-size terminating solve \n")	
+				return _,_,_,_,_,False;
+
+		elif (iteration < 5) and (exit == 0):
+
+			ds*=2.;
+
+	# Compute diagnoistics	
+	KE = Kinetic_Enegery(Y[0:N], R,D,N_fm,nr, symmetric)
+	NuT= Nusselt(Y[N:2*N]  ,R,D,N_fm,nr);
+	NuS= Nusselt(Y[2*N:3*N],R,D,N_fm,nr);		
+
+	# Compute Y_dot=(X_dot,µ_dot)
+	G[0:-1]=0.;
+	G[  -1]=1.;
+	Y_dot,exit = spla.lgmres(DGy,G, tol = tol_gmres*b_norm, maxiter=250, inner_m = Krylov_Space_Size);
+	
+	if (exit != 0):
+		return 0.*Y_dot,Y,sign,ds, KE,NuT,NuS, True;
+	else:	
+		Y_dot = Y_dot/np.sqrt( δ*np.dot(Y_dot[0:-1],Y_dot[0:-1]) + (1. - δ)*(Y_dot[-1]**2) );
+
+		return    Y_dot,Y,sign,ds, KE,NuT,NuS, True;
+
+def _Continuation(filename,N_steps,	Y, N_fm,N_r,d, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-04,Krylov_Space_Size = 150, symmetric = True):
+
+	"""
+
+	"""
+
+	args_f=(N_fm,N_r,d);
+
+	Y     = Y.copy()
+	Y_dot = np.zeros( Y.shape[0] );
+
+	# Default parameters	
+	ds    =10.0;	
+	sign  =1.;
+	ds_min=1.0;
+	ds_max=10.0;
+
+	Result= result()
+	try:
+		with h5py.File(filename, 'r') as f:
+			ff=f["Bifurcation"]
+			for key in ff.keys():
+				
+				if isinstance(ff[key][()], np.ndarray):
+					setattr(Result, key, ff[key][()].tolist());
+				else:
+					setattr(Result, key, ff[key][()] 		 );	
+		f.close()
+
+		N_steps+=Result.Iterations;
+		Y[0:-1] = Result.X_DATA[-1];
+		Y[-1]   = Result.Ra_DATA[-1];
+
+	except:
+		pass;			
+
+
+	# Main-Loop	
+	while (Result.Iterations < N_steps):
+
+		# 1) Netwon Solve
+		if ds > ds_min:
+
+			Y_new,sign,ds,	KE,NuT,NuS,	exitcode  = _NewtonC(Y,sign,ds, *args_f);			
+
+			if exitcode == False:
+				Y_dot_new, Y_new,sign,ds,	KE,NuT,NuS,	exitcode = _ContinC(Y_dot,Y,sign,ds_min,*args_f);
+				if exitcode == False:
+					print("\n Warning: Neither Netwon nor Psuedo-Arc length converged terminating .... \n")
+					sys.exit();
+
+			elif (ds > ds_max):
+				ds = ds_max;	
+
+		# 2) Psuedo Solve		
+		elif ds <= ds_min:
+
+			Y_dot_new, Y_new,sign,ds,	KE,NuT,NuS,	exitcode = _ContinC(Y_dot,Y,sign,ds,*args_f);
+
+			# Saddle detection
+			if (Y_dot_new[-1]*Y_dot[-1]) < 0:
+				Result.Y_FOLD.append(Y_new);
+
+			# Determine sign for Netwon Step
+			if (Y_new[-1] > Y[-1]):
+				sign = 1.0;
+			else:
+				sign = -1.;	
+
+		
+		# 3) Update solution
+		Y 	  = Y_new.copy(); 	
+		try:
+			Y_dot = Y_dot_new.copy();
+		except:
+			Y_dot =0.*Y;
+
+		# 4) Append & Save data
+		Result.Ra.append( Y[-1]);
+		Result.Ra_dot.append(Y_dot[-1]);
+		
+		Result.KE.append(  KE  );
+		Result.NuT.append( NuT );
+		Result.NuS.append( NuS );         
+		
+		print(Result,flush=True);
+		Result.Iterations+=1
+
+		if Result.Iterations%5==0:
+
+			Result.X_DATA.append( Y[0:-1]);
+			Result.Ra_DATA.append(Y[  -1]);
+
+			Continuation_file = h5py.File(filename, 'w');
+			
+			# Checkpoints for Newton + Timestep
+			Checkpoints = Continuation_file.create_group("Checkpoints");
+			Checkpoints['X_DATA']  = Result.X_DATA;
+			Checkpoints['Ra_DATA'] = Result.Ra_DATA;
+
+			# Problem Params Newton + Timestep
+			Parameters = Continuation_file.create_group("Parameters");
+			for key,val in {"Ra":Result.Ra_DATA[-1],"d":d,	"N_r":N_r,"N_fm":N_fm,"dt":10**4,	"start_time":0.}.items():
+				Parameters[key] = val;
+				
+			# Write thebifurcation object to the file
+			Bifurcation = Continuation_file.create_group("Bifurcation");	
+			for item in vars(Result).items():
+				Bifurcation.create_dataset(item[0], data = item[1])
+			print(Bifurcation.keys())
+			Continuation_file.close()
+
+	return None;	
+
+def _plot_bif(filename):
+
+	obj = result();
+	with h5py.File(filename, 'r') as f:
+		ff=f["Bifurcation"]
+		for key in ff.keys():
+			setattr(obj, key, ff[key][()])
+
+	
+	fig, (ax0, ax1, ax2) = plt.subplots(nrows=1, ncols=3,figsize=(12, 6))
+
+	ax0.plot(obj.Ra,obj.KE,'k-')
+	ax0.set_title(r'Kinetic Energy',fontsize=25)
+
+	ax1.plot(obj.Ra,obj.NuT,'k-')
+	ax1.set_title(r'$Nu_T-1$',fontsize=25)
+
+	ax2.plot(obj.Ra,obj.NuS,'k-')
+	ax2.set_title(r'$Nu_S-1$',fontsize=25)
+	
+	for f in (ax0, ax1, ax2):
+		f.set_xlabel(r'$Ra$',fontsize=25)
+		f.set_xlim([obj.Ra[0],obj.Ra[-1]])
+	
+	plt.tight_layout()
+	plt.savefig("Bifurcation_Series.pdf",format='pdf', dpi=1200)
+	plt.show()        
+
+	return None;
+
+def Continuation(filename,frame):
+
+	"""
+	Given an initial condition and full parameter specification time-step the system
+	using time-stepping scheme CNAB1
+
+	Inputs:
+
+	filename
+	defaults
+	dt - (float) default time-step for time-integration
+
+	Returns:
+
+	"""
 
 	# ~~~~~~~~~ New Initial Conditions ~~~~~~~~~~~~~~~~~~
 	if filename.endswith('.h5'):
@@ -753,21 +1241,25 @@ def Time_Step(filename='blah',frame=-1):
 		try:
 			start_time  = f['Scalar_Data/Time'][()][frame]
 		except:
+			start_time  =0
 			pass;
 		f.close();    
 
 		print("\n Loading time-step %e with parameters Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(start_time,Ra,d,N_fm,N_r))    
 
-		
 		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
 		from Matrix_Operators import INTERP_RADIAL, INTERP_THETAS
 		fac_R =1; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
 		fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	Total_time = 5*(10**3)*(1./Tau);
+	fname  = 'Continuation_Test.h5'
+	Y      = np.hstack( (X,Ra) );
+	N_steps= 100;
+	
+	_Continuation(fname,N_steps,Y, N_fm,N_r,d, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-04,Krylov_Space_Size = 150, symmetric = True)
 
-	X_new = _Time_Step(X,Ra, N_fm,N_r,d, start_time, Total_time, dt=5e-02, symmetric = False);
+	_plot_bif(fname)
 
 	return None;
 
@@ -775,9 +1267,14 @@ def Time_Step(filename='blah',frame=-1):
 # Execute main
 if __name__ == "__main__":
 	
-	file = 'Time_Integration_Data.h5'; frame = -1;
+	#file = 'Time_Integration_Data_SYM.h5'; frame = -1;
 	
-	Newton(file,frame);
+	file = 'Y_Nt300_Nr30_l10_Ra100.npy'; frame = -1;
+	#Newton(file,frame);
 	
 	#file ='Newton_Iteration_Data.h5'; frame = 0;
-	#Time_Step();#(file,frame);
+	Time_Step(file,frame);
+
+	#Continuation(file,frame)
+
+##	
