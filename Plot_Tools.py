@@ -462,7 +462,7 @@ def Energy(filename,frame):
 
 	plt.semilogy(LLc[:],E_PSI[:], 'k.',label=r'$\hat{\psi} \sim \sin(k \theta)$')
 	plt.semilogy(LLc[:],  E_T[:], 'r.',label=r'$\hat{T}$')
-	#plt.semilogy(LLc[:],  E_S[:], 'b.',label=r'$\hat{S}$')
+	plt.semilogy(LLc[:],  E_S[:], 'b.',label=r'$\hat{S}$')
 
 	plt.xlabel(r'Fourier-mode $k$', fontsize=26); #plt.xticks(np.arange(0,N_Modes,10))
 	plt.ylabel(r'$||X_k||$', fontsize=26)
@@ -502,8 +502,9 @@ def Plot_Time_Step(filename,logscale=True):
 	#NuT   = NuT + np.ones(len(NuT))
 	NuS   = f['Scalar_Data/Nu_S'][()][st_pt:-1]
 	#NuS   = NuS + np.ones(len(NuS))
-
 	f.close()
+
+	#print(len(NuS))	
 
 	fig, (ax0, ax1, ax2) = plt.subplots(nrows=1, ncols=3,figsize=(12, 6)) #  sharex=True,
 
@@ -731,6 +732,6 @@ if __name__ == "__main__":
 
 	#filename ='Newton_Iteration_Data.h5'; frame = 0;
 	
-	#Uradial_plot(filename,frame)
+	Uradial_plot(filename,frame)
 	Energy(filename, frame)
 	Cartesian_Plot(filename, frame);

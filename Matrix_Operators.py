@@ -42,7 +42,7 @@ def Nabla2(D,r):
 	# Leaving out the edges enforces the dircihlet b.c.s
 	return A[1:-1,1:-1];
 
-def Nabla4(D,r): # Didn't check
+def Nabla4(D,r):
 	
 	"""
 	
@@ -122,8 +122,6 @@ def kGR_RT(R,N_fm,d): # Correct
 		A1.append(AT)		
 
 	return bmat(A1,format="csr")
-
-
 
 
 @njit(fastmath=True) # Just check dT_0/dr form and sign
@@ -245,7 +243,6 @@ def A2_SINE(g,  D,R,N_fm,nr, symmetric = False):
 
 # O(Nr^3 N_theta) complexity
 #~~~~~~~~~~~~~
-# Fixed an error corresponding to the zero mode needing to be multiplied by 2
 @njit(fastmath=True)
 def NAB2_BSub_TSTEP(g, R2_Nab2,R2,I,N_fm,nr,dt, symmetric = False):
 	
@@ -434,10 +431,6 @@ def A4_BSub_TSTEP(g,  D4,IR4, D2,A2,IR2, N_fm,nr,dt, symmetric = False):
 #~~~~~~~~~~~~~
 
 
-
-
-
-
 # O(Nr^2 N_theta) complexity & Memory
 #~~~~~~~~~~~~~
 
@@ -531,7 +524,7 @@ def NAB2_BSub_TSTEP_V2(g, L_inv,N_fm,nr,dt, symmetric = False):
 
 	return f;
 
-# ERROR IN THESE SOMEWHERE??
+# ERROR IN THESE TWO
 
 def A4_TSTEP_MATS(  dt,N_fm,nr,D,R):
 	
@@ -662,10 +655,6 @@ def A4_BSub_TSTEP_V2(g,  L_inv,D,R,N_fm,nr,dt, symmetric = False):
 	return f;
 
 #~~~~~~~~~~~~~
-
-
-
-
 
 
 
@@ -1408,10 +1397,6 @@ def A2_theta_S(R,N_fm):
 	
 	return bmat(AT,format="csr");
 
-#D,R=cheb_radial(4,1)
-#print(A2_theta_S(R,4).toarray())
-
-
 def NABLA2_SINE(D,R,N_fm):
 
 	from scipy.sparse import block_diag
@@ -1447,3 +1432,8 @@ def NABLA4_SINE(D,R,N_fm):
 	A2_theta = A2_theta_S(R,N_fm).toarray()
 
 	return LAP4 + A2_theta@DTT + A2_theta@A2_theta; 
+
+
+#D,R=cheb_radial(4,1)
+#print(A2_theta_S(R,4).toarray())
+	

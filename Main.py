@@ -6,16 +6,16 @@ import sys, os, time, warnings, h5py
 warnings.simplefilter('ignore', np.RankWarning)
 
 # ~~~~~~~~~~~~~~~ Global Parameters ~~~~~~~~~~~~~~~
-#Tau = 1./15.; Pr = 1.0; Lx = np.pi; Ra_s = 500.0;
+Tau = 1./15.; Pr = 1.0; Lx = np.pi; Ra_s = 0.0;
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # ~~~~~~~~~~~~~~~ Gap widths l=10~~~~~~~~~~~~~~~
-#d = 0.353; Ra_HB_c = 2967.37736364 ; Ra_SS_c = 9853.50008503;
+d = 0.353; Ra_HB_c = 2967.37736364 ; Ra_SS_c = 9853.50008503;
 
 # ~~~~~~~~~~~~~~~ Gap widths l=2~~~~~~~~~~~~~~~
-Tau = 1.; Pr = 1.; Lx = np.pi; Ra_s = 0.0;
-d  = 2.0; Ra = 7.267365e+03 + 10.; 
-
+#Tau = 1.; Pr = 1.; Lx = np.pi; Ra_s = 500.0;
+#d  = 2.0; Ra = 7.267365e+03 + 1.; 
+#d    = 2.0; Ra = 6.77*(10**3) + 1.; #RBC bif
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Self-made packages
@@ -45,7 +45,7 @@ def Base_State_Coeffs(d):
 
 	return A_T,B_T;
 
-@njit(fastmath=True)
+#@njit(fastmath=True)
 def Nusselt(T_hat, R,D,N_fm,nr):
 
 	"""
@@ -73,8 +73,8 @@ def Nusselt(T_hat, R,D,N_fm,nr):
 
 	NuM1 = ((R**2)/A_T)*(NuM1/N_fm); # Scale by 1/N due to DCT
 
-	print("|Nu(R_1) - Nu(R_2)| = ",(abs(NuM1[-1] - NuM1[0]) ) )
-	print("Inner Nu= %e, Outer Nu=%e"%(NuM1[0],NuM1[-1]),"\n")
+	print("|Nu(R_1) - Nu(R_2)|/|Nu(R_1)| = ",( abs(NuM1[-1] - NuM1[0])/abs(NuM1[-1]) ) )
+	#print("Inner Nu= %e, Outer Nu=%e"%(NuM1[0],NuM1[-1]),"\n")
 	return NuM1[0];
 
 def Kinetic_Enegery(X_hat, R,D,N_fm,nr, symmetric = True):
@@ -458,7 +458,7 @@ def Newton(filename='blah',frame=-1):
 	# l =2 mode
 	N_fm = 300; 
 	N_r  = 30;
-	d    = 2.0; Ra = 7.267365e+03 + 10.
+	d = 0.353;
 
 	# ~~~~~~~~~ Random Initial Conditions ~~~~~~~~~~~~~~~~
 	D,R  = cheb_radial(N_r,d); 
@@ -586,7 +586,7 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 	error     = 1.0;
 	iteration = 0;
 	N_iters   = int(Total_time/dt);
-	N_save    = 10;#N_iters/10;
+	N_save    = int(N_iters/10);
 	N_print   = 10;
 	N         = int(X.shape[0]/3)
 
@@ -634,20 +634,14 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 		X_new,kinetic = Step_Python(X,True);
 		END_time = time.time();
 		
-		#KE = Kinetic_Enegery(Xn, R,D,N_fm,nr, symmetric);
-		#val = Kinetic_Enegery(X, R,D,N_fm,nr, symmetric = False); print(val)	
-
-		#NuT.append( np.linalg.norm(X_new,2) )
-		#NuS.append( np.linalg.norm(X_new[2*N:3*N],2) )
 
 		KE.append(  abs(kinetic) );
 		NuT.append( Nusselt(X_new[N:2*N]  ,R,D,N_fm,nr) );
 		NuS.append( Nusselt(X_new[2*N:3*N],R,D,N_fm,nr) );
 		Time.append(start_time + dt*iteration);
 
-		#if iteration%N_print == 0:
-			
-		print("Iteration =%i, Time = %e, Energy = %e, NuT = %e \n "%(iteration,start_time + dt*iteration,KE[-1],NuT[-1]))
+		if iteration%N_print == 0:
+			print("Iteration =%i, Time = %e, Energy = %e, NuT = %e \n "%(iteration,start_time + dt*iteration,KE[-1],NuT[-1]))
 
 		if iteration%N_save == 0:	
 
@@ -700,11 +694,10 @@ def Time_Step(filename='blah',frame=-1):
 
 	"""
 
-	# l =2 mode
-	N_fm = 20; 
+	N_fm = 100; 
 	N_r  = 20;
-	#d    = 2.0; Ra = 7.267365e+03 + 10.
-	d    = 2.0; Ra = 6.77*(10**3) + 10.
+	d = 0.353;
+	Ra = 2375.0;
 
 	# ~~~~~~~~~ Random Initial Conditions ~~~~~~~~~~~~~~~~
 	D,R  = cheb_radial(N_r,d); 
@@ -712,10 +705,9 @@ def Time_Step(filename='blah',frame=-1):
 	N 	 = nr*N_fm;
 
 	X = np.random.rand(3*N);
-	X = (X/np.linalg.norm(X,2))
+	X = 1e-03*(X/np.linalg.norm(X,2))
 	
 	start_time = 0.;
-	# ~~~~~~~~~ Old Initial Conditions ~~~~~~~~~~~~~~~~~~
 	# ~~~~~~~~~ Old Initial Conditions ~~~~~~~~~~~~~~~~~~
 	if filename.endswith('.npy'):
 		Y  = np.load(filename);
@@ -744,13 +736,13 @@ def Time_Step(filename='blah',frame=-1):
 		
 		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
 		from Matrix_Operators import INTERP_RADIAL, INTERP_THETAS
-		fac_R =2; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
+		fac_R =1; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
 		fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	Total_time = 4*(10**3)*(1./Tau);
+	Total_time = 100.*(1./Tau);
 
-	X_new = _Time_Step(X,Ra, N_fm,N_r,d, start_time, Total_time, dt=1e-01, symmetric =True);
+	X_new = _Time_Step(X,Ra, N_fm,N_r,d, start_time, Total_time, dt=1e-02, symmetric =True);
 
 	return None;
 
@@ -1237,7 +1229,7 @@ if __name__ == "__main__":
 	
 	file = 'Time_Integration_Data_SYM.h5'; frame = -1;
 	
-	#file = 'Y_Nt300_Nr30_l10_Ra100.npy'; frame = -1;
+	#file = 'Y_Nt300_Nr30_INIT_l10_POS.npy'; frame = -1;
 	#Newton(file,frame);
 	
 	#file ='Newton_Iteration_Data.h5'; frame = 0;
