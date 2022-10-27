@@ -6,14 +6,15 @@ import sys, os, time, warnings, h5py
 warnings.simplefilter('ignore', np.RankWarning)
 
 # ~~~~~~~~~~~~~~~ Global Parameters ~~~~~~~~~~~~~~~
-Tau = 1./15.; Pr = 1.0; Lx = np.pi; Ra_s = 500.0;
+#Tau = 1./15.; Pr = 1.0; Lx = np.pi; Ra_s = 500.0;
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # ~~~~~~~~~~~~~~~ Gap widths l=10~~~~~~~~~~~~~~~
-d = 0.353; Ra_HB_c = 2967.37736364 ; Ra_SS_c = 9853.50008503;
+#d = 0.353; Ra_HB_c = 2967.37736364 ; Ra_SS_c = 9853.50008503;
 
 # ~~~~~~~~~~~~~~~ Gap widths l=2~~~~~~~~~~~~~~~
-#d  = 2.0; Ra = 7.267365e+03 + 10.; 
+Tau = 1.; Pr = 1.; Lx = np.pi; Ra_s = 0.0;
+d  = 2.0; Ra = 7.267365e+03 + 10.; 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -44,7 +45,7 @@ def Base_State_Coeffs(d):
 
 	return A_T,B_T;
 
-#@njit(fastmath=True)
+@njit(fastmath=True)
 def Nusselt(T_hat, R,D,N_fm,nr):
 
 	"""
@@ -56,49 +57,51 @@ def Nusselt(T_hat, R,D,N_fm,nr):
 	"""
 
 	# Compute coefficients
-	A_T    = Base_State_Coeffs(d)[0];
+	#A_T    = Base_State_Coeffs(d)[0];
+	R_1 = 1./d; 
+	R_2 = (1. + d)/d;
+	A_T = (R_1*R_2)/(R_1 - R_2);
+
 	NuM1   = np.zeros(len(R)); 
 
 	# Take every-second component
 	for k in range(0,N_fm,2):
-		TT       = np.zeros(len(R));
-		TT[1:-1] = T_hat[k*nr:(k+1)*nr]; 
-		NuM1    += (D@TT)/(1.-(k**2));
+		TT 	    = np.zeros(len(R));
+		TT[1:-1]= T_hat[k*nr:(k+1)*nr];
+		NuM1   += (D@TT)/(1.-(k**2));
 
-	NuM1 = ((R**2)/A_T)*(NuM1/N_fm); # Scale by 1/N due to dct ?
 
-	#print("|Nu(R_1) - Nu(R_2)|/|Nu(R_1)| = ",(abs(NuM1[-1] - NuM1[0])/abs(NuM1[0]) ) )
-	#print("Inner Nu= %e, Outer Nu=%e"%(NuM1[0],NuM1[-1]),"\n")
+	NuM1 = ((R**2)/A_T)*(NuM1/N_fm); # Scale by 1/N due to DCT
+
+	print("|Nu(R_1) - Nu(R_2)| = ",(abs(NuM1[-1] - NuM1[0]) ) )
+	print("Inner Nu= %e, Outer Nu=%e"%(NuM1[0],NuM1[-1]),"\n")
 	return NuM1[0];
 
-#Fix
 def Kinetic_Enegery(X_hat, R,D,N_fm,nr, symmetric = True):
 
 	"""
 
 	Compute the volume integrated kinetic energy
 
+	KE = int_r1^r2 (1/2)int_0^π KE(r,θ) r^2 sin(θ) dr dθ
 
 	"""
 
 	from Matrix_Operators import J_theta_RT
-	from scipy.fft import dct, idct, dst, idst
+	from scipy.fft import idct, dst, idst
 
 	N = N_fm*nr
 
-	IR = np.diag(1./R[1:-1]);
-	IR = np.ascontiguousarray(IR); 
+	IR  = np.diag(1./R[1:-1]);
+	IR  = np.ascontiguousarray(IR); 
 	IR2 = IR@IR;
 
-	#'''
 	Jψ_hat  = J_theta_RT(X_hat[0:N], nr,N_fm, symmetric)
 	Jψ_hat  = np.ascontiguousarray(Jψ_hat);
 	Dr      = np.ascontiguousarray(D[1:-1,1:-1]);
 
-	sp = (nr, int( 3*(N_fm/2)) ); # ZERO-PADDED FOR DE-ALIASING !!!!!
-	
-	u_r_hat = np.zeros(sp); 
-	u_θ_hat = np.zeros(sp); 
+	u_r_hat = np.zeros( (nr, N_fm) ); 
+	u_θ_hat = np.zeros( (nr, N_fm) ); 
 	
 	if symmetric == True:
 		for ii in range(1,N_fm,2):
@@ -106,8 +109,8 @@ def Kinetic_Enegery(X_hat, R,D,N_fm,nr, symmetric = True):
 			ind_p = ii*nr; 
 			ψ_hat = X_hat[ind_p:ind_p+nr];
 
-			u_r_hat[:,ii]  = Jψ_hat[ind_p:ind_p+nr]; #IR2.dot(Jψ_hat[ind_p:ind_p+nr]);
-			u_θ_hat[:,ii]  = Dr.dot(ψ_hat); #-IR.dot(Dr.dot(ψ_hat));
+			u_r_hat[:,ii]  = Jψ_hat[ind_p:ind_p+nr];
+			u_θ_hat[:,ii]  = Dr.dot(ψ_hat);
 
 	elif symmetric == False:
 
@@ -116,23 +119,16 @@ def Kinetic_Enegery(X_hat, R,D,N_fm,nr, symmetric = True):
 			ind_p = ii*nr; 
 			ψ_hat = X_hat[ind_p:ind_p+nr];
 
-			u_r_hat[:,ii]  = Jψ_hat[ind_p:ind_p+nr]; #IR2.dot(Jψ_hat[ind_p:ind_p+nr]);
-			u_θ_hat[:,ii]  = Dr.dot(ψ_hat); #-IR.dot(Dr.dot(ψ_hat));
+			u_r_hat[:,ii]  = Jψ_hat[ind_p:ind_p+nr];
+			u_θ_hat[:,ii]  = Dr.dot(ψ_hat);
 
-	u_r = idct( u_r_hat,type=2,axis=-1,norm='ortho',overwrite_x=True);
-	u_θ = idst( u_θ_hat,type=2,axis=-1,norm='ortho',overwrite_x=True);
-	#'''	
-
+	u_r = idct( u_r_hat,type=2,axis=-1,overwrite_x=True,n=(3*N_fm)//2);
+	u_θ = idst( u_θ_hat,type=2,axis=-1,overwrite_x=True,n=(3*N_fm)//2);
 	u_r = IR2@u_r;
 	u_θ = -IR@u_θ;
 
 	KE_rθ = abs(u_r)**2 + abs(u_θ)**2;
 
-	θ = np.zeros(N_fm);
-	for n in range(N_fm):
-		θ[n] = np.pi*( (2*n+1.0)/(2.0*N_fm) );
-	norm_coeff = 1./dst(np.sin(θ),type=2,norm='ortho')[0];
-	
 	#
 	# Test radial
 	#R_1,R_2 =R[0],R[-1];
@@ -150,11 +146,11 @@ def Kinetic_Enegery(X_hat, R,D,N_fm,nr, symmetric = True):
 	f_θ = np.sin(θ);
 	KE_rθ = np.outer(f_r[1:-1],f_θ)
 	'''
-	# Integrate in θ and take zero mode essentially the IP with 
 
+	# Integrate in θ and take zero mode essentially the IP with 
 	# KE = int_r1^r2 (1/2)int_0^π KE(r,θ) r^2 sin(θ) dr dθ
 	KE_r       = np.zeros(len(R));
-	KE_r[1:-1] = norm_coeff*dst(KE_rθ,type=2,axis=-1,norm='ortho',overwrite_x=True)[:,0];
+	KE_r[1:-1] = (1./N_fm)*dst(KE_rθ,type=2,axis=-1,overwrite_x=True)[:,0];
 
 	# Multiply by r^2 and integrate w.r.t r
 	KE_r = R*R*KE_r;
@@ -220,35 +216,14 @@ def Build_Matrix_Operators(N_fm,N_r,d):
 	"""
 	
 	from Matrix_Operators import R2, kGR_RT
-	from scipy.fft import dct, idct, dst, idst
-
-
+	
 	D,R = cheb_radial(N_r,d); 
 	nr  = len(R[1:-1]);
-
-	print("Building Matrices .... \n")
-	# Memory Intensive at start-up so replace	
 
 	# 1) Build wave-number weights
 	# ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~
 	# Use correct grid for DCT-II
-	θ = np.zeros(N_fm);
-	for n in range(N_fm):
-		θ[n] = Lx*( (2*n+1.0)/(2.0*N_fm) );	# x in [0,L] 
-		
-	# Normalization Weights, must be inverses
-	akc = np.zeros(N_fm); 
-	aks = np.zeros(N_fm);
-	for k in range(N_fm):
-		ks = k + 1;
-		kc = k; 
-		akc[k] = 1.0/dct(np.cos(kc*θ),type=2,norm='ortho')[k]; # cosine
-		aks[k] = 1.0/dst(np.sin(ks*θ),type=2,norm='ortho')[k]; # sine
-
-	
-	#print("f=",f,"\n")
-	#print("aks=",aks,"\n")
-	#sys.exit()	
+	#θ = [ Lx*( (2*n+1.0)/(2.0*N_fm) ) for n in range(N_fm) ]; # x in [0,L] 
 	# ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~	
 
 	Rsq   =       R2(R,N_fm); 
@@ -258,7 +233,7 @@ def Build_Matrix_Operators(N_fm,N_r,d):
 	A_T = Base_State_Coeffs(d)[0];
 	DT0 = A_T/(R[1:-1]**2);
 
-	return D,R,	Rsq,DT0,gr_K,	aks,akc;
+	return D,R,	Rsq,DT0,gr_K;
 
 def Build_Matrix_Operators_TimeStep(N_fm,N_r,d):
 
@@ -275,7 +250,7 @@ def Build_Matrix_Operators_TimeStep(N_fm,N_r,d):
 
 	from Matrix_Operators import Nabla2, Nabla4
 
-	D,R,	Rsq,DT0,gr_K,	aks,akc = Build_Matrix_Operators(N_fm,N_r,d);
+	D,R,	Rsq,DT0,gr_K = Build_Matrix_Operators(N_fm,N_r,d);
 
 	# NAB2_BSub_TSTEP
 	Nab2 = Nabla2(D,R); Nab2 = np.ascontiguousarray(Nab2);
@@ -309,7 +284,7 @@ def Build_Matrix_Operators_TimeStep(N_fm,N_r,d):
 
 	args_Nab2 = (Nab2,R2,I,N_fm,nr);
 	args_A4	  = (D4  ,IR4,D2,A2,IR2, N_fm,nr);
-	args_FXS  = (inv_D, D,R,N_fm,nr,aks,akc);
+	args_FXS  = (inv_D, D,R,N_fm,nr);
 
 	return D,R,	Rsq,DT0,gr_K, N_fm,nr, args_Nab2,args_A4,args_FXS;
 
@@ -631,7 +606,7 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 			NX[:]	= -1.*dt*FX(Xn, *args_FX,     symmetric,kinetic); # 36% FIX
 		#'''
 		#KE = Kinetic_Enegery(Xn, R,D,N_fm,nr, symmetric);
-		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric); 
+		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric);
 		Ω     = A2_SINE(ψ,   D,R,N_fm,nr, symmetric); 
 
 
@@ -646,8 +621,7 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 		# 3) Solute - S
 		NX[2*N:3*N] += Rsq.dot(S) - dt*ψ_T0;
 		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2_S,Tau*dt, symmetric);  
-
-
+	
 		if kinetic == True:
 			return np.hstack((ψ_new,T_new,S_new)),KE;
 		else:
@@ -726,16 +700,11 @@ def Time_Step(filename='blah',frame=-1):
 
 	"""
 
-	# l=10 mode
-	N_fm = 300; 
-	N_r  = 30;
-	d    = 0.353; Ra = 9853.50008503 - 5.; 
-
 	# l =2 mode
-	#N_fm = 20; 
-	#N_r  = 20;
+	N_fm = 20; 
+	N_r  = 20;
 	#d    = 2.0; Ra = 7.267365e+03 + 10.
-	#d    = 2.0; Ra = 6.77*(10**3) + 10.
+	d    = 2.0; Ra = 6.77*(10**3) + 10.
 
 	# ~~~~~~~~~ Random Initial Conditions ~~~~~~~~~~~~~~~~
 	D,R  = cheb_radial(N_r,d); 
@@ -775,13 +744,13 @@ def Time_Step(filename='blah',frame=-1):
 		
 		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
 		from Matrix_Operators import INTERP_RADIAL, INTERP_THETAS
-		fac_R =1; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
+		fac_R =2; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
 		fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	Total_time = .005*(1./Tau);
+	Total_time = 4*(10**3)*(1./Tau);
 
-	X_new = _Time_Step(X,Ra, N_fm,N_r,d, start_time, Total_time, dt=1e-04, symmetric =True);
+	X_new = _Time_Step(X,Ra, N_fm,N_r,d, start_time, Total_time, dt=1e-01, symmetric =True);
 
 	return None;
 
@@ -862,7 +831,6 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, *args_f):
 	from Matrix_Operators import DT0_theta,A2_SINE
 	
 	D,R,	Rsq,DT0,gr_k,N_fm,nr,	args_Nab2,args_A4,args_FX = Build_Matrix_Operators_TimeStep(N_fm,N_r,d);
-
 
 	args_Nab2_T = args_Nab2; 
 	args_Nab2_S = args_Nab2;
@@ -1267,13 +1235,13 @@ def Continuation(filename,frame):
 # Execute main
 if __name__ == "__main__":
 	
-	#file = 'Time_Integration_Data_SYM.h5'; frame = -1;
+	file = 'Time_Integration_Data_SYM.h5'; frame = -1;
 	
-	file = 'Y_Nt300_Nr30_l10_Ra100.npy'; frame = -1;
+	#file = 'Y_Nt300_Nr30_l10_Ra100.npy'; frame = -1;
 	#Newton(file,frame);
 	
 	#file ='Newton_Iteration_Data.h5'; frame = 0;
-	Time_Step(file,frame);
+	Time_Step();#(file,frame);
 
 	#Continuation(file,frame)
 

@@ -9,13 +9,16 @@ def SPEC_TO_GRID(R,xx,N_fm,X,d): # Fix this code to extend to the boundaries
 	
 	# 2) Normalization Weights, must be inverses
 	x = np.linspace(0,np.pi,N_fm);
-	const = 1.0/dct(np.cos(0.0*x),type=2,norm='ortho')[0];
 	
-	#print const
 		
 	Nr = len(R); t_0 = np.zeros(len(R)); 
 	# Base State
-	A_T, B_T = -(1.0+d)/d, -1.0/d; #alpha = 1.0+d;
+	R_1 = 1./d; 
+	R_2 = (1. + d)/d;
+
+	A_T = (R_1*R_2)/(R_1 - R_2);
+	B_T =      R_1 /(R_1 - R_2);
+
 	for ii in range(Nr):
 		t_0[ii] = (-A_T/R[ii] + B_T)
 	TR_0 = np.polyval(np.polyfit(R,t_0,Nr),xx)
@@ -37,45 +40,33 @@ def SPEC_TO_GRID(R,xx,N_fm,X,d): # Fix this code to extend to the boundaries
 
 		ind = 2*N + ii*nr
 		Conc[:,ii] = X[ind:ind+nr,0].reshape(nr);
-		#if ii == 0:
-		#	Temp[:,ii] = Temp[:,ii] + t_0[1:-1];
-		#	Conc[:,ii] = Conc[:,ii] + t_0[1:-1]
 
+	
+	#Temp[:,0] += t_0
+	#Conc[:,0] += t_0
 	# 2) Take the idct, idst of each radial level set
-	for jj in range(nr):
-		Vort[jj,:] = idst(Vort[jj,:],type=2,norm='ortho')
-		Temp[jj,:] = idct(Temp[jj,:],type=2,norm='ortho') # Assuming these must be normalized?
-		Conc[jj,:] = idct(Conc[jj,:],type=2,norm='ortho')
+	Vort = idst(Vort/N_fm,type=2,axis=-1)
+	Temp = idct(Temp/N_fm,type=2,axis=-1) # Assuming these must be normalized?
+	Conc = idct(Conc/N_fm,type=2,axis=-1)
 
 
 	# B) Visualisation grid
 	s = (len(xx),N_fm);
 	PSI, T, C = np.zeros(s), np.zeros(s), np.zeros(s); 	
 	
-	
 	# 3) Polyfti
 	for ii in range(N_fm):
 		
-		ind = ii*nr
-		
 		psi = np.hstack((0,Vort[:,ii],0));
-		PSI[:,ii] = const*np.polyval(np.polyfit(R,psi,Nr),xx)
-		#psi = Vort[:,ii]
-		#PSI[:,ii] = np.polyval(np.polyfit(R[1:-1],psi,nr),xx)
+		PSI[:,ii] = np.polyval(np.polyfit(R,psi,Nr),xx)
 		
 		t = np.hstack((0,Temp[:,ii],0))
-		T[:,ii] = const*np.polyval(np.polyfit(R,t,Nr),xx)
-		#t = Temp[:,ii]
-		#T[:,ii] = const*np.polyval(np.polyfit(R[1:-1],t,nr),xx)
+		T[:,ii] = np.polyval(np.polyfit(R,t,Nr),xx)
 		
 		c = np.hstack((0,Conc[:,ii],0))
-		C[:,ii] = const*np.polyval(np.polyfit(R,c,Nr),xx)
-		#c = Conc[:,ii]
-		#C[:,ii] = const*np.polyval(np.polyfit(R[1:-1],c,nr),xx)	
+		C[:,ii] = np.polyval(np.polyfit(R,c,Nr),xx)
 		
-
-	return PSI, T, C,T_0;
-	#return Vort, Temp, Conc,T_0;
+	return PSI, T, 0.*C,T_0;
 
 def Plot_Package_CHE(R,theta,omega,psi,thermal,sigma): # Returns Array accepted by contourf - function
 
@@ -562,11 +553,7 @@ def Plot_Time_Step(filename,logscale=True):
 
 def Spectral_To_Gridpoints(X, R,xx,N_fm,d): # Fix this code to extend to the boundaries
 
-	from scipy.fft import dct, idct, dst, idst
-
-	# 2) Normalization Weights, must be inverses
-	x = np.linspace(0,np.pi,N_fm);
-	const = 1.0/dct(np.cos(0.0*x),type=2,norm='ortho')[0];
+	from scipy.fft import idct,idst
 		
 	Nr  = len(R); 
 	t_0 = np.zeros(len(R)); 
@@ -603,9 +590,9 @@ def Spectral_To_Gridpoints(X, R,xx,N_fm,d): # Fix this code to extend to the bou
 		Conc[:,ii] = X[ind:ind+nr]
 	
 	# 2) Take the idct, idst of each radial level set
-	Vort = idst(Vort,type=2,axis=-1,norm='ortho',overwrite_x=True)
-	Temp = idct(Temp,type=2,axis=-1,norm='ortho',overwrite_x=True) # Assuming these must be normalized?
-	Conc = idct(Conc,type=2,axis=-1,norm='ortho',overwrite_x=True)
+	Vort = idst(Vort/N_fm,type=2,axis=-1,overwrite_x=True)
+	Temp = idct(Temp/N_fm,type=2,axis=-1,overwrite_x=True)
+	Conc = idct(Conc/N_fm,type=2,axis=-1,overwrite_x=True)
 
 	# B) Visualisation grid
 	s = (len(xx),N_fm);
@@ -617,13 +604,13 @@ def Spectral_To_Gridpoints(X, R,xx,N_fm,d): # Fix this code to extend to the bou
 		ind = ii*nr
 		
 		psi       = np.hstack((0,Vort[:,ii],0));
-		PSI[:,ii] = const*np.polyval(np.polyfit(R,psi,Nr),xx)
+		PSI[:,ii] = np.polyval(np.polyfit(R,psi,Nr),xx)
 		
 		t       = np.hstack((0,Temp[:,ii],0))
-		T[:,ii] = const*np.polyval(np.polyfit(R,t,Nr),xx)
+		T[:,ii] = np.polyval(np.polyfit(R,t,Nr),xx)
 		
 		c       = np.hstack((0,Conc[:,ii],0))
-		C[:,ii] = const*np.polyval(np.polyfit(R,c,Nr),xx)
+		C[:,ii] = np.polyval(np.polyfit(R,c,Nr),xx)
 		
 	return PSI, T, C,T_0;
 
