@@ -1,13 +1,12 @@
 #! /usr/bin/env python
 
 import numpy as np
-import os, time, sys
 import matplotlib.pyplot as plt
 
 from Linear_Matrix_Operators import ML_0, Ll_0, cheb_radial
 
 
-def Eig_Vals(Ra1,l,d,Nvals, Ra_s=500,Pr=1,Tau=1./15., Nr = 30):	
+def Eig_Vals(Ra1,l,d,Nvals, Ra_s=500,Pr=1,Tau=1./15., Nr = 20):	
 	
 	"""
 	Solve the EVP for a given 
@@ -48,7 +47,7 @@ def Eig_Vals(Ra1,l,d,Nvals, Ra_s=500,Pr=1,Tau=1./15., Nr = 30):
 	else:
 		return eigenValues[0:Nvals];	
 
-def Eig_Vec( Ra1,l,d,    k, Ra_s=500,Pr=1,Tau=1./15., Nr = 30):
+def Eig_Vec( Ra1,l,d,    k, Ra_s=500,Pr=1,Tau=1./15., Nr = 20):
 	
 	"""
 	Solve the EVP for a given 
@@ -315,6 +314,11 @@ def Neutral(Ra_c_hopf,Ra_c_steady,l,d_org):
 
 def main_program():
 
+	# Validation Case
+	d = 2; Ra_c = 7268.365; l =2;
+	Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=500,Pr=1.,Tau=1., Nr = 20);
+	print(Eig_val)
+
 	# ~~~~~# L = 20 Gap #~~~~~~~~~# 
 	#d = 0.1625; 
 	# Hopf-bifurcation omega = 7.5; 
@@ -325,17 +329,19 @@ def main_program():
 	# ~~~~~# L = 10 Gap #~~~~~~~~~#
 	#d = 0.353;
 	# Hopf-bifurcation omega = 7.5; 
-	#l = 10.0; Ra_c_hopf = 2967.37736364 
+	#l = 10.0; Ra_c  = 2967.37736364 
 	## Steady-bifurcation
-	#l = 10.0; Ra_c_steady = 9853.50008503; 
+	#l = 10.0; Ra_c = 9853.50008503; 
 
-	#Eig_val = Eig_Vals(Ra_c,l,d,0);
+	#Eig_val = Eig_Vals(Ra_c,l,d,2);
 	#Eig_vec = Eig_Vec( Ra_c,l,d,0);
-	d    = 2.0; Ra_c = 6.77*(10**3) + 1.; l=2;
-	Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=0,Pr=.1,Tau=1., Nr = 20);
-	print(Eig_val)
+	
+	
+	#d    = 2.0; Ra_c = 6.77*(10**3) + 1.; l=2;
+	#Eig_val = Eig_Vals(Ra_c,l,d,0)#,Ra_s=0,Pr=1.,Tau=1., Nr = 30);
+	#print(Eig_val)
 
-	Ra_Stability_Trace(Ra_c,d,2)
+	#Ra_Stability_Trace(Ra_c,d,2)
 
 	#Neutral(Ra_c_hopf,Ra_c_steady,l,d)
 
@@ -345,4 +351,9 @@ def main_program():
 # Execute main
 if __name__ == "__main__":
 
+	# %%
+	%matplotlib inline
+	# %%
 	main_program();
+
+# %%

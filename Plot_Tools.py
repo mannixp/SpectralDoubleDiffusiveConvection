@@ -495,7 +495,7 @@ def Plot_Time_Step(filename,logscale=True):
 
 	print(list(f.keys()))
 
-	st_pt = 0
+	st_pt = 10
 	Time  = f['Scalar_Data/Time'][()][st_pt:-1]
 	KE    = f['Scalar_Data/KE'][()][st_pt:-1]
 	NuT   = f['Scalar_Data/Nu_T'][()][st_pt:-1]
@@ -512,11 +512,11 @@ def Plot_Time_Step(filename,logscale=True):
 	if logscale == True:
 		ax0.semilogy(Time,KE,'k-')
 
-		slope, intercept = np.polyfit(Time,np.log(KE),1)
-		print("Slope KE m=",slope,"\n");
+		#slope, intercept = np.polyfit(Time,np.log(KE),1)
+		#print("Slope KE m=",slope,"\n");
 
-		slope, intercept = np.polyfit(Time,np.log(NuT),1)
-		print("Slope ||T||_2 m=",slope,"\n");
+		#slope, intercept = np.polyfit(Time,np.log(NuT),1)
+		#print("Slope ||T||_2 m=",slope,"\n");
 
 		##ax0.semilogy(Time,KE,'bo',markersize=0.3)
 	else:
@@ -724,6 +724,26 @@ def Uradial_plot(filename,frame):
 # Execute main
 if __name__ == "__main__":
 
+	# %% 
+	print("Initialising the code for plotting ...")
+	%matplotlib inline
+	# %%
+	filename ='Time_Integration_Data_SYM.h5'; frame = -1;
+	Plot_Time_Step(filename,True);
+	#sys.exit()
+
+	#Plot_Time_Step(filename,False);
+
+	#filename ='Newton_Iteration_Data.h5'; frame = 0;
+	# %%
+	Uradial_plot(filename,frame)
+	Energy(filename, frame)
+	Cartesian_Plot(filename, frame);
+
+	# %% 
+	print("Initialising the code for plotting ...")
+	%matplotlib inline
+	# %%
 	filename ='Time_Integration_Data_SYM.h5'; frame = -1;
 	Plot_Time_Step(filename);
 	#sys.exit()
@@ -731,7 +751,7 @@ if __name__ == "__main__":
 	#Plot_Time_Step(filename,False);
 
 	#filename ='Newton_Iteration_Data.h5'; frame = 0;
-	
+	# %%
 	Uradial_plot(filename,frame)
 	Energy(filename, frame)
-	Cartesian_Plot(filename, frame);
+	Cartesian_Plot(filename, frame);# %%

@@ -5,18 +5,31 @@ import matplotlib.pyplot as plt
 import sys, os, time, warnings, h5py
 warnings.simplefilter('ignore', np.RankWarning)
 
+Lx = np.pi;
+
 # ~~~~~~~~~~~~~~~ Global Parameters ~~~~~~~~~~~~~~~
-Tau = 1./15.; Pr = 1.0; Lx = np.pi; Ra_s = 0.0;
+#Tau = 1./15.; Ra_s = 0.0; Pr = 1.0;
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # ~~~~~~~~~~~~~~~ Gap widths l=10~~~~~~~~~~~~~~~
-d = 0.353; Ra_HB_c = 2967.37736364 ; Ra_SS_c = 9853.50008503;
+#d = 0.353; Ra_HB_c = 2967.37736364 ; Ra_SS_c = 9853.50008503;
 
-# ~~~~~~~~~~~~~~~ Gap widths l=2~~~~~~~~~~~~~~~
-#Tau = 1.; Pr = 1.; Lx = np.pi; Ra_s = 500.0;
-#d  = 2.0; Ra = 7.267365e+03 + 1.; 
-#d    = 2.0; Ra = 6.77*(10**3) + 1.; #RBC bif
+# ~~~~~~~~~~~~~~~ Validation Case l=2~~~~~~~~~~~~~~~
+Tau = 1.; Ra_s = 500.0; Pr = 1.; 
+d  = 2.0; Ra = 7.267365e+03 + 1.; 
+#d  = 2.0; Ra = 6.77*(10**3) + 1.; #RBC bif
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+def uniquify(path):
+    filename, extension = os.path.splitext(path)
+    counter = 1
+
+    while os.path.exists(path):
+        path = filename + "(" + str(counter) + ")" + extension
+        counter += 1
+
+    return path
 
 # Self-made packages
 from Matrix_Operators import cheb_radial
@@ -74,7 +87,7 @@ def Nusselt(T_hat, R,D,N_fm,nr):
 	NuM1 = ((R**2)/A_T)*(NuM1/N_fm); # Scale by 1/N due to DCT
 
 	print("|Nu(R_1) - Nu(R_2)|/|Nu(R_1)| = ",( abs(NuM1[-1] - NuM1[0])/abs(NuM1[-1]) ) )
-	#print("Inner Nu= %e, Outer Nu=%e"%(NuM1[0],NuM1[-1]),"\n")
+	print("Inner Nu= %e, Outer Nu=%e"%(NuM1[0],NuM1[-1]),"\n")
 	return NuM1[0];
 
 def Kinetic_Enegery(X_hat, R,D,N_fm,nr, symmetric = True):
@@ -546,15 +559,17 @@ def Newton(filename='blah',frame=-1):
 	return None;
 
 
-def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04, symmetric = True):
+def _Time_Step(X,Ra, N_fm,N_r,d, save_filename, start_time = 0., Total_time = 1./Tau, dt=1e-04, symmetric = True):
 
 
+	save_filename = uniquify(save_filename)
+	print('Save_filename - ',save_filename)
+	
 	from Matrix_Operators import NLIN_FX as FX
 	from Matrix_Operators import DT0_theta,A2_SINE
 	
 	D,R,	Rsq,DT0,gr_k,N_fm,nr,	args_Nab2,args_A4,args_FX = Build_Matrix_Operators_TimeStep(N_fm,N_r,d);
 
-	#'''
 	args_Nab2_T = args_Nab2; args_Nab2_S = args_Nab2;
 	from Matrix_Operators import A4_BSub_TSTEP, NAB2_BSub_TSTEP
 	'''
@@ -635,7 +650,7 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 		END_time = time.time();
 		
 
-		KE.append(  abs(kinetic) );
+		KE.append( abs(kinetic) ); #np.linalg.norm(X_new,2) ) #
 		NuT.append( Nusselt(X_new[N:2*N]  ,R,D,N_fm,nr) );
 		NuS.append( Nusselt(X_new[2*N:3*N],R,D,N_fm,nr) );
 		Time.append(start_time + dt*iteration);
@@ -645,12 +660,11 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 
 		if iteration%N_save == 0:	
 
-
 			print("Saving full solution vector X \n");
 			X_DATA.append(X_new);
 
 			# Save the different errors 
-			Tstep_file = h5py.File('Time_Integration_Data_SYM.h5', 'w')
+			Tstep_file = h5py.File(save_filename,'w')
 
 			# Checkpoints
 			Checkpoints = Tstep_file.create_group("Checkpoints");
@@ -678,7 +692,7 @@ def _Time_Step(X,Ra, N_fm,N_r,d, start_time = 0., Total_time = 1./Tau, dt=1e-04,
 
 	return X_new;
 
-def Time_Step(filename='blah',frame=-1):
+def Time_Step(open_filename='blah',save_filename = 'new_sim.h5',frame=-1):
 
 	"""
 	Given an initial condition and full parameter specification time-step the system
@@ -694,10 +708,10 @@ def Time_Step(filename='blah',frame=-1):
 
 	"""
 
-	N_fm = 100; 
+	N_fm = 40; 
 	N_r  = 20;
-	d = 0.353;
-	Ra = 2375.0;
+	#d  = 0.353; Ra = 2375.0;
+	d  = 2.0; Ra = 7.267365e+03 + 500.; 
 
 	# ~~~~~~~~~ Random Initial Conditions ~~~~~~~~~~~~~~~~
 	D,R  = cheb_radial(N_r,d); 
@@ -709,17 +723,17 @@ def Time_Step(filename='blah',frame=-1):
 	
 	start_time = 0.;
 	# ~~~~~~~~~ Old Initial Conditions ~~~~~~~~~~~~~~~~~~
-	if filename.endswith('.npy'):
-		Y  = np.load(filename);
+	if open_filename.endswith('.npy'):
+		Y  = np.load(open_filename);
 		X  = Y[0:-1,0]; 
 		Ra = Y[-1,0];
 		print(X.shape);
 		print(Ra)
 
 	# ~~~~~~~~~ New Initial Conditions ~~~~~~~~~~~~~~~~~~
-	if filename.endswith('.h5'):
+	if open_filename.endswith('.h5'):
 
-		f = h5py.File(filename, 'r+')
+		f = h5py.File(open_filename, 'r+')
 
 		# Problem Params
 		X      = f['Checkpoints/X_DATA'][frame];
@@ -742,10 +756,9 @@ def Time_Step(filename='blah',frame=-1):
 
 	Total_time = 100.*(1./Tau);
 
-	X_new = _Time_Step(X,Ra, N_fm,N_r,d, start_time, Total_time, dt=1e-02, symmetric =True);
+	X_new = _Time_Step(X,Ra, N_fm,N_r,d, save_filename,start_time, Total_time, dt=1e-02, symmetric =True);
 
 	return None;
-
 
 
 class result():
@@ -1227,14 +1240,20 @@ def Continuation(filename,frame):
 # Execute main
 if __name__ == "__main__":
 	
+	# %%
+	print("Initialising the code for running...")
+
+	# %%
 	file = 'Time_Integration_Data_SYM.h5'; frame = -1;
 	
 	#file = 'Y_Nt300_Nr30_INIT_l10_POS.npy'; frame = -1;
 	#Newton(file,frame);
 	
+	#%%
 	#file ='Newton_Iteration_Data.h5'; frame = 0;
-	Time_Step();#(file,frame);
+	Time_Step(file,file,frame);
 
 	#Continuation(file,frame)
 
 ##	
+# %%

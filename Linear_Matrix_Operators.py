@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.sparse import bmat, diags, block_diag, eye
+from scipy.sparse import bmat, diags
 
 import warnings
 warnings.simplefilter('ignore', np.RankWarning)

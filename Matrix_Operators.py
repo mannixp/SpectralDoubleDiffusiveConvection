@@ -1,6 +1,6 @@
 from numba import njit
 import numpy as np
-import sys, os, time
+import sys
 
 import warnings
 warnings.simplefilter('ignore', np.RankWarning)
@@ -1241,7 +1241,6 @@ def A2_theta_C(R,N_fm): # No 1/R^2
 	# LAP2_theta Cosine-Basis  = r^2 \nabla^2 + A^2_\theta
 
 	from scipy.sparse  import bmat
-	from scipy.sparse  import diags
 	
 	nr = len(R[1:-1]); 
 	IR = np.eye(nr); #diags( np.ones(nr),0,format="csr");  #
@@ -1314,7 +1313,6 @@ def T0J_theta(R,N_fm,d):
 def J_theta(R,N_fm): 
 	
 	# Includes -T'_0; #/r^2
-	from scipy.sparse  import diags
 	from scipy.sparse  import bmat
  
 	nr = len(R[1:-1]); #print("nr",nr);
@@ -1432,7 +1430,6 @@ def NABLA4_SINE(D,R,N_fm):
 	A2_theta = A2_theta_S(R,N_fm).toarray()
 
 	return LAP4 + A2_theta@DTT + A2_theta@A2_theta; 
-
 
 #D,R=cheb_radial(4,1)
 #print(A2_theta_S(R,4).toarray())
