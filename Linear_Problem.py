@@ -315,9 +315,9 @@ def Neutral(Ra_c_hopf,Ra_c_steady,l,d_org):
 def main_program():
 
 	# Validation Case
-	d = 2; Ra_c = 7268.365; l =2;
-	Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=500,Pr=1.,Tau=1., Nr = 20);
-	print(Eig_val)
+	#d = 2; Ra_c = 7268.365; l =2;
+	#Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=500,Pr=1.,Tau=1., Nr = 20);
+	#print(Eig_val)
 
 	# ~~~~~# L = 20 Gap #~~~~~~~~~# 
 	#d = 0.1625; 
@@ -337,9 +337,9 @@ def main_program():
 	#Eig_vec = Eig_Vec( Ra_c,l,d,0);
 	
 	
-	#d    = 2.0; Ra_c = 6.77*(10**3) + 1.; l=2;
-	#Eig_val = Eig_Vals(Ra_c,l,d,0)#,Ra_s=0,Pr=1.,Tau=1., Nr = 30);
-	#print(Eig_val)
+	d    = 2.0; Ra_c = 6.77*(10**3) - 10.; l=2;
+	Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=0,Pr=1.,Tau=1., Nr = 30);
+	print(Eig_val)
 
 	#Ra_Stability_Trace(Ra_c,d,2)
 

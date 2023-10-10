@@ -728,7 +728,7 @@ if __name__ == "__main__":
 	print("Initialising the code for plotting ...")
 	%matplotlib inline
 	# %%
-	filename ='Time_Integration_Data_SYM.h5'; frame = -1;
+	filename ='new_sim(1).h5'; frame = -1;
 	Plot_Time_Step(filename,True);
 	#sys.exit()
 

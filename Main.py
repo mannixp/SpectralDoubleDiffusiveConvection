@@ -15,9 +15,11 @@ Lx = np.pi;
 #d = 0.353; Ra_HB_c = 2967.37736364 ; Ra_SS_c = 9853.50008503;
 
 # ~~~~~~~~~~~~~~~ Validation Case l=2~~~~~~~~~~~~~~~
-Tau = 1.; Ra_s = 500.0; Pr = 1.; 
-d  = 2.0; Ra = 7.267365e+03 + 1.; 
-#d  = 2.0; Ra = 6.77*(10**3) + 1.; #RBC bif
+#Tau = 1.; Ra_s = 500.0; Pr = 1.; 
+#d  = 2.0; Ra = 7.267365e+03 + 1.;
+# 
+Tau = 1.; Ra_s = 0.0; Pr = 100.;  
+d   = 2.; Ra   = 6.77*(10**3) + 10.; #RBC bif
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -86,8 +88,8 @@ def Nusselt(T_hat, R,D,N_fm,nr):
 
 	NuM1 = ((R**2)/A_T)*(NuM1/N_fm); # Scale by 1/N due to DCT
 
-	print("|Nu(R_1) - Nu(R_2)|/|Nu(R_1)| = ",( abs(NuM1[-1] - NuM1[0])/abs(NuM1[-1]) ) )
-	print("Inner Nu= %e, Outer Nu=%e"%(NuM1[0],NuM1[-1]),"\n")
+	#print("|Nu(R_1) - Nu(R_2)|/|Nu(R_1)| = ",( abs(NuM1[-1] - NuM1[0])/abs(NuM1[-1]) ) )
+	#print("Inner Nu= %e, Outer Nu=%e"%(NuM1[0],NuM1[-1]),"\n")
 	return NuM1[0];
 
 def Kinetic_Enegery(X_hat, R,D,N_fm,nr, symmetric = True):
@@ -96,7 +98,7 @@ def Kinetic_Enegery(X_hat, R,D,N_fm,nr, symmetric = True):
 
 	Compute the volume integrated kinetic energy
 
-	KE = int_r1^r2 (1/2)int_0^π KE(r,θ) r^2 sin(θ) dr dθ
+	KE = (1/2) int_r1^r2 int_0^π KE(r,θ) r^2 sin(θ) dr dθ
 
 	"""
 
@@ -169,9 +171,9 @@ def Kinetic_Enegery(X_hat, R,D,N_fm,nr, symmetric = True):
 	KE_r = R*R*KE_r;
 	KE   = np.linalg.solve(D[0:-1,0:-1],KE_r[0:-1])[0];
 
-	V = 2.*(R[-1] - R[0]); # here we divide by 2 as thats what the volume integral gives
+	V = (2./3.)*(R[-1]**3 - R[0]**3);
 
-	return (1./V)*KE;
+	return (5./V)*KE;
 
 def Eq_SYM(X1,R):
 
@@ -620,7 +622,7 @@ def _Time_Step(X,Ra, N_fm,N_r,d, save_filename, start_time = 0., Total_time = 1.
 		else:
 			NX[:]	= -1.*dt*FX(Xn, *args_FX,     symmetric,kinetic); # 36% FIX
 		#'''
-		#KE = Kinetic_Enegery(Xn, R,D,N_fm,nr, symmetric);
+		KE    = Kinetic_Enegery(Xn, R,D,N_fm,nr, symmetric);
 		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric);
 		Ω     = A2_SINE(ψ,   D,R,N_fm,nr, symmetric); 
 
@@ -708,10 +710,10 @@ def Time_Step(open_filename='blah',save_filename = 'new_sim.h5',frame=-1):
 
 	"""
 
-	N_fm = 40; 
-	N_r  = 20;
+	N_fm = 32; 
+	N_r  = 16;
 	#d  = 0.353; Ra = 2375.0;
-	d  = 2.0; Ra = 7.267365e+03 + 500.; 
+	d  = 2.0; Ra = 6.77*(10**3) + 10.; 
 
 	# ~~~~~~~~~ Random Initial Conditions ~~~~~~~~~~~~~~~~
 	D,R  = cheb_radial(N_r,d); 
@@ -719,7 +721,7 @@ def Time_Step(open_filename='blah',save_filename = 'new_sim.h5',frame=-1):
 	N 	 = nr*N_fm;
 
 	X = np.random.rand(3*N);
-	X = 1e-03*(X/np.linalg.norm(X,2))
+	X = 1e-01*(X/np.linalg.norm(X,2))
 	
 	start_time = 0.;
 	# ~~~~~~~~~ Old Initial Conditions ~~~~~~~~~~~~~~~~~~
@@ -754,9 +756,9 @@ def Time_Step(open_filename='blah',save_filename = 'new_sim.h5',frame=-1):
 		fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	Total_time = 100.*(1./Tau);
+	Total_time = 10**4#0.*(1./Tau);
 
-	X_new = _Time_Step(X,Ra, N_fm,N_r,d, save_filename,start_time, Total_time, dt=1e-02, symmetric =True);
+	X_new = _Time_Step(X,Ra, N_fm,N_r,d, save_filename,start_time, Total_time, dt=5e-01, symmetric =True);
 
 	return None;
 
@@ -1244,14 +1246,13 @@ if __name__ == "__main__":
 	print("Initialising the code for running...")
 
 	# %%
-	file = 'Time_Integration_Data_SYM.h5'; frame = -1;
-	
+	file = 'new_sim(3).h5'; frame = -1;
 	#file = 'Y_Nt300_Nr30_INIT_l10_POS.npy'; frame = -1;
 	#Newton(file,frame);
 	
 	#%%
 	#file ='Newton_Iteration_Data.h5'; frame = 0;
-	Time_Step(file,file,frame);
+	Time_Step()#file,file,frame);
 
 	#Continuation(file,frame)
 

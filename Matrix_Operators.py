@@ -992,8 +992,12 @@ def Kinetic_Energy(Jψ,dr_ψ, R,inv_D,N_fm,nr):
 
 	Compute the volume integrated kinetic energy
 
-	KE = int_r1^r2 (1/2)int_0^π KE(r,θ) r^2 sin(θ) dr dθ
+	KE = (1/2)*(1/V) int_r1^r2 int_0^π KE(r,θ) r^2 sin(θ) dr dθ
 
+	where
+
+	V = int_r1^r2 int_0^π KE(r,θ) r^2 sin(θ) dr dθ = (2/3)*(r2^3 - r1^3)
+	
 	"""
 	from scipy.fft import dst
 
@@ -1010,9 +1014,9 @@ def Kinetic_Energy(Jψ,dr_ψ, R,inv_D,N_fm,nr):
 	#KE_r = R*R*KE_r;
 	
 	KE = inv_D[0,:].dot(KE_r[0:-1]);
-	V  = 2.*abs(R[-1] - R[0]); # here we divide by 2 as thats what the volume integral gives
+	V  = (2./3.)*abs(R[-1]**3 - R[0]**3);
 
-	return (1./V)*KE;
+	return (.5/V)*KE;
 
 def NLIN_DFX(dv_hat,X_hat,	inv_D,D,R,N_fm,nr, symmetric = False):
 
@@ -1117,9 +1121,6 @@ def NLIN_DFX(dv_hat,X_hat,	inv_D,D,R,N_fm,nr, symmetric = False):
 
 	
 	return Vecs_To_NX(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric);	
-
-
-
 
 
 
