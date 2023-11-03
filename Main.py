@@ -18,7 +18,7 @@ Lx = np.pi;
 #Tau = 1.; Ra_s = 500.0; Pr = 1.; 
 #d  = 2.0; Ra = 7.267365e+03 + 1.;
 # 
-Tau = 1.; Ra_s = 0.0; Pr = 100.;  
+Tau = 1.; Ra_s = 0.0; Pr = 1.;  
 d   = 2.; Ra   = 6.77*(10**3) + 10.; #RBC bif
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -59,6 +59,10 @@ def Base_State_Coeffs(d):
 	#plt.show()
 
 	return A_T,B_T;
+
+
+# ~~~~~~~~~~~~~~~~~
+# Theese need checking
 
 #@njit(fastmath=True)
 def Nusselt(T_hat, R,D,N_fm,nr):
@@ -173,7 +177,9 @@ def Kinetic_Enegery(X_hat, R,D,N_fm,nr, symmetric = True):
 
 	V = (2./3.)*(R[-1]**3 - R[0]**3);
 
-	return (5./V)*KE;
+	return (.5/V)*KE;
+
+#~~~~~~~~~~~~
 
 def Eq_SYM(X1,R):
 
@@ -622,21 +628,27 @@ def _Time_Step(X,Ra, N_fm,N_r,d, save_filename, start_time = 0., Total_time = 1.
 		else:
 			NX[:]	= -1.*dt*FX(Xn, *args_FX,     symmetric,kinetic); # 36% FIX
 		#'''
-		KE    = Kinetic_Enegery(Xn, R,D,N_fm,nr, symmetric);
+		#KE    = Kinetic_Enegery(Xn, R,D,N_fm,nr, symmetric);
 		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric);
 		Ω     = A2_SINE(ψ,   D,R,N_fm,nr, symmetric); 
 
 
 		# 1) Vorticity - Ω
-		NX[0:N]     += Ω + dt*Pr*gr_k.dot(Ra*T - Ra_s*S);
-		ψ_new        =   A4_BSub_TSTEP(NX[0:N],     *args_A4,     Pr*dt, symmetric); 
+		# RHS is	 = \hat{A}^2 \hat{ψ} + Pr g(r)(−k)Ra \hat{T}
+		# Here we invert the LHS = ( \hat{A}^2 − ∆t Pr \hat{A}^4)
+		#NX[0:N]     +=  Ω   + dt*Pr*gr_k.dot(Ra*T - Ra_s*S);
+		NX[0:N]      =  Ω   + dt*Pr*gr_k.dot(Ra*T);
+		ψ_new        =  A4_BSub_TSTEP(NX[0:N],     *args_A4,     Pr*dt, symmetric); 
 
 		# 2) Temperature - T
+		# RHS is	 = r^2 T - dt*r^2 [ \hat{J}(ψn, T0) + \hat{J}(ψn, T n) ]
+		# Here we invert the LHS = r^2( I − ∆t \hat{\nabla}^2)
 		NX[N:2*N]   += Rsq.dot(T) - dt*ψ_T0;
 		T_new        = NAB2_BSub_TSTEP(NX[N:2*N],   *args_Nab2_T,    dt, symmetric);
 
 		# 3) Solute - S
-		NX[2*N:3*N] += Rsq.dot(S) - dt*ψ_T0;
+		#NX[2*N:3*N] += Rsq.dot(S) - dt*ψ_T0;
+		NX[2*N:3*N]  = 0.
 		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2_S,Tau*dt, symmetric);  
 	
 		if kinetic == True:
@@ -712,8 +724,7 @@ def Time_Step(open_filename='blah',save_filename = 'new_sim.h5',frame=-1):
 
 	N_fm = 32; 
 	N_r  = 16;
-	#d  = 0.353; Ra = 2375.0;
-	d  = 2.0; Ra = 6.77*(10**3) + 10.; 
+	d    = 2.0; Ra = 6.77*(10**3) + 10.; 
 
 	# ~~~~~~~~~ Random Initial Conditions ~~~~~~~~~~~~~~~~
 	D,R  = cheb_radial(N_r,d); 
@@ -756,12 +767,11 @@ def Time_Step(open_filename='blah',save_filename = 'new_sim.h5',frame=-1):
 		fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	Total_time = 10**4#0.*(1./Tau);
+	Total_time = 1*(10**4)#0.*(1./Tau);
 
-	X_new = _Time_Step(X,Ra, N_fm,N_r,d, save_filename,start_time, Total_time, dt=5e-01, symmetric =True);
+	X_new = _Time_Step(X,Ra, N_fm,N_r,d, save_filename,start_time, Total_time, dt=0.075, symmetric =True);
 
 	return None;
-
 
 class result():
     
@@ -1246,7 +1256,7 @@ if __name__ == "__main__":
 	print("Initialising the code for running...")
 
 	# %%
-	file = 'new_sim(3).h5'; frame = -1;
+	#file = 'new_sim(3).h5'; frame = -1;
 	#file = 'Y_Nt300_Nr30_INIT_l10_POS.npy'; frame = -1;
 	#Newton(file,frame);
 	

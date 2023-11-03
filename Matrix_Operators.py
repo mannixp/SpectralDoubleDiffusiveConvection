@@ -754,9 +754,9 @@ def A2_SINE_R2(g, N_fm,nr,D,R, symmetric = False):
 @njit(fastmath=True)
 def Vecs_To_NX(PSI,T,C, N_fm,nr, symmetric = False):
 
-	PSI[:,:] *= (1./N_fm);
-	T[:,:]   *= (1./N_fm);
-	C[:,:]   *= (1./N_fm);
+	#PSI[:,:] *= (1./N_fm);
+	#T[:,:]   *= (1./N_fm);
+	#C[:,:]   *= (1./N_fm);
 		 
 	# 5) Reshape ; 3 x Nr x N_fm -> 3*nr*N_fm ; Fill into NX
 	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
@@ -1008,7 +1008,8 @@ def Kinetic_Energy(Jψ,dr_ψ, R,inv_D,N_fm,nr):
 	
 	# Integrate in θ and take zero mode essentially the IP with 
 	KE_r       = np.zeros(len(R));
-	KE_r[1:-1] = (1./N_fm)*dst(KE_rθ,type=2,axis=-1,overwrite_x=True)[:,0];
+	KE_r[1:-1] = dst(KE_rθ,type=2,axis=-1,overwrite_x=True)[:,0];
+	KE_r[1:-1]/= N_fm
 
 	# Multiply by r^2 and integrate w.r.t r
 	#KE_r = R*R*KE_r;
@@ -1121,6 +1122,9 @@ def NLIN_DFX(dv_hat,X_hat,	inv_D,D,R,N_fm,nr, symmetric = False):
 
 	
 	return Vecs_To_NX(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric);	
+
+
+
 
 
 
