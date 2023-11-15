@@ -189,10 +189,10 @@ def Test_Sine_Transform(k,N):
 def Test_Cosine_Transform_deal(k,N):
 
     f_hat_in    = np.zeros(N)
-    f_hat_in[k] = 1
+    f_hat_in[k] = 2.1
 
     x    = grid(N)
-    f_in = np.cos(k*x)
+    f_in = 2.1*np.cos(k*x)
 
     print('~~~~ Cosine coefficient space to grid space~~~~~~')
 
@@ -219,10 +219,10 @@ def Test_Cosine_Transform_deal(k,N):
 def Test_Sine_Transform_deal(k,N):
 
     g_hat_in    = np.zeros(N)
-    g_hat_in[k] = 1
+    g_hat_in[k] = 3.3
 
     x     = grid(N)
-    g_in  = np.sin((k+1)*x)
+    g_in  = 3.3*np.sin((k+1)*x)
 
     # %%
     print('~~~~ Sine coefficient space to grid space~~~~~~')

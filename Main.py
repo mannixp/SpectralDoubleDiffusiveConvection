@@ -15,11 +15,12 @@ Lx = np.pi;
 #d = 0.353; Ra_HB_c = 2967.37736364 ; Ra_SS_c = 9853.50008503;
 
 # ~~~~~~~~~~~~~~~ Validation Case l=2~~~~~~~~~~~~~~~
-#Tau = 1.; Ra_s = 500.0; Pr = 1.; 
-#d  = 2.0; Ra = 7.267365e+03 + 1.;
-# 
-Tau = 1.; Ra_s = 0.0; Pr = 1.;  
-d   = 2.; Ra   = 6.77*(10**3) + 10.; #RBC bif
+Tau = 1.; Ra_s = 500.0; Pr = 1.; 
+d  = 2.0; Ra = 7.267365e+03 + 1.;
+
+# ~~~~~~~~~~~~~~~ Nonlinear Validation Case ~~~~~~~~~ 
+#Tau = 1.; Ra_s = 0.0; Pr = 1.;  
+#d   = 2.; Ra   = 6.77*(10**3) + 10.; #RBC bif
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -597,6 +598,7 @@ def _Time_Step(X,Ra, N_fm,N_r,d, save_filename, start_time = 0., Total_time = 1.
 	KE  = [];  
 	NuT = []; 
 	NuS = [];
+	Norm = [];
 
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~
 	if symmetric == True:
@@ -621,34 +623,30 @@ def _Time_Step(X,Ra, N_fm,N_r,d, save_filename, start_time = 0., Total_time = 1.
 		T = Xn[N:2*N];
 		S = Xn[2*N:3*N];
 
-		#'''
+		'''
 		if kinetic == True:
 			OUT 	= 		 FX(Xn, *args_FX,     symmetric,kinetic); # 36% FIX
 			NX[:],KE= -1.*dt*OUT[0],OUT[1];
 		else:
 			NX[:]	= -1.*dt*FX(Xn, *args_FX,     symmetric,kinetic); # 36% FIX
-		#'''
-		#KE    = Kinetic_Enegery(Xn, R,D,N_fm,nr, symmetric);
+		'''
+		KE    = Kinetic_Enegery(Xn, R,D,N_fm,nr, symmetric);
 		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric);
 		Ω     = A2_SINE(ψ,   D,R,N_fm,nr, symmetric); 
 
 
 		# 1) Vorticity - Ω
-		# RHS is	 = \hat{A}^2 \hat{ψ} + Pr g(r)(−k)Ra \hat{T}
 		# Here we invert the LHS = ( \hat{A}^2 − ∆t Pr \hat{A}^4)
-		#NX[0:N]     +=  Ω   + dt*Pr*gr_k.dot(Ra*T - Ra_s*S);
-		NX[0:N]      =  Ω   + dt*Pr*gr_k.dot(Ra*T);
+		NX[0:N]     +=  Ω   + dt*Pr*gr_k.dot(Ra*T - Ra_s*S);
 		ψ_new        =  A4_BSub_TSTEP(NX[0:N],     *args_A4,     Pr*dt, symmetric); 
 
 		# 2) Temperature - T
-		# RHS is	 = r^2 T - dt*r^2 [ \hat{J}(ψn, T0) + \hat{J}(ψn, T n) ]
 		# Here we invert the LHS = r^2( I − ∆t \hat{\nabla}^2)
 		NX[N:2*N]   += Rsq.dot(T) - dt*ψ_T0;
 		T_new        = NAB2_BSub_TSTEP(NX[N:2*N],   *args_Nab2_T,    dt, symmetric);
 
 		# 3) Solute - S
-		#NX[2*N:3*N] += Rsq.dot(S) - dt*ψ_T0;
-		NX[2*N:3*N]  = 0.
+		NX[2*N:3*N] += Rsq.dot(S) - dt*ψ_T0;
 		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2_S,Tau*dt, symmetric);  
 	
 		if kinetic == True:
@@ -664,7 +662,8 @@ def _Time_Step(X,Ra, N_fm,N_r,d, save_filename, start_time = 0., Total_time = 1.
 		END_time = time.time();
 		
 
-		KE.append( abs(kinetic) ); #np.linalg.norm(X_new,2) ) #
+		KE.append(  abs(kinetic) ); #
+		Norm.append( np.linalg.norm(X_new,2) );
 		NuT.append( Nusselt(X_new[N:2*N]  ,R,D,N_fm,nr) );
 		NuS.append( Nusselt(X_new[2*N:3*N],R,D,N_fm,nr) );
 		Time.append(start_time + dt*iteration);
@@ -686,6 +685,7 @@ def _Time_Step(X,Ra, N_fm,N_r,d, save_filename, start_time = 0., Total_time = 1.
 
 			# Scalar Data
 			Scalar_Data = Tstep_file.create_group("Scalar_Data")
+			Scalar_Data['Norm'] = Norm;
 			Scalar_Data['KE']   = KE;
 			Scalar_Data['Nu_T'] = NuT;
 			Scalar_Data['Nu_S'] = NuS;
@@ -725,6 +725,10 @@ def Time_Step(open_filename='blah',save_filename = 'new_sim.h5',frame=-1):
 	N_fm = 32; 
 	N_r  = 16;
 	d    = 2.0; Ra = 6.77*(10**3) + 10.; 
+	#N_fm =10
+	#N_r = 20
+	#d  = 2.0; Ra = 7.267365e+03 + 1.;
+
 
 	# ~~~~~~~~~ Random Initial Conditions ~~~~~~~~~~~~~~~~
 	D,R  = cheb_radial(N_r,d); 
@@ -767,7 +771,7 @@ def Time_Step(open_filename='blah',save_filename = 'new_sim.h5',frame=-1):
 		fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	Total_time = 1*(10**4)#0.*(1./Tau);
+	Total_time = 5*(10**3)#0.*(1./Tau);
 
 	X_new = _Time_Step(X,Ra, N_fm,N_r,d, save_filename,start_time, Total_time, dt=0.075, symmetric =True);
 

@@ -82,7 +82,7 @@ def R2(R,N_fm):
 	AT = [];
 	for jj in range(N_fm): # [0,N_Fm -1] cosine basis
 		if jj == 0:
-			AT.append(2.*GR);
+			AT.append(1.*GR);
 		else:		
 			AT.append(GR);
 
@@ -163,7 +163,7 @@ def DT0_theta(g, dT0,N_fm,nr, symmetric = False):
 			b += g[ind_j+nr:ind_j+2*nr];	
 
 		if j == 0:
-			f[ind_j:ind_j+nr] = dT0*2.0*b;
+			f[ind_j:ind_j+nr] = dT0*1.0*b;
 		else:	
 			f[ind_j:ind_j+nr] = dT0*( (j + 1.0)*g[ind_j-nr:ind_j] + 2.0*b );	
 
@@ -304,7 +304,7 @@ def NAB2_BSub_TSTEP(g, R2_Nab2,R2,I,N_fm,nr,dt, symmetric = False):
 		#print("Evens Row j=%i"%j,"Cosine j=%i"%j)
 		bj = -j*(j + 1.0)
 		if j == 0:
-			A = 2.*(R2 - dt*R2_Nab2)
+			A = 1.*(R2 - dt*R2_Nab2)
 		else:	
 			A = R2 - dt*(R2_Nab2 + bj*I)
 		
@@ -314,10 +314,10 @@ def NAB2_BSub_TSTEP(g, R2_Nab2,R2,I,N_fm,nr,dt, symmetric = False):
 			ßk = -dt*ßk;
 			b += ßk*f[(j+2)*nr:(j+3)*nr];
 		
-		#if j == 0:	
-		#	f[ind_j:ind_j+nr] = np.linalg.solve(A,g[ind_j:ind_j+nr] - 0.5*b);	
-		#else:
-		f[ind_j:ind_j+nr] = np.linalg.solve(A,g[ind_j:ind_j+nr] - b);
+		if j == 0:	
+			f[ind_j:ind_j+nr] = np.linalg.solve(A,g[ind_j:ind_j+nr] - 0.5*b);	
+		else:
+			f[ind_j:ind_j+nr] = np.linalg.solve(A,g[ind_j:ind_j+nr] - b);
 
 	return f;
 
@@ -430,234 +430,6 @@ def A4_BSub_TSTEP(g,  D4,IR4, D2,A2,IR2, N_fm,nr,dt, symmetric = False):
 	return f;
 #~~~~~~~~~~~~~
 
-
-# O(Nr^2 N_theta) complexity & Memory
-#~~~~~~~~~~~~~
-
-def NAB2_TSTEP_MATS(dt,N_fm,nr,D,R):
-
-
-	N = nr*N_fm; 
-	M0 = np.zeros((nr,nr,N_fm));
-	
-	N2R = np.diag(R[1:-1]**2) -dt*Nabla2(D,R); 
-	I   = -dt*np.eye(nr);
-
-	for jj in range(N_fm):		
-		
-		j = (N_fm - (jj + 1) );
-		ind_j = j*nr;
-		
-		bj = -float(j)*( float(j) + 1.0)
-
-		if j == 0:
-			M0[:,:,jj] = np.linalg.inv( 2.0*N2R  );	
-		else:
-			M0[:,:,jj] = np.linalg.inv( N2R + bj*I  );
-	
-	return M0;
-
-@njit(fastmath=True)
-def NAB2_BSub_TSTEP_V2(g, L_inv,N_fm,nr,dt, symmetric = False):
-	
-	"""
-	Performs a back substitution to solve for 
-
-	(r^2 - dt*r^2*∆T)f = g,	 
-
-	where ∆ is the spherical laplacian.
-	
-	Inputs:
-
-	L_inv = (r^2 - dt*r^2*∆T)^-1
-	"""
-	
-	# In eqn L*f = g, returns f
-	# Should parrelelize very well on 2 cores as decoupled
-	N   = nr*N_fm; 
-	f   = np.zeros(N) 
-
-	# ~~~~~~~~~~ Odds ~~~~~~~~~~
-	if symmetric == False:
-		b = np.zeros(nr);
-		for jj in range(0,N_fm,2):		
-			
-			j = (N_fm - (jj + 1) );
-			ind_j = j*nr;
-			A  = np.ascontiguousarray(L_inv[:,:,jj]);
-
-			#print("Odds Row j=%i"%j)
-			bj = -j*(j + 1.0)
-
-			if j < (N_fm - 2 ):
-				ßk = -2.*(j + 2.);
-				#print("ßk =%e, by k=%i:%i"%(ßk,j + 2,j + 3) )
-				ßk = -dt*ßk;
-				b += ßk*f[(j+2)*nr:(j+3)*nr];
-
-			#if j == 0:	
-			#	f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr] - .5*b);	
-			#else:
-			f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr] - b);
-
-	# ~~~~~~~~~ Evens ~~~~~~~~~~~~			
-	b = np.zeros(nr);
-	for jj in range(1,N_fm,2):		
-		
-		j = (N_fm - (jj + 1) );
-		ind_j = j*nr;
-		A  = np.ascontiguousarray(L_inv[:,:,jj]);
-
-		#print("Evens Row j=%i"%j)
-		bj = -j*(j + 1.0)
-		
-		if j < (N_fm - 2 ):
-			ßk = -2.*(j + 2.);
-			#print("ßk =%e, by k=%i:%i"%(ßk,j + 2,j + 3) )
-			ßk = -dt*ßk;
-			b += ßk*f[(j+2)*nr:(j+3)*nr];
-		
-		#if j == 0:	
-		#	f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr] - .5*b);	
-		#else:
-		f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr] - b);	
-
-	return f;
-
-# ERROR IN THESE TWO
-
-def A4_TSTEP_MATS(  dt,N_fm,nr,D,R):
-	
-	M0 = np.zeros((nr,nr,N_fm));
-
-	IR2 = np.diag( 1.0/(R**2) ); 
-	IR  = np.diag(1.0/R); 
-	IR4 = np.diag( 1.0/(R[1:-1]**4) );
-	D_sq= np.matmul(D,D); 
-	D4  = Nabla4(D,R); 
-	D2  = np.matmul( IR2 , 2.0*D_sq - 4.0*np.matmul(IR,D) + 6.0*IR2 )[1:-1,1:-1]; 
-	A2  = D_sq[1:-1,1:-1]; 
-	IR2 = IR2[1:-1,1:-1];
-
-	for jj in range(N_fm):
-
-		row = (N_fm - (jj + 1) ); 
-		ind_j = row*nr; # Row ind
-		j = float(N_fm-jj); # Remeber sine counting is from 1 - N_theta
-		bj = -j*(j + 1.); bjt = -2.*j;
-		
-		L1 = D2 + bj*IR4; 
-
-		L = (A2 + bj*IR2) - dt*(D4 + bj*L1);
-
-		M0[:,:,jj] = np.linalg.inv(L);
-
-	return M0;
-
-@njit(fastmath=True)
-def A4_BSub_TSTEP_V2(g,  L_inv,D,R,N_fm,nr,dt, symmetric = False):
-
-	"""
-	Performs a back substitution to solve for 
-
-	(A^2 - ∆t*Pr*A^2A^2)ψ = g
-
-	where ψ is denoted by f in this function.
-
-	rather than adding the argument Pr we pass 
-
-	dt = ∆t*Pr
-
-	this premultiplying by Pr.
-
-
-	Inputs:
-
-	L_inv = (A^2 - ∆t*Pr*A^2A^2)^-1
-	"""
-
-	N = nr*N_fm; f = np.zeros(N); 
-	
-	IR  = np.diag(1.0/R); 
-	IR  = np.ascontiguousarray(IR);
-	IR2	= IR@IR;
-	D   = np.ascontiguousarray(D);
-	D2  = ( IR2@(2.0*(D@D) - 4.0*IR@D + 6.0*IR2 ) )[1:-1,1:-1];
-	IR2 = IR2[1:-1,1:-1];
-	IR2 = np.ascontiguousarray(IR2);
-	IR4 = IR2@IR2;
-
-	if symmetric == False:
-		# ~~~~~~~~~~~~~~~ EVENS ~~~~~~~~~~~~~~~~~~~~
-		f_e = np.zeros(nr); bf_e = np.zeros(nr); 
-		for jj in range(0,N_fm,2):
-
-			row = (N_fm - (jj + 1) ); 
-			ind_j = row*nr; # Row ind
-			j = N_fm-jj; # Remeber sine counting is from 1 - N_theta
-			bj = -j*(j + 1.); bjt = -2.*j;
-			
-			L1 = D2 + bj*IR4;
-			A  = np.ascontiguousarray(L_inv[:,:,jj]);
-			
-			#print("Evens Row row=%i"%row)
-			#print("Sine mode j=%i"%j)
-
-			if row < (N_fm - 2 ):
-			
-				f_e += f[(row+2)*nr:(row+3)*nr];
-
-				# Add time component
-				b_test = dt*bjt*( L1.dot( f_e ) + IR4.dot( bf_e) ) - bjt*IR2.dot(f_e);
-				f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]+b_test);   #O(Nr^2 N_theta)
-
-
-				# Add sums after to get +2 lag
-				bf_e += bj*f[ind_j:ind_j+nr] + bjt*f_e;
-
-			else:
-				f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]);
-				bf_e += bj*f[ind_j:ind_j+nr];
-
-
-	# ~~~~~~~~~~~~~~~ ODDS ~~~~~~~~~~~~~~~~~~~~		
-	f_e = np.zeros(nr); bf_e = np.zeros(nr); 
-	for jj in range(1,N_fm,2):
-
-		row = (N_fm - (jj + 1) ); 
-		ind_j = row*nr; # Row ind
-		j = N_fm-jj; # Remeber sine counting is from 1 - N_theta
-		bj = -j*(j + 1.); bjt = -2.*j;
-		
-		#print("Odds Row row=%i"%row)
-		#print("Sine mode j=%i"%j)
-
-		L1 = D2 + bj*IR4
-		A  = np.ascontiguousarray(L_inv[:,:,jj]);
-
-		if row < (N_fm - 2 ):
-		
-			f_e += f[(row+2)*nr:(row+3)*nr];
-
-			# Add time component
-			b_test = dt*bjt*( L1.dot( f_e ) + IR4.dot( bf_e) ) - bjt*IR2.dot(f_e);
-			f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]+b_test);   #O(Nr^2 N_theta)
-
-			# Add sums after to get +2 lag
-			bf_e += bj*f[ind_j:ind_j+nr] + bjt*f_e;
-
-		else:
-
-			#f[ind_j:ind_j+nr] = np.linalg.solve(L,g[ind_j:ind_j+nr]);
-			f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]);
-			bf_e += bj*f[ind_j:ind_j+nr];
-
-	return f;
-
-#~~~~~~~~~~~~~
-
-
-
 @njit(fastmath=True)
 def J_theta_RT(g,     nr,N_fm, symmetric = False):
 	
@@ -675,7 +447,7 @@ def J_theta_RT(g,     nr,N_fm, symmetric = False):
 			b += g[ind_j+nr:ind_j+2*nr];	
 
 		if j == 0:
-			f[ind_j:ind_j+nr] = 2.0*b;
+			f[ind_j:ind_j+nr] = 1.0*b;
 		else:	
 			f[ind_j:ind_j+nr] = (j + 1.0)*g[ind_j-nr:ind_j] + 2.0*b;	
 
@@ -932,8 +704,6 @@ def NLIN_FX(X_hat,	inv_D,D,R,N_fm,nr, symmetric = False, kinetic = False):
 
 	"""
 
-	from scipy.fft import dct, idct, dst, idst
-	
 	N  = nr*N_fm; 
 	if N_fm%2 != 0:
 		print("\n\n Must choose an even number of Fourier modes N_fm = 2*N_fm !!! \n\n");
@@ -953,7 +723,8 @@ def NLIN_FX(X_hat,	inv_D,D,R,N_fm,nr, symmetric = False, kinetic = False):
 	# 2) ~~~~ Compute iDCT & iDST ~~~~~ # 
 	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
 
-	# psi, T,C 
+	from scipy.fft import dct, idct, dst, idst
+	#psi, T,C 
 	JT_psi = idct(JT_psi_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Projected okay
 	komega = idct(komega_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # needs shift
 	kDpsi  = idct( kDpsi_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # needs shift
@@ -966,6 +737,21 @@ def NLIN_FX(X_hat,	inv_D,D,R,N_fm,nr, symmetric = False, kinetic = False):
 	kT 	   = idst(    kT_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Needs shift
 	kC 	   = idst(    kC_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Needs shift
 
+	# psi, T,C 
+	# from Transforms import IDCT,DCT,IDST,DST
+	# JT_psi = IDCT(JT_psi_hat,n = (3*N_fm)//2) # Projected okay
+	# komega = IDCT(komega_hat,n = (3*N_fm)//2) # needs shift
+	# kDpsi  = IDCT( kDpsi_hat,n = (3*N_fm)//2) # needs shift
+	# DT 	   = IDCT(    DT_hat,n = (3*N_fm)//2) # Projected okay 
+	# DC     = IDCT(    DC_hat,n = (3*N_fm)//2) # Projected okay
+
+	# # psi, T, C
+	# omega  = IDST( omega_hat,n = (3*N_fm)//2) # Projected okay
+	# Dpsi   = IDST(  Dpsi_hat,n = (3*N_fm)//2) # Projected okay
+	# kT 	   = IDST(    kT_hat,n = (3*N_fm)//2) # Needs shift
+	# kC 	   = IDST(    kC_hat,n = (3*N_fm)//2) # Needs shift
+
+
 	# 3) Perform mulitplications in physical space O( (nr*N_fm)**2) Correct
 	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
 
@@ -977,7 +763,11 @@ def NLIN_FX(X_hat,	inv_D,D,R,N_fm,nr, symmetric = False, kinetic = False):
 	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
 	J_PSI___hat = dst(NJ_PSI__,type=2,axis=-1,overwrite_x=True)[:,0:N_fm];
 	J_PSI_T_hat = dct(NJ_PSI_T,type=2,axis=-1,overwrite_x=True)[:,0:N_fm]; 
-	J_PSI_C_hat = dct(NJ_PSI_C,type=2,axis=-1,overwrite_x=True)[:,0:N_fm];		
+	J_PSI_C_hat = dct(NJ_PSI_C,type=2,axis=-1,overwrite_x=True)[:,0:N_fm];	
+
+	# J_PSI___hat = DST(NJ_PSI__,n=N_fm);	
+	# J_PSI_T_hat = DCT(NJ_PSI_T,n=N_fm);	
+	# J_PSI_C_hat = DCT(NJ_PSI_C,n=N_fm);		
 
 	if kinetic == True:
 
@@ -1122,10 +912,6 @@ def NLIN_DFX(dv_hat,X_hat,	inv_D,D,R,N_fm,nr, symmetric = False):
 
 	
 	return Vecs_To_NX(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric);	
-
-
-
-
 
 
 # ~~~~~~~~~~~~ Interpolation functions ~~~~~~~~~~~~~~
@@ -1438,4 +1224,229 @@ def NABLA4_SINE(D,R,N_fm):
 
 #D,R=cheb_radial(4,1)
 #print(A2_theta_S(R,4).toarray())
+
+
+
+# O(Nr^2 N_theta) complexity & Memory
+#~~~~~~~~~~~~~
+def NAB2_TSTEP_MATS(dt,N_fm,nr,D,R):
+
+
+	N = nr*N_fm; 
+	M0 = np.zeros((nr,nr,N_fm));
 	
+	N2R = np.diag(R[1:-1]**2) -dt*Nabla2(D,R); 
+	I   = -dt*np.eye(nr);
+
+	for jj in range(N_fm):		
+		
+		j = (N_fm - (jj + 1) );
+		ind_j = j*nr;
+		
+		bj = -float(j)*( float(j) + 1.0)
+
+		if j == 0:
+			M0[:,:,jj] = np.linalg.inv( 2.0*N2R  );	
+		else:
+			M0[:,:,jj] = np.linalg.inv( N2R + bj*I  );
+	
+	return M0;
+
+@njit(fastmath=True)
+def NAB2_BSub_TSTEP_V2(g, L_inv,N_fm,nr,dt, symmetric = False):
+	
+	"""
+	Performs a back substitution to solve for 
+
+	(r^2 - dt*r^2*∆T)f = g,	 
+
+	where ∆ is the spherical laplacian.
+	
+	Inputs:
+
+	L_inv = (r^2 - dt*r^2*∆T)^-1
+	"""
+	
+	# In eqn L*f = g, returns f
+	# Should parrelelize very well on 2 cores as decoupled
+	N   = nr*N_fm; 
+	f   = np.zeros(N) 
+
+	# ~~~~~~~~~~ Odds ~~~~~~~~~~
+	if symmetric == False:
+		b = np.zeros(nr);
+		for jj in range(0,N_fm,2):		
+			
+			j = (N_fm - (jj + 1) );
+			ind_j = j*nr;
+			A  = np.ascontiguousarray(L_inv[:,:,jj]);
+
+			#print("Odds Row j=%i"%j)
+			bj = -j*(j + 1.0)
+
+			if j < (N_fm - 2 ):
+				ßk = -2.*(j + 2.);
+				#print("ßk =%e, by k=%i:%i"%(ßk,j + 2,j + 3) )
+				ßk = -dt*ßk;
+				b += ßk*f[(j+2)*nr:(j+3)*nr];
+
+			#if j == 0:	
+			#	f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr] - .5*b);	
+			#else:
+			f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr] - b);
+
+	# ~~~~~~~~~ Evens ~~~~~~~~~~~~			
+	b = np.zeros(nr);
+	for jj in range(1,N_fm,2):		
+		
+		j = (N_fm - (jj + 1) );
+		ind_j = j*nr;
+		A  = np.ascontiguousarray(L_inv[:,:,jj]);
+
+		#print("Evens Row j=%i"%j)
+		bj = -j*(j + 1.0)
+		
+		if j < (N_fm - 2 ):
+			ßk = -2.*(j + 2.);
+			#print("ßk =%e, by k=%i:%i"%(ßk,j + 2,j + 3) )
+			ßk = -dt*ßk;
+			b += ßk*f[(j+2)*nr:(j+3)*nr];
+		
+		#if j == 0:	
+		#	f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr] - .5*b);	
+		#else:
+		f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr] - b);	
+
+	return f;
+
+# ERROR IN THESE TWO
+
+def A4_TSTEP_MATS(  dt,N_fm,nr,D,R):
+	
+	M0 = np.zeros((nr,nr,N_fm));
+
+	IR2 = np.diag( 1.0/(R**2) ); 
+	IR  = np.diag(1.0/R); 
+	IR4 = np.diag( 1.0/(R[1:-1]**4) );
+	D_sq= np.matmul(D,D); 
+	D4  = Nabla4(D,R); 
+	D2  = np.matmul( IR2 , 2.0*D_sq - 4.0*np.matmul(IR,D) + 6.0*IR2 )[1:-1,1:-1]; 
+	A2  = D_sq[1:-1,1:-1]; 
+	IR2 = IR2[1:-1,1:-1];
+
+	for jj in range(N_fm):
+
+		row = (N_fm - (jj + 1) ); 
+		ind_j = row*nr; # Row ind
+		j = float(N_fm-jj); # Remeber sine counting is from 1 - N_theta
+		bj = -j*(j + 1.); bjt = -2.*j;
+		
+		L1 = D2 + bj*IR4; 
+
+		L = (A2 + bj*IR2) - dt*(D4 + bj*L1);
+
+		M0[:,:,jj] = np.linalg.inv(L);
+
+	return M0;
+
+@njit(fastmath=True)
+def A4_BSub_TSTEP_V2(g,  L_inv,D,R,N_fm,nr,dt, symmetric = False):
+
+	"""
+	Performs a back substitution to solve for 
+
+	(A^2 - ∆t*Pr*A^2A^2)ψ = g
+
+	where ψ is denoted by f in this function.
+
+	rather than adding the argument Pr we pass 
+
+	dt = ∆t*Pr
+
+	this premultiplying by Pr.
+
+
+	Inputs:
+
+	L_inv = (A^2 - ∆t*Pr*A^2A^2)^-1
+	"""
+
+	N = nr*N_fm; f = np.zeros(N); 
+	
+	IR  = np.diag(1.0/R); 
+	IR  = np.ascontiguousarray(IR);
+	IR2	= IR@IR;
+	D   = np.ascontiguousarray(D);
+	D2  = ( IR2@(2.0*(D@D) - 4.0*IR@D + 6.0*IR2 ) )[1:-1,1:-1];
+	IR2 = IR2[1:-1,1:-1];
+	IR2 = np.ascontiguousarray(IR2);
+	IR4 = IR2@IR2;
+
+	if symmetric == False:
+		# ~~~~~~~~~~~~~~~ EVENS ~~~~~~~~~~~~~~~~~~~~
+		f_e = np.zeros(nr); bf_e = np.zeros(nr); 
+		for jj in range(0,N_fm,2):
+
+			row = (N_fm - (jj + 1) ); 
+			ind_j = row*nr; # Row ind
+			j = N_fm-jj; # Remeber sine counting is from 1 - N_theta
+			bj = -j*(j + 1.); bjt = -2.*j;
+			
+			L1 = D2 + bj*IR4;
+			A  = np.ascontiguousarray(L_inv[:,:,jj]);
+			
+			#print("Evens Row row=%i"%row)
+			#print("Sine mode j=%i"%j)
+
+			if row < (N_fm - 2 ):
+			
+				f_e += f[(row+2)*nr:(row+3)*nr];
+
+				# Add time component
+				b_test = dt*bjt*( L1.dot( f_e ) + IR4.dot( bf_e) ) - bjt*IR2.dot(f_e);
+				f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]+b_test);   #O(Nr^2 N_theta)
+
+
+				# Add sums after to get +2 lag
+				bf_e += bj*f[ind_j:ind_j+nr] + bjt*f_e;
+
+			else:
+				f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]);
+				bf_e += bj*f[ind_j:ind_j+nr];
+
+
+	# ~~~~~~~~~~~~~~~ ODDS ~~~~~~~~~~~~~~~~~~~~		
+	f_e = np.zeros(nr); bf_e = np.zeros(nr); 
+	for jj in range(1,N_fm,2):
+
+		row = (N_fm - (jj + 1) ); 
+		ind_j = row*nr; # Row ind
+		j = N_fm-jj; # Remeber sine counting is from 1 - N_theta
+		bj = -j*(j + 1.); bjt = -2.*j;
+		
+		#print("Odds Row row=%i"%row)
+		#print("Sine mode j=%i"%j)
+
+		L1 = D2 + bj*IR4
+		A  = np.ascontiguousarray(L_inv[:,:,jj]);
+
+		if row < (N_fm - 2 ):
+		
+			f_e += f[(row+2)*nr:(row+3)*nr];
+
+			# Add time component
+			b_test = dt*bjt*( L1.dot( f_e ) + IR4.dot( bf_e) ) - bjt*IR2.dot(f_e);
+			f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]+b_test);   #O(Nr^2 N_theta)
+
+			# Add sums after to get +2 lag
+			bf_e += bj*f[ind_j:ind_j+nr] + bjt*f_e;
+
+		else:
+
+			#f[ind_j:ind_j+nr] = np.linalg.solve(L,g[ind_j:ind_j+nr]);
+			f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]);
+			bf_e += bj*f[ind_j:ind_j+nr];
+
+	return f;
+
+#~~~~~~~~~~~~~
