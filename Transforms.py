@@ -1,8 +1,7 @@
 
 import numpy as np
 import copy
-from scipy.fftpack import dct,dst
-
+from   scipy.fftpack import dct,dst
 
 def grid(N):
 
@@ -10,10 +9,7 @@ def grid(N):
 
     return np.asarray(x);
 
-# --------------------
-# Cosine ransforms
-# --------------------
-
+# Scalings
 def sinusoid_to_IDCT(f_hat):
 
     """
@@ -37,10 +33,6 @@ def DCT_to_sinusoid(f_hat_scaled):
     f_hat[0] *= 0.5
 
     return f_hat
-
-# -------------------
-# Sine transforms
-# -------------------
 
 def sinusoid_to_IDST(g_hat):
     """    
@@ -73,67 +65,88 @@ def DST_to_sinusoid(g_hat_scaled):
 
     return g_hat
 
+# Transforms 
+def DST(g,n=None,axis=-1):
 
+    """
+    Compute the DST of g and scale DST output
+    to sinusoid amplitudes g_hat
+    """
+    g_hat_scaled = dst(g,type=2,axis=axis)
+    if n == None:
+        g_hat = DST_to_sinusoid(g_hat_scaled)
+    else:
+        g_hat = DST_to_sinusoid(g_hat_scaled)[0:n]
 
-# Transforms I use in the code
-def DST():
+    return g_hat;
 
-    return None;
+def IDST(g_hat,n=None,axis=-1):
 
-def IDST():
+    """
+    Scale the sinusoid amplitudes f_hat to the IDST input
+    and compute the DST
+    """
+    
+    g_hat_scaled = sinusoid_to_IDST(g_hat)
+    if n == None:
+        g = dst(g_hat_scaled,type=3,axis=axis)
+    else:
+        g = dst(g_hat_scaled,type=3,axis=axis,n = n)
 
-    return None;
+    return g;
 
-def DCT():
+def DCT(f,n=None,axis=-1):
 
-    return None;
+    """
+    Compute the DCT of f and scale DCT output
+    to sinusoid amplitudes f_hat
+    """
+    f_hat_scaled = dct(f,type=2,axis=axis)
+    if n == None:
+        f_hat = DCT_to_sinusoid(f_hat_scaled)
+    else:
+        f_hat = DCT_to_sinusoid(f_hat_scaled)[0:n]
 
-def IDCT():
+    return f_hat;
 
-    return None;
+def IDCT(f_hat,n=None,axis=-1):
 
+    """
+    Scale the sinusoid amplitudes f_hat to the IDCT input
+    and compute the DCT
+    """
+    
+    f_hat_scaled = sinusoid_to_IDCT(f_hat);
+    if n == None:
+        f = dct(f_hat_scaled,type=3,axis=axis)
+    else:
+        f = dct(f_hat_scaled,type=3,axis=axis,n=n) 
 
+    return f;
 
+# Tests
 def Test_Cosine_Transform(k,N):
 
     f_hat_in    = np.zeros(N)
     f_hat_in[k] = 1
 
-    x     = grid(N)
-    Cos   = lambda k : np.cos(k*x)
-    f_in  = Cos(k)
-
+    x    = grid(N)
+    f_in = np.cos(k*x)
 
     print('~~~~ Cosine coefficient space to grid space~~~~~~')
 
-    f_hat_scaled = sinusoid_to_IDCT(f_hat_in);
-    f            = dct(f_hat_scaled,type=3) 
-
-    f_hat_scaled = dct(f,type=2)
-    f_hat        = DCT_to_sinusoid(f_hat_scaled)
-
-    #print('f_hat = ',f_hat_in)
-    #print('f     = ',f       )
-    #print('f_hat = ',f_hat   )
+    f     = IDCT(f_hat_in) 
+    f_hat = DCT(f)
 
     for a,b in zip(np.round(f_hat,12),f_hat_in):
-        #print(a,b)
         assert a == b
 
     print('~~~~ Cosine grid space to coefficient space~~~~~~')
 
-    f_hat_scaled = dct(f_in,type=2)
-    f_hat        = DCT_to_sinusoid(f_hat_scaled)
-
-    f_hat_scaled = sinusoid_to_IDCT(f_hat);
-    f            = dct(f_hat_scaled,type=3) 
-
-    #print('f     = ',f_in )
-    #print('f_hat = ',f_hat)
-    #print('f     = ',f    )
-
+    f_hat = DCT(f_in)
+    f     = IDCT(f_hat) 
+    
     for a,b in zip(np.round(f,12),np.round(f_in,12)):
-        #print(a,b)    
         assert a == b
 
     return None;
@@ -144,54 +157,110 @@ def Test_Sine_Transform(k,N):
     g_hat_in[k] = 1
 
     x     = grid(N)
-    Sin   = lambda k : np.sin((k+1)*x)
-    g_in  = Sin(k)
+    g_in  = np.sin((k+1)*x)
 
     # %%
     print('~~~~ Sine coefficient space to grid space~~~~~~')
 
-    g_hat_scaled = sinusoid_to_IDST(g_hat_in)
-    g            = dst(g_hat_scaled,type=3) 
+    g    = IDST(g_hat_in)
+    g_hat=  DST(g)
 
-    g_hat_scaled = dst(g,type=2)
-    g_hat        = DST_to_sinusoid(g_hat_scaled)
-
+    for a,b in zip(np.round(g_hat,12),g_hat_in):
+        assert a == b
     # print('g_hat = ',g_hat_in)
     # print('g     = ',g       )
     # print('g_hat = ',g_hat   )
 
-    for a,b in zip(np.round(g_hat,12),g_hat_in):
-        #print(a,b)
-        assert a == b
-
     print('~~~~ Sine grid space to coefficient space~~~~~~')
 
-    g_hat_scaled = dst(g_in,type=2)
-    g_hat        = DST_to_sinusoid(g_hat_scaled)
+    g_hat=  DST(g_in)
+    g    = IDST(g_hat)
 
-
-    g_hat_scaled = sinusoid_to_IDST(g_hat)
-    g            = dst(g_hat_scaled,type=3) 
+    for a,b in zip(np.round(g,12),np.round(g_in,12)):
+        assert a == b
 
     # print('g     = ',g_in )
     # print('g_hat = ',g_hat)
     # print('g     = ',g    )
 
-    for a,b in zip(np.round(g,12),np.round(g_in,12)):
-        #print(a,b)
+    return None;
+
+# Test dealiasing
+def Test_Cosine_Transform_deal(k,N):
+
+    f_hat_in    = np.zeros(N)
+    f_hat_in[k] = 1
+
+    x    = grid(N)
+    f_in = np.cos(k*x)
+
+    print('~~~~ Cosine coefficient space to grid space~~~~~~')
+
+    f     = IDCT(f_hat_in,n=(3*N)//2) 
+    f_hat = DCT(f,n=N)
+
+    # print('f_hat_in = ',f_hat_in)
+    # print('f        = ',f       )
+    # print('f_hat    = ',f_hat   )
+
+    for a,b in zip(np.round(f_hat,12),f_hat_in):
+        assert a == b
+
+    print('~~~~ Cosine grid space to coefficient space~~~~~~')
+
+    f_hat = DCT(f_in,n=N)
+    f     = IDCT(f_hat,n=N) 
+    
+    for a,b in zip(np.round(f,12),np.round(f_in,12)):
         assert a == b
 
     return None;
 
+def Test_Sine_Transform_deal(k,N):
+
+    g_hat_in    = np.zeros(N)
+    g_hat_in[k] = 1
+
+    x     = grid(N)
+    g_in  = np.sin((k+1)*x)
+
+    # %%
+    print('~~~~ Sine coefficient space to grid space~~~~~~')
+
+    g    = IDST(g_hat_in,n=(3*N)//2)
+    g_hat=  DST(g,n=N)
+
+    for a,b in zip(np.round(g_hat,12),g_hat_in):
+        assert a == b
+    # print('g_hat = ',g_hat_in)
+    # print('g     = ',g       )
+    # print('g_hat = ',g_hat   )
+
+    print('~~~~ Sine grid space to coefficient space~~~~~~')
+
+    g_hat=  DST(g_in,n=N)
+    g    = IDST(g_hat,n=N)
+
+    for a,b in zip(np.round(g,12),np.round(g_in,12)):
+        assert a == b
+
+    # print('g     = ',g_in )
+    # print('g_hat = ',g_hat)
+    # print('g     = ',g    )
+
+    return None;
+
+# Test for 2D data
 
 if __name__ == "__main__":
 
-    k = 1;
+    # 1D Data
     N = 10;
-
     for k in range(5):
         Test_Cosine_Transform(k,N);
-
-    for k in range(5):
         Test_Sine_Transform(k,N);
 
+    #1D Data + Aliasing
+    for k in range(5):
+        Test_Cosine_Transform_deal(k,N);
+        Test_Sine_Transform_deal(k,N);
