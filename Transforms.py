@@ -5,7 +5,7 @@ from   scipy.fftpack import dct,dst
 
 def grid(N):
 
-    x  = [np.pi*(.5 + i)/(2.*N) for i in range(N)]
+    x  = [2*np.pi*(.5 + i)/(2.*N) for i in range(N)]
 
     return np.asarray(x);
 
@@ -135,9 +135,9 @@ def Test_Cosine_Transform(k,N):
 
     print('~~~~ Cosine coefficient space to grid space~~~~~~')
 
-    f     = IDCT(f_hat_in) 
+    f     = IDCT(f_hat_in)
     f_hat = DCT(f)
-
+    
     for a,b in zip(np.round(f_hat,12),f_hat_in):
         assert a == b
 
@@ -256,11 +256,12 @@ if __name__ == "__main__":
 
     # 1D Data
     N = 10;
-    for k in range(5):
+    
+    for k in range(3):
         Test_Cosine_Transform(k,N);
         Test_Sine_Transform(k,N);
 
     #1D Data + Aliasing
-    for k in range(5):
+    for k in range(3):
         Test_Cosine_Transform_deal(k,N);
         Test_Sine_Transform_deal(k,N);

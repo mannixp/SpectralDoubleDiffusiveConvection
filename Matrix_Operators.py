@@ -2,6 +2,8 @@ from numba import njit
 import numpy as np
 import sys
 
+from Transforms import IDCT,DCT,IDST,DST
+
 import warnings
 warnings.simplefilter('ignore', np.RankWarning)
 
@@ -526,10 +528,6 @@ def A2_SINE_R2(g, N_fm,nr,D,R, symmetric = False):
 @njit(fastmath=True)
 def Vecs_To_NX(PSI,T,C, N_fm,nr, symmetric = False):
 
-	#PSI[:,:] *= (1./N_fm);
-	#T[:,:]   *= (1./N_fm);
-	#C[:,:]   *= (1./N_fm);
-		 
 	# 5) Reshape ; 3 x Nr x N_fm -> 3*nr*N_fm ; Fill into NX
 	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
 	N  = N_fm*nr;
@@ -723,34 +721,18 @@ def NLIN_FX(X_hat,	inv_D,D,R,N_fm,nr, symmetric = False, kinetic = False):
 	# 2) ~~~~ Compute iDCT & iDST ~~~~~ # 
 	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
 
-	from scipy.fft import dct, idct, dst, idst
-	#psi, T,C 
-	JT_psi = idct(JT_psi_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Projected okay
-	komega = idct(komega_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # needs shift
-	kDpsi  = idct( kDpsi_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # needs shift
-	DT 	   = idct(    DT_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Projected okay 
-	DC     = idct(    DC_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Projected okay
+	# psi, T,C 
+	JT_psi = IDCT(JT_psi_hat,n = (3*N_fm)//2) # Projected okay
+	komega = IDCT(komega_hat,n = (3*N_fm)//2) # needs shift
+	kDpsi  = IDCT( kDpsi_hat,n = (3*N_fm)//2) # needs shift
+	DT 	   = IDCT(    DT_hat,n = (3*N_fm)//2) # Projected okay 
+	DC     = IDCT(    DC_hat,n = (3*N_fm)//2) # Projected okay
 
 	# psi, T, C
-	omega  = idst( omega_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Projected okay
-	Dpsi   = idst(  Dpsi_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Projected okay
-	kT 	   = idst(    kT_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Needs shift
-	kC 	   = idst(    kC_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Needs shift
-
-	# psi, T,C 
-	# from Transforms import IDCT,DCT,IDST,DST
-	# JT_psi = IDCT(JT_psi_hat,n = (3*N_fm)//2) # Projected okay
-	# komega = IDCT(komega_hat,n = (3*N_fm)//2) # needs shift
-	# kDpsi  = IDCT( kDpsi_hat,n = (3*N_fm)//2) # needs shift
-	# DT 	   = IDCT(    DT_hat,n = (3*N_fm)//2) # Projected okay 
-	# DC     = IDCT(    DC_hat,n = (3*N_fm)//2) # Projected okay
-
-	# # psi, T, C
-	# omega  = IDST( omega_hat,n = (3*N_fm)//2) # Projected okay
-	# Dpsi   = IDST(  Dpsi_hat,n = (3*N_fm)//2) # Projected okay
-	# kT 	   = IDST(    kT_hat,n = (3*N_fm)//2) # Needs shift
-	# kC 	   = IDST(    kC_hat,n = (3*N_fm)//2) # Needs shift
-
+	omega  = IDST( omega_hat,n = (3*N_fm)//2) # Projected okay
+	Dpsi   = IDST(  Dpsi_hat,n = (3*N_fm)//2) # Projected okay
+	kT 	   = IDST(    kT_hat,n = (3*N_fm)//2) # Needs shift
+	kC 	   = IDST(    kC_hat,n = (3*N_fm)//2) # Needs shift
 
 	# 3) Perform mulitplications in physical space O( (nr*N_fm)**2) Correct
 	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
@@ -759,15 +741,11 @@ def NLIN_FX(X_hat,	inv_D,D,R,N_fm,nr, symmetric = False, kinetic = False):
 	NJ_PSI_T = JT_psi*DT - Dpsi*kT;	
 	NJ_PSI_C = JT_psi*DC - Dpsi*kC;
 
-	# 4) Compute DCT and DST, un-pad, multiply by scaling factor 1/N_fm
+	# 4) Compute DCT and DST & un-pad
 	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
-	J_PSI___hat = dst(NJ_PSI__,type=2,axis=-1,overwrite_x=True)[:,0:N_fm];
-	J_PSI_T_hat = dct(NJ_PSI_T,type=2,axis=-1,overwrite_x=True)[:,0:N_fm]; 
-	J_PSI_C_hat = dct(NJ_PSI_C,type=2,axis=-1,overwrite_x=True)[:,0:N_fm];	
-
-	# J_PSI___hat = DST(NJ_PSI__,n=N_fm);	
-	# J_PSI_T_hat = DCT(NJ_PSI_T,n=N_fm);	
-	# J_PSI_C_hat = DCT(NJ_PSI_C,n=N_fm);		
+	J_PSI___hat = DST(NJ_PSI__,n=N_fm);	
+	J_PSI_T_hat = DCT(NJ_PSI_T,n=N_fm);	
+	J_PSI_C_hat = DCT(NJ_PSI_C,n=N_fm);		
 
 	if kinetic == True:
 
@@ -789,7 +767,6 @@ def Kinetic_Energy(Jψ,dr_ψ, R,inv_D,N_fm,nr):
 	V = int_r1^r2 int_0^π KE(r,θ) r^2 sin(θ) dr dθ = (2/3)*(r2^3 - r1^3)
 	
 	"""
-	from scipy.fft import dst
 
 	IR2  = np.diag(1./(R[1:-1]**2));
 	IR2  = np.ascontiguousarray(IR2);
@@ -797,9 +774,12 @@ def Kinetic_Energy(Jψ,dr_ψ, R,inv_D,N_fm,nr):
 	KE_rθ = IR2@(Jψ**2) + abs(dr_ψ)**2;
 	
 	# Integrate in θ and take zero mode essentially the IP with 
-	KE_r       = np.zeros(len(R));
-	KE_r[1:-1] = dst(KE_rθ,type=2,axis=-1,overwrite_x=True)[:,0];
-	KE_r[1:-1]/= N_fm
+	KE_r       = 0.*R;
+	#from scipy.fft import dst
+	#KE_r[1:-1] = dst(KE_rθ,type=2,axis=-1,overwrite_x=True)[:,0];
+	#KE_r[1:-1]/= N_fm
+	from Transforms import DST
+	KE_r[1:-1] = DST(KE_rθ,n=N_fm)[:,0]
 
 	# Multiply by r^2 and integrate w.r.t r
 	#KE_r = R*R*KE_r;

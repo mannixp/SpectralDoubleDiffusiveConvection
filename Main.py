@@ -5,8 +5,6 @@ import matplotlib.pyplot as plt
 import sys, os, time, warnings, h5py
 warnings.simplefilter('ignore', np.RankWarning)
 
-Lx = np.pi;
-
 # ~~~~~~~~~~~~~~~ Global Parameters ~~~~~~~~~~~~~~~
 #Tau = 1./15.; Ra_s = 0.0; Pr = 1.0;
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -15,12 +13,12 @@ Lx = np.pi;
 #d = 0.353; Ra_HB_c = 2967.37736364 ; Ra_SS_c = 9853.50008503;
 
 # ~~~~~~~~~~~~~~~ Validation Case l=2~~~~~~~~~~~~~~~
-Tau = 1.; Ra_s = 500.0; Pr = 1.; 
-d  = 2.0; Ra = 7.267365e+03 + 1.;
+#Tau = 1.;  Ra_s = 500.0; Pr = 1.; 
+#d   = 2.0; Ra   = 7.267365e+03 + 1.;
 
 # ~~~~~~~~~~~~~~~ Nonlinear Validation Case ~~~~~~~~~ 
-#Tau = 1.; Ra_s = 0.0; Pr = 1.;  
-#d   = 2.; Ra   = 6.77*(10**3) + 10.; #RBC bif
+Tau = 1.; Ra_s = 0.0; Pr = 1.;  
+d   = 2.; Ra   = 6.77*(10**3) + 10.; #RBC bif
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -65,7 +63,7 @@ def Base_State_Coeffs(d):
 # ~~~~~~~~~~~~~~~~~
 # Theese need checking
 
-#@njit(fastmath=True)
+@njit(fastmath=True)
 def Nusselt(T_hat, R,D,N_fm,nr):
 
 	"""
@@ -77,24 +75,18 @@ def Nusselt(T_hat, R,D,N_fm,nr):
 	"""
 
 	# Compute coefficients
-	#A_T    = Base_State_Coeffs(d)[0];
 	R_1 = 1./d; 
 	R_2 = (1. + d)/d;
 	A_T = (R_1*R_2)/(R_1 - R_2);
 
-	NuM1   = np.zeros(len(R)); 
-
-	# Take every-second component
+	NuM1 = 0.*R
 	for k in range(0,N_fm,2):
-		TT 	    = np.zeros(len(R));
-		TT[1:-1]= T_hat[k*nr:(k+1)*nr];
+		TT      = 0.*R;
+		TT[1:-1]= T_hat[k*nr:(k+1)*nr]
 		NuM1   += (D@TT)/(1.-(k**2));
+	NuM1 = ((R**2)/A_T)*NuM1;
 
-
-	NuM1 = ((R**2)/A_T)*(NuM1/N_fm); # Scale by 1/N due to DCT
-
-	#print("|Nu(R_1) - Nu(R_2)|/|Nu(R_1)| = ",( abs(NuM1[-1] - NuM1[0])/abs(NuM1[-1]) ) )
-	#print("Inner Nu= %e, Outer Nu=%e"%(NuM1[0],NuM1[-1]),"\n")
+	%print("|Nu(R_1) - Nu(R_2)|/|Nu(R_1)| = ",( abs(NuM1[-1] - NuM1[0])/abs(NuM1[-1]) ) )
 	return NuM1[0];
 
 def Kinetic_Enegery(X_hat, R,D,N_fm,nr, symmetric = True):
@@ -241,12 +233,6 @@ def Build_Matrix_Operators(N_fm,N_r,d):
 	
 	D,R = cheb_radial(N_r,d); 
 	nr  = len(R[1:-1]);
-
-	# 1) Build wave-number weights
-	# ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~
-	# Use correct grid for DCT-II
-	#θ = [ Lx*( (2*n+1.0)/(2.0*N_fm) ) for n in range(N_fm) ]; # x in [0,L] 
-	# ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~	
 
 	Rsq   =       R2(R,N_fm); 
 	gr_K  = kGR_RT(R,N_fm,d); 
@@ -623,21 +609,21 @@ def _Time_Step(X,Ra, N_fm,N_r,d, save_filename, start_time = 0., Total_time = 1.
 		T = Xn[N:2*N];
 		S = Xn[2*N:3*N];
 
-		'''
+		#'''
 		if kinetic == True:
 			OUT 	= 		 FX(Xn, *args_FX,     symmetric,kinetic); # 36% FIX
 			NX[:],KE= -1.*dt*OUT[0],OUT[1];
 		else:
 			NX[:]	= -1.*dt*FX(Xn, *args_FX,     symmetric,kinetic); # 36% FIX
-		'''
-		KE    = Kinetic_Enegery(Xn, R,D,N_fm,nr, symmetric);
+		#'''
+		#KE    = Kinetic_Enegery(Xn, R,D,N_fm,nr, symmetric);
 		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric);
 		Ω     = A2_SINE(ψ,   D,R,N_fm,nr, symmetric); 
 
 
 		# 1) Vorticity - Ω
 		# Here we invert the LHS = ( \hat{A}^2 − ∆t Pr \hat{A}^4)
-		NX[0:N]     +=  Ω   + dt*Pr*gr_k.dot(Ra*T - Ra_s*S);
+		NX[0:N]      =  Ω   + dt*Pr*gr_k.dot(Ra*T - Ra_s*S);
 		ψ_new        =  A4_BSub_TSTEP(NX[0:N],     *args_A4,     Pr*dt, symmetric); 
 
 		# 2) Temperature - T
@@ -771,7 +757,7 @@ def Time_Step(open_filename='blah',save_filename = 'new_sim.h5',frame=-1):
 		fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	Total_time = 5*(10**3)#0.*(1./Tau);
+	Total_time = 2*(10**3)#0.*(1./Tau);
 
 	X_new = _Time_Step(X,Ra, N_fm,N_r,d, save_filename,start_time, Total_time, dt=0.075, symmetric =True);
 
