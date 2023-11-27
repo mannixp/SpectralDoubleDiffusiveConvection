@@ -41,7 +41,7 @@ def Linear_test():
     for dt in Time_steps:
 
         filename = 'Linear_Test_dt'+str(dt)+'.h5'
-        _Time_Step(X,Ra,N_fm,N_r,d, save_filename=filename,start_time=0, Total_time=20, dt=dt, symmetric =True);
+        _Time_Step(X,Ra,N_fm,N_r,d, save_filename=filename,start_time=0, Total_time=20, dt=dt, symmetric =False);
         Slopes.append( slope(filename) )
 
     print('\n')

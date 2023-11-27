@@ -13,12 +13,12 @@ warnings.simplefilter('ignore', np.RankWarning)
 #d = 0.353; Ra_HB_c = 2967.37736364 ; Ra_SS_c = 9853.50008503;
 
 # ~~~~~~~~~~~~~~~ Validation Case l=2~~~~~~~~~~~~~~~
-#Tau = 1.;  Ra_s = 500.0; Pr = 1.; 
-#d   = 2.0; Ra   = 7.267365e+03 + 1.;
+Tau = 1.;  Ra_s = 500.0; Pr = 1.; 
+d   = 2.0; Ra   = 7.267365e+03 + 1.;
 
 # ~~~~~~~~~~~~~~~ Nonlinear Validation Case ~~~~~~~~~ 
-Tau = 1.; Ra_s = 0.0; Pr = 1.;  
-d   = 2.; Ra   = 6.77*(10**3) + 10.; #RBC bif
+#Tau = 1.; Ra_s = 0.0; Pr = 1.;  
+#d   = 2.; Ra   = 6.77*(10**3) + 10.; #RBC bif
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -61,8 +61,7 @@ def Base_State_Coeffs(d):
 
 
 # ~~~~~~~~~~~~~~~~~
-# Theese need checking
-
+# Fix both
 @njit(fastmath=True)
 def Nusselt(T_hat, R,D,N_fm,nr):
 
@@ -86,7 +85,7 @@ def Nusselt(T_hat, R,D,N_fm,nr):
 		NuM1   += (D@TT)/(1.-(k**2));
 	NuM1 = ((R**2)/A_T)*NuM1;
 
-	%print("|Nu(R_1) - Nu(R_2)|/|Nu(R_1)| = ",( abs(NuM1[-1] - NuM1[0])/abs(NuM1[-1]) ) )
+	#print("|Nu(R_1) - Nu(R_2)|/|Nu(R_1)| = ",( abs(NuM1[-1] - NuM1[0])/abs(NuM1[-1]) ) )
 	return NuM1[0];
 
 def Kinetic_Enegery(X_hat, R,D,N_fm,nr, symmetric = True):
@@ -609,14 +608,14 @@ def _Time_Step(X,Ra, N_fm,N_r,d, save_filename, start_time = 0., Total_time = 1.
 		T = Xn[N:2*N];
 		S = Xn[2*N:3*N];
 
-		#'''
+		'''
 		if kinetic == True:
 			OUT 	= 		 FX(Xn, *args_FX,     symmetric,kinetic); # 36% FIX
 			NX[:],KE= -1.*dt*OUT[0],OUT[1];
 		else:
 			NX[:]	= -1.*dt*FX(Xn, *args_FX,     symmetric,kinetic); # 36% FIX
-		#'''
-		#KE    = Kinetic_Enegery(Xn, R,D,N_fm,nr, symmetric);
+		'''
+		KE    = Kinetic_Enegery(Xn, R,D,N_fm,nr, symmetric);
 		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric);
 		Ω     = A2_SINE(ψ,   D,R,N_fm,nr, symmetric); 
 
@@ -628,11 +627,11 @@ def _Time_Step(X,Ra, N_fm,N_r,d, save_filename, start_time = 0., Total_time = 1.
 
 		# 2) Temperature - T
 		# Here we invert the LHS = r^2( I − ∆t \hat{\nabla}^2)
-		NX[N:2*N]   += Rsq.dot(T) - dt*ψ_T0;
+		NX[N:2*N]    = Rsq.dot(T) - dt*ψ_T0;
 		T_new        = NAB2_BSub_TSTEP(NX[N:2*N],   *args_Nab2_T,    dt, symmetric);
 
 		# 3) Solute - S
-		NX[2*N:3*N] += Rsq.dot(S) - dt*ψ_T0;
+		NX[2*N:3*N]  = Rsq.dot(S) - dt*ψ_T0;
 		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2_S,Tau*dt, symmetric);  
 	
 		if kinetic == True:
@@ -708,12 +707,12 @@ def Time_Step(open_filename='blah',save_filename = 'new_sim.h5',frame=-1):
 
 	"""
 
-	N_fm = 32; 
-	N_r  = 16;
-	d    = 2.0; Ra = 6.77*(10**3) + 10.; 
-	#N_fm =10
-	#N_r = 20
-	#d  = 2.0; Ra = 7.267365e+03 + 1.;
+	#N_fm = 32; 
+	#N_r  = 16;
+	#d    = 2.0; Ra = 6.77*(10**3) + 10.; 
+	N_fm =10
+	N_r = 20
+	d  = 2.0; Ra = 7.267365e+03 + 1.;
 
 
 	# ~~~~~~~~~ Random Initial Conditions ~~~~~~~~~~~~~~~~
@@ -759,7 +758,7 @@ def Time_Step(open_filename='blah',save_filename = 'new_sim.h5',frame=-1):
 
 	Total_time = 2*(10**3)#0.*(1./Tau);
 
-	X_new = _Time_Step(X,Ra, N_fm,N_r,d, save_filename,start_time, Total_time, dt=0.075, symmetric =True);
+	X_new = _Time_Step(X,Ra, N_fm,N_r,d, save_filename,start_time, Total_time, dt=0.075, symmetric=False);
 
 	return None;
 

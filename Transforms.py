@@ -3,9 +3,12 @@ import numpy as np
 import copy
 from   scipy.fftpack import dct,dst
 
+L  = np.pi/2.;
+
 def grid(N):
 
-    x  = [2*np.pi*(.5 + i)/(2.*N) for i in range(N)]
+    dx = L/N;
+    x  = [dx*(2.*i + 1.)/2 for i in range(N)]
 
     return np.asarray(x);
 
@@ -131,11 +134,18 @@ def Test_Cosine_Transform(k,N):
     f_hat_in[k] = 1
 
     x    = grid(N)
-    f_in = np.cos(k*x)
+    f_in = np.cos(((k*np.pi)/L)*x)
 
     print('~~~~ Cosine coefficient space to grid space~~~~~~')
 
     f     = IDCT(f_hat_in)
+    
+    import matplotlib.pyplot as plt
+    fig = plt.figure()
+    plt.plot(x,f_in,'r:')
+    plt.plot(x,f,'bo')
+    plt.show()
+
     f_hat = DCT(f)
     
     for a,b in zip(np.round(f_hat,12),f_hat_in):
@@ -256,12 +266,15 @@ if __name__ == "__main__":
 
     # 1D Data
     N = 10;
-    
-    for k in range(3):
-        Test_Cosine_Transform(k,N);
-        Test_Sine_Transform(k,N);
+    k = 1;
+    Test_Cosine_Transform(k,N);
 
-    #1D Data + Aliasing
-    for k in range(3):
-        Test_Cosine_Transform_deal(k,N);
-        Test_Sine_Transform_deal(k,N);
+
+    # for k in range(3):
+    #     Test_Cosine_Transform(k,N);
+    #     Test_Sine_Transform(k,N);
+
+    # #1D Data + Aliasing
+    # for k in range(3):
+    #     Test_Cosine_Transform_deal(k,N);
+    #     Test_Sine_Transform_deal(k,N);
