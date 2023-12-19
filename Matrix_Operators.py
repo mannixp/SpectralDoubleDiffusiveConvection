@@ -577,7 +577,7 @@ def Vecs_To_NX(PSI,T,C, N_fm,nr, symmetric = False):
 @njit(fastmath=True)
 def Derivatives(X_hat,JPSI,OMEGA, Dr, N_fm,nr, symmetric = False):
 
-	sp = (nr, N_fm);#int( 3*(N_fm/2)) ); # ZERO-PADDED FOR DE-ALIASING !!!!!
+	sp = (nr, N_fm);
 	N  = N_fm*nr;
 
 	# DCT's
@@ -608,12 +608,12 @@ def Derivatives(X_hat,JPSI,OMEGA, Dr, N_fm,nr, symmetric = False):
 			ind_p = ii*nr; 
 			psi   = X_hat[ind_p:ind_p+nr];
 
-			Dpsi_hat[:,ii]    = Dr.dot(psi);
+			Dpsi_hat[:,ii]    = Dr.dot(psi);		# Sine
 			kDpsi_hat[:,ii]   = k_s*Dpsi_hat[:,ii]; # Sine -> Cosine
 					
 		
-			omega_hat[:,ii]   = OMEGA[ind_p:ind_p+nr];
-			komega_hat[:,ii]  = k_s*omega_hat[:,ii] # Sine -> Cosine 
+			omega_hat[:,ii]   = OMEGA[ind_p:ind_p+nr];# Sine
+			komega_hat[:,ii]  = k_s*omega_hat[:,ii]   # Sine -> Cosine 
 
 		for ii in range(0,N_fm,2): # cosine [0,N_fm-1]
 			
@@ -629,15 +629,15 @@ def Derivatives(X_hat,JPSI,OMEGA, Dr, N_fm,nr, symmetric = False):
 			ind_T = N + ii*nr; 
 			T 	  = X_hat[ind_T:ind_T+nr];
 
-			DT_hat[:,ii] = Dr.dot(T);
-			kT_hat[:,ii] = -k_c*T; # Cosine -> Sine
+			DT_hat[:,ii] = Dr.dot(T);# Cosine
+			kT_hat[:,ii] = -k_c*T;   # Cosine -> Sine
 
 			# c) ~~~~~~~~~~ C parts ~~~~~~~~~~~~ # Correct
 			ind_C = 2*N + ii*nr; 
 			C 	  = X_hat[ind_C:ind_C+nr];
 
-			DC_hat[:,ii] = Dr.dot(C);
-			kC_hat[:,ii] = -k_c*C; # Cosine -> Sine
+			DC_hat[:,ii] = Dr.dot(C);# Cosine
+			kC_hat[:,ii] = -k_c*C;   # Cosine -> Sine
 
 	elif symmetric == False:
 		
@@ -648,47 +648,46 @@ def Derivatives(X_hat,JPSI,OMEGA, Dr, N_fm,nr, symmetric = False):
 			k_s = ii + 1; # [1,N_fm  ]
 			k_c = ii;     # [0,N_fm-1]
 			
-			# a) ~~~~~~~ psi parts ~~~~~~~~~~~~ ???
+			# a) ~~~~~~~ psi parts ~~~~~~~~~~~~ # Correct
 			ind_p = ii*nr; 
 			psi   = X_hat[ind_p:ind_p+nr];
 
-			Dpsi_hat[:,ii]    = Dr.dot(psi);
+			Dpsi_hat[:,ii]    = Dr.dot(psi);		# Sine
 			kDpsi_hat[:,ii]   = k_s*Dpsi_hat[:,ii]; # Sine -> Cosine #
 					
-			JT_psi_hat[:,ii]  = JPSI[ind_p:ind_p+nr];
+			JT_psi_hat[:,ii]  = JPSI[ind_p:ind_p+nr];  # Cosine
 
-			omega_hat[:,ii]   = OMEGA[ind_p:ind_p+nr];
-			komega_hat[:,ii]  = k_s*omega_hat[:,ii] # Sine -> Cosine 
+			omega_hat[:,ii]   = OMEGA[ind_p:ind_p+nr]; # Sine
+			komega_hat[:,ii]  = k_s*omega_hat[:,ii];   # Sine -> Cosine 
 
 
 			# b) ~~~~~~~~~~ T parts ~~~~~~~~~~~~~ # Correct
 			ind_T = N + ii*nr; 
 			T 	  = X_hat[ind_T:ind_T+nr];
 
-			DT_hat[:,ii] = Dr.dot(T);
-			kT_hat[:,ii] = -k_c*T; # Cosine -> Sine
+			DT_hat[:,ii] = Dr.dot(T);# Cosine
+			kT_hat[:,ii] = -k_c*T;   # Cosine -> Sine
 
 			# c) ~~~~~~~~~~ C parts ~~~~~~~~~~~~ # Correct
 			ind_C = 2*N + ii*nr; 
 			C 	  = X_hat[ind_C:ind_C+nr];
 
-			DC_hat[:,ii] = Dr.dot(C);
-			kC_hat[:,ii] = -k_c*C; # Cosine -> Sine
+			DC_hat[:,ii] = Dr.dot(C);# Cosine
+			kC_hat[:,ii] = -k_c*C;   # Cosine -> Sine
 
 	
-	# Preform all rolling
+	# Convert Sine to sinusoids
 	# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	# a)cosine -> sine
-	kT_hat[:,0:-1] = kT_hat[:,1:]; kT_hat[:,-1] = 0.0;
-	kC_hat[:,0:-1] = kC_hat[:,1:]; kC_hat[:,-1] = 0.0;
 
-	# b) sine -> cosine
-	kDpsi_hat[:,1:]  = kDpsi_hat[:,0:-1];  kDpsi_hat[:,0]  = 0.0;
-	komega_hat[:,1:] = komega_hat[:,0:-1]; komega_hat[:,0] = 0.0;
+	Dpsi_hat[:,1:]    =   Dpsi_hat[:,0:-1];  Dpsi_hat[:,0] = 0.0;
+	kDpsi_hat[:,1:]   =  kDpsi_hat[:,0:-1]; kDpsi_hat[:,0] = 0.0;
+	omega_hat[: ,1:]  =  omega_hat[:,0:-1]; omega_hat[:,0] = 0.0;
+	komega_hat[:,1:]  = komega_hat[:,0:-1];komega_hat[:,0] = 0.0;
+
 
 	return JT_psi_hat,kDpsi_hat,komega_hat,DT_hat,DC_hat,omega_hat,Dpsi_hat,kT_hat,kC_hat;
 
-def NLIN_FX(X_hat,	inv_D,D,R,N_fm,nr, symmetric = False, kinetic = False):
+def NLIN_FX(X_hat,D,R,N_fm,nr, symmetric = False):
 
 	"""
 
@@ -708,7 +707,7 @@ def NLIN_FX(X_hat,	inv_D,D,R,N_fm,nr, symmetric = False, kinetic = False):
 		sys.exit();
 
 	# length N vector + Perform theta derivatives O( (nr*N_fm )^2 )
-	JPSI  = J_theta_RT(X_hat[0:N], nr,N_fm, symmetric) # ~ cos(k_c*x)
+	JPSI  = J_theta_RT(X_hat[0:N], nr,N_fm, symmetric)      # ~ cos(k_c*x)
 	OMEGA = A2_SINE_R2(X_hat[0:N], N_fm,nr,D,R, symmetric); # ~ sin(k_s*x)
 	Dr    = D[1:-1,1:-1];
 	JPSI  = np.ascontiguousarray(JPSI);
@@ -718,21 +717,21 @@ def NLIN_FX(X_hat,	inv_D,D,R,N_fm,nr, symmetric = False, kinetic = False):
 	# 1) Compute derivatives & Transform to Nr x N_fm
 	JT_psi_hat,kDpsi_hat,komega_hat,DT_hat,DC_hat,omega_hat,Dpsi_hat,kT_hat,kC_hat = Derivatives(X_hat,JPSI,OMEGA, Dr,N_fm,nr, symmetric);
 	
-	# 2) ~~~~ Compute iDCT & iDST ~~~~~ # 
-	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
+	# # 2) ~~~~ Compute iDCT & iDST ~~~~~ # 
+	# # *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
 
 	# psi, T,C 
-	JT_psi = IDCT(JT_psi_hat,n = (3*N_fm)//2) # Projected okay
-	komega = IDCT(komega_hat,n = (3*N_fm)//2) # needs shift
-	kDpsi  = IDCT( kDpsi_hat,n = (3*N_fm)//2) # needs shift
-	DT 	   = IDCT(    DT_hat,n = (3*N_fm)//2) # Projected okay 
-	DC     = IDCT(    DC_hat,n = (3*N_fm)//2) # Projected okay
+	JT_psi = IDCT(JT_psi_hat,n = (3*N_fm)//2) 
+	komega = IDCT(komega_hat,n = (3*N_fm)//2) 
+	kDpsi  = IDCT( kDpsi_hat,n = (3*N_fm)//2) 
+	DT 	   = IDCT(    DT_hat,n = (3*N_fm)//2)  
+	DC     = IDCT(    DC_hat,n = (3*N_fm)//2) 
 
 	# psi, T, C
-	omega  = IDST( omega_hat,n = (3*N_fm)//2) # Projected okay
-	Dpsi   = IDST(  Dpsi_hat,n = (3*N_fm)//2) # Projected okay
-	kT 	   = IDST(    kT_hat,n = (3*N_fm)//2) # Needs shift
-	kC 	   = IDST(    kC_hat,n = (3*N_fm)//2) # Needs shift
+	omega  = IDST( omega_hat,n = (3*N_fm)//2) 
+	Dpsi   = IDST(  Dpsi_hat,n = (3*N_fm)//2) 
+	kT 	   = IDST(    kT_hat,n = (3*N_fm)//2) 
+	kC 	   = IDST(    kC_hat,n = (3*N_fm)//2)
 
 	# 3) Perform mulitplications in physical space O( (nr*N_fm)**2) Correct
 	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
@@ -743,18 +742,16 @@ def NLIN_FX(X_hat,	inv_D,D,R,N_fm,nr, symmetric = False, kinetic = False):
 
 	# 4) Compute DCT and DST & un-pad
 	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
-	J_PSI___hat = DST(NJ_PSI__,n=N_fm);	
-	J_PSI_T_hat = DCT(NJ_PSI_T,n=N_fm);	
-	J_PSI_C_hat = DCT(NJ_PSI_C,n=N_fm);		
+	J_PSI___hat = DST(NJ_PSI__,axis=-1)[:,0:N_fm];	
+	J_PSI_T_hat = DCT(NJ_PSI_T,axis=-1)[:,0:N_fm];
+	J_PSI_C_hat = DCT(NJ_PSI_C,axis=-1)[:,0:N_fm];
 
-	if kinetic == True:
+	# Convert from sinusoids back into my code's convention
+	J_PSI___hat[:,0:-1] = J_PSI___hat[:,1:]; J_PSI___hat[:,-1] = 0.0;
 
-		KE = Kinetic_Energy(JT_psi,Dpsi, R,inv_D,N_fm,nr);
-		return Vecs_To_NX(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric), KE;
-	else:
-		return Vecs_To_NX(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric);	
+	return Vecs_To_NX(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric), Kinetic_Energy(JT_psi,Dpsi, R,D,N_fm,nr);
 
-def Kinetic_Energy(Jψ,dr_ψ, R,inv_D,N_fm,nr):
+def Kinetic_Energy(Jψ,dr_ψ, R,D,N_fm,nr):
 
 	"""
 
@@ -767,24 +764,23 @@ def Kinetic_Energy(Jψ,dr_ψ, R,inv_D,N_fm,nr):
 	V = int_r1^r2 int_0^π KE(r,θ) r^2 sin(θ) dr dθ = (2/3)*(r2^3 - r1^3)
 	
 	"""
-
-	IR2  = np.diag(1./(R[1:-1]**2));
-	IR2  = np.ascontiguousarray(IR2);
-
-	KE_rθ = IR2@(Jψ**2) + abs(dr_ψ)**2;
 	
-	# Integrate in θ and take zero mode essentially the IP with 
-	KE_r       = 0.*R;
-	#from scipy.fft import dst
-	#KE_r[1:-1] = dst(KE_rθ,type=2,axis=-1,overwrite_x=True)[:,0];
-	#KE_r[1:-1]/= N_fm
+	IR2   = np.diag(1./(R[1:-1]**2));
+	IR2   = np.ascontiguousarray(IR2);
+	KE_rθ = (IR2@Jψ)**2  +  dr_ψ**2; # Extended to (3/2)*N_fm, even function
+
+	#KE_θ = np.trapz(KE_rθ,x=R[1:-1],axis=0)
+	#import matplotlib.pyplot as plt
+	#plt.plot(KE_θ,'k-')
+	#plt.show()
+
+	# Integrate in θ against sin(θ)
 	from Transforms import DST
-	KE_r[1:-1] = DST(KE_rθ,n=N_fm)[:,0]
-
-	# Multiply by r^2 and integrate w.r.t r
-	#KE_r = R*R*KE_r;
+	KE_r       = 0.*R;
+	KE_r[1:-1] = DST(KE_rθ,axis=-1)[:,1] # Extract the sin(θ) component
 	
-	KE = inv_D[0,:].dot(KE_r[0:-1]);
+	#KE = np.linalg.solve(D[0:-1,0:-1],KE_r[0:-1])[0];
+	KE = np.trapz(KE_r,x=R)
 	V  = (2./3.)*abs(R[-1]**3 - R[0]**3);
 
 	return (.5/V)*KE;

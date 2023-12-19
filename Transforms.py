@@ -137,7 +137,7 @@ def Test_Cosine_Transform(k,N):
     x    = grid(N)
     f_in = np.cos(((k*np.pi)/L)*x)
 
-    print('~~~~ Cosine coefficient space to grid space~~~~~~')
+    #print('~~~~ Cosine coefficient space to grid space~~~~~~')
 
     f     = IDCT(f_hat_in)
     f_hat = DCT(f)
@@ -145,7 +145,7 @@ def Test_Cosine_Transform(k,N):
     for a,b in zip(np.round(f_hat,12),f_hat_in):
         assert a == b
 
-    print('~~~~ Cosine grid space to coefficient space~~~~~~')
+    #print('~~~~ Cosine grid space to coefficient space~~~~~~')
 
     f_hat = DCT(f_in)
     f     = IDCT(f_hat)
@@ -170,7 +170,7 @@ def Test_Sine_Transform(k,N):
     g_in  = np.sin(k*x)
 
     # %%
-    print('~~~~ Sine coefficient space to grid space~~~~~~')
+    #print('~~~~ Sine coefficient space to grid space~~~~~~')
 
     g    = IDST(g_hat_in)
     g_hat=  DST(g)
@@ -181,7 +181,7 @@ def Test_Sine_Transform(k,N):
     # print('g     = ',g       )
     # print('g_hat = ',g_hat   )
 
-    print('~~~~ Sine grid space to coefficient space~~~~~~')
+    #print('~~~~ Sine grid space to coefficient space~~~~~~')
 
     g_hat=  DST(g_in)
     g    = IDST(g_hat)
@@ -204,7 +204,7 @@ def Test_Cosine_Transform_deal(k,N):
     x    = grid(N)
     f_in = 2.1*np.cos(k*x)
 
-    print('~~~~ Cosine coefficient space to grid space~~~~~~')
+    #print('~~~~ Cosine coefficient space to grid space~~~~~~')
 
     f     = IDCT(f_hat_in,n=(3*N)//2) 
     f_hat = DCT(f,n=N)
@@ -216,7 +216,7 @@ def Test_Cosine_Transform_deal(k,N):
     for a,b in zip(np.round(f_hat,12),f_hat_in):
         assert a == b
 
-    print('~~~~ Cosine grid space to coefficient space~~~~~~')
+    #print('~~~~ Cosine grid space to coefficient space~~~~~~')
 
     f_hat = DCT(f_in,n=N)
     f     = IDCT(f_hat,n=N) 
@@ -235,7 +235,7 @@ def Test_Sine_Transform_deal(k,N):
     g_in  = 3.3*np.sin((k+1)*x)
 
     # %%
-    print('~~~~ Sine coefficient space to grid space~~~~~~')
+    #print('~~~~ Sine coefficient space to grid space~~~~~~')
 
     g    = IDST(g_hat_in,n=(3*N)//2)
     g_hat=  DST(g,n=N)
@@ -246,7 +246,7 @@ def Test_Sine_Transform_deal(k,N):
     # print('g     = ',g       )
     # print('g_hat = ',g_hat   )
 
-    print('~~~~ Sine grid space to coefficient space~~~~~~')
+    #print('~~~~ Sine grid space to coefficient space~~~~~~')
     
     g_hat=  DST(g_in,n=N)
     g    = IDST(g_hat,n=N)
@@ -281,7 +281,7 @@ def Test_Sine_Transform_NL(N):
     g_in  += np.sin(2*x)*np.cos(1*x)
 
     # %%
-    print('~~~~ Sine coefficient space to grid space~~~~~~')
+    #print('~~~~ Sine coefficient space to grid space~~~~~~')
     g    = IDST(g_hat_in,n=N)#(3*N)//2)
     g_hat=  DST(g,n=N)
 
@@ -296,7 +296,7 @@ def Test_Sine_Transform_NL(N):
     # print('g_in  = ',g_in    )
     # print('g_hat = ',g_hat   )
 
-    print('~~~~ Sine grid space to coefficient space~~~~~~')
+    #print('~~~~ Sine grid space to coefficient space~~~~~~')
     
     g_hat=  DST(g_in,n=N)
     g    = IDST(g_hat,n=N)
@@ -339,7 +339,7 @@ def Test_Cosine_Transform_NL(N):
     f_hat_in[2] += -.5
     f_in += np.sin(x)*np.sin(x)
 
-    print('~~~~ Cosine coefficient space to grid space~~~~~~')
+    #print('~~~~ Cosine coefficient space to grid space~~~~~~')
 
     f     = IDCT(f_hat_in,n=N)#(3*N)//2) 
     f_hat =  DCT(f,n=N)
@@ -355,7 +355,7 @@ def Test_Cosine_Transform_NL(N):
     for a,b in zip(np.round(f,12),np.round(f_in,12)):
         assert a == b
 
-    print('~~~~ Cosine grid space to coefficient space~~~~~~')
+    #print('~~~~ Cosine grid space to coefficient space~~~~~~')
 
     f_hat =  DCT(f_in ,n=N)
     f     = IDCT(f_hat,n=N) 
