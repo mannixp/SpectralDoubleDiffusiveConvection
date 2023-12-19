@@ -2,7 +2,7 @@ from numba import njit
 import numpy as np
 import sys
 
-from Transforms import IDCT,DCT,IDST,DST
+from Transforms import IDCT,DCT,IDST,DST,grid
 
 import warnings
 warnings.simplefilter('ignore', np.RankWarning)
@@ -523,8 +523,6 @@ def A2_SINE_R2(g, N_fm,nr,D,R, symmetric = False):
 
 	return f;
 
-#~~~~~~~ Validated up to here ~~~~~~~~~~
-
 @njit(fastmath=True)
 def Vecs_To_NX(PSI,T,C, N_fm,nr, symmetric = False):
 
@@ -749,12 +747,11 @@ def NLIN_FX(X_hat,D,R,N_fm,nr, symmetric = False):
 	# Convert from sinusoids back into my code's convention
 	J_PSI___hat[:,0:-1] = J_PSI___hat[:,1:]; J_PSI___hat[:,-1] = 0.0;
 
-	return Vecs_To_NX(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric), Kinetic_Energy(JT_psi,Dpsi, R,D,N_fm,nr);
+	return Vecs_To_NX(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric), Kinetic_Energy(JT_psi,Dpsi, R,N_fm);
 
-def Kinetic_Energy(Jψ,dr_ψ, R,D,N_fm,nr):
+def Kinetic_Energy(Jψ,dr_ψ, R,N_fm):
 
 	"""
-
 	Compute the volume integrated kinetic energy
 
 	KE = (1/2)*(1/V) int_r1^r2 int_0^π KE(r,θ) r^2 sin(θ) dr dθ
@@ -762,28 +759,22 @@ def Kinetic_Energy(Jψ,dr_ψ, R,D,N_fm,nr):
 	where
 
 	V = int_r1^r2 int_0^π KE(r,θ) r^2 sin(θ) dr dθ = (2/3)*(r2^3 - r1^3)
-	
 	"""
 	
 	IR2   = np.diag(1./(R[1:-1]**2));
 	IR2   = np.ascontiguousarray(IR2);
-	KE_rθ = (IR2@Jψ)**2  +  dr_ψ**2; # Extended to (3/2)*N_fm, even function
 
-	#KE_θ = np.trapz(KE_rθ,x=R[1:-1],axis=0)
-	#import matplotlib.pyplot as plt
-	#plt.plot(KE_θ,'k-')
-	#plt.show()
-
-	# Integrate in θ against sin(θ)
-	from Transforms import DST
-	KE_r       = 0.*R;
-	KE_r[1:-1] = DST(KE_rθ,axis=-1)[:,1] # Extract the sin(θ) component
+	θ     = grid((3*N_fm)//2)
 	
-	#KE = np.linalg.solve(D[0:-1,0:-1],KE_r[0:-1])[0];
-	KE = np.trapz(KE_r,x=R)
-	V  = (2./3.)*abs(R[-1]**3 - R[0]**3);
+	KE_rθ = (IR2@Jψ)**2  +  dr_ψ**2; # Extended to (3/2)*N_fm, even function
+	
+	KE_θ  = np.trapz(KE_rθ         ,x=R[1:-1],axis=0 )
+	KE    = np.trapz(KE_θ*np.sin(θ),x=θ      ,axis=-1)	
+	V     = (2./3.)*(R[-1]**3 - R[0]**3);
 
 	return (.5/V)*KE;
+
+#~~~~~~~ Validated up to here ~~~~~~~~~~
 
 def NLIN_DFX(dv_hat,X_hat,	inv_D,D,R,N_fm,nr, symmetric = False):
 

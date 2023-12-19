@@ -57,8 +57,9 @@ def Linear_test():
 
 def Nonlinear_test():
 
-    Tau = 1.; Ra_s = 0.0; Pr = 1.;  
-    d   = 2.; Ra   = 6.77*(10**3) + 10.; 
+    #~~~~~~~~~~~ Wide Gap l=2 ~~~~~~~~~~~
+    Tau = 1.; Ra_s = 0.0; Pr = 10.;  
+    d   = 2.; Ra   = 6780.; 
 
     N_fm = 32;
     N_r  = 16;
@@ -77,10 +78,42 @@ def Nonlinear_test():
     X_new  = _Time_Step(X,μ_args, N_fm,N_r,d, save_filename=filename,start_time=0., Total_time=2*(10**3), dt=dt, symmetric=False,linear=False,Verbose=False);
 
     T_hat  = X_new[N:2*N];
-    Nu_avg = Nusselt(T_hat, d, R,D,N_fm,nr);
-    KE_avg = Kinetic_Energy(X_new, R,D,N_fm,nr, symmetric = False)
+    Nu_avg = Nusselt(T_hat, d,     R,D,N_fm,nr);
+    KE_avg = Kinetic_Energy(X_new, R,D,N_fm,nr);
 
     print('\n')
+    print('Ra,Pr,d =%d,%d,%d'%(Ra,Pr,d))
+    print('N_r,N_θ,∆t =%d,%d,%2.3f'%(N_r,N_fm,dt))
+    print('<Nu> = ',Nu_avg)
+    print('<KE> = ',KE_avg)
+    print('\n')
+
+    #~~~~~~~~~~~ Narrow Gap l=10 ~~~~~~~~~~~
+    Tau = 1.;    Ra_s = 0.0; Pr = 1.;  
+    d   = 0.353; Ra   = 2360.0; 
+
+    N_fm = 48;
+    N_r  = 24;
+    dt   = 0.075;
+
+    D,R  = cheb_radial(N_r,d); 
+    nr   = len(R[1:-1]);
+    N 	 = nr*N_fm;
+
+    X = np.random.rand(3*N);
+    X = 1e-03*(X/np.linalg.norm(X,2))
+
+    filename = 'Non_Linear_Test_dt'+str(dt)+'.h5'
+    
+    μ_args = [Ra,Ra_s,Tau,Pr]
+    X_new  = _Time_Step(X,μ_args, N_fm,N_r,d, save_filename=filename,start_time=0., Total_time=2*(10**3), dt=dt, symmetric=False,linear=False,Verbose=True);
+
+    T_hat  = X_new[N:2*N];
+    Nu_avg = Nusselt(T_hat, d,     R,D,N_fm,nr);
+    KE_avg = Kinetic_Energy(X_new, R,D,N_fm,nr);
+
+    print('\n')
+    print('Ra,Pr,d =%d,%d,%d'%(Ra,Pr,d))
     print('N_r,N_θ,∆t =%d,%d,%2.3f'%(N_r,N_fm,dt))
     print('<Nu> = ',Nu_avg)
     print('<KE> = ',KE_avg)
