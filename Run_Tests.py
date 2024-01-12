@@ -4,13 +4,13 @@ tests & checks
 """
 import numpy as np
 import matplotlib.pyplot as plt
-import h5py
+import h5py,os
 
 from Transforms import Test_Cosine_Transform_NL, Test_Cosine_Transform_deal
 from Transforms import Test_Sine_Transform_NL, Test_Sine_Transform_deal
 
 from Matrix_Operators import cheb_radial
-from Main import _Time_Step, Nusselt, Kinetic_Energy
+from Main import _Time_Step,_Newton, Nusselt, Kinetic_Energy
 
 def slope(filename):
     
@@ -55,7 +55,7 @@ def Linear_test():
 
     return None;
 
-def Nonlinear_test():
+def Nonlinear_Tstep__test():
 
     #~~~~~~~~~~~ Wide Gap l=2 ~~~~~~~~~~~
     Tau = 1.; Ra_s = 0.0; Pr = 10.;  
@@ -72,7 +72,7 @@ def Nonlinear_test():
     X = np.random.rand(3*N);
     X = 1e-03*(X/np.linalg.norm(X,2))
 
-    filename = 'Non_Linear_Test_dt'+str(dt)+'.h5'
+    filename = 'Non_Linear_Test_wide_gap_dt'+str(dt)+'.h5'
     
     μ_args = [Ra,Ra_s,Tau,Pr]
     X_new  = _Time_Step(X,μ_args, N_fm,N_r,d, save_filename=filename,start_time=0., Total_time=2*(10**3), dt=dt, symmetric=False,linear=False,Verbose=False);
@@ -103,10 +103,10 @@ def Nonlinear_test():
     X = np.random.rand(3*N);
     X = 1e-03*(X/np.linalg.norm(X,2))
 
-    filename = 'Non_Linear_Test_dt'+str(dt)+'.h5'
+    filename = 'Non_Linear_Test_thin_gap_dt'+str(dt)+'.h5'
     
     μ_args = [Ra,Ra_s,Tau,Pr]
-    X_new  = _Time_Step(X,μ_args, N_fm,N_r,d, save_filename=filename,start_time=0., Total_time=2*(10**3), dt=dt, symmetric=False,linear=False,Verbose=True);
+    X_new  = _Time_Step(X,μ_args, N_fm,N_r,d, save_filename=filename,start_time=0., Total_time=2*(10**3), dt=dt, symmetric=False,linear=False,Verbose=False);
 
     T_hat  = X_new[N:2*N];
     Nu_avg = Nusselt(T_hat, d,     R,D,N_fm,nr);
@@ -121,7 +121,100 @@ def Nonlinear_test():
 
     return None;
 
+def Nonlinear_Newton_test():
+
+    #~~~~~~~~~~~ Wide Gap l=2 ~~~~~~~~~~~
+    Tau = 1.; Ra_s = 0.0; Pr = 10.;  
+    d   = 2.; Ra   = 6780.; 
+
+    N_fm = 32;
+    N_r  = 16;
+    dt   = 0.075;
+
+    D,R  = cheb_radial(N_r,d); 
+    nr   = len(R[1:-1]);
+    N 	 = nr*N_fm;
+
+    filename = 'Non_Linear_Test_wide_gap_dt'+str(dt)+'.h5'; frame =-1;
+    if filename.endswith('.h5'):
+        
+        f = h5py.File(filename, 'r+')
+
+        # Problem Params
+        X      = f['Checkpoints/X_DATA'][frame];
+        Ra     = f['Parameters']["Ra"][()];
+        N_fm   = f['Parameters']["N_fm"][()]
+        N_r    = f['Parameters']["N_r"][()]
+        d 	   = f['Parameters']["d"][()]
+        #start_time = f['Parameters']["start_time"][()];
+        try:
+            start_time  = f['Scalar_Data/Time'][()][frame]
+        except:
+            pass;
+        f.close();
+
+        print("\n Loading time-step %e with parameters Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(start_time,Ra,d,N_fm,N_r))
+    
+    μ_args = [Ra,Ra_s,Tau,Pr];
+    X_new,ke,nuS,nuT,BOOL = _Newton(X,μ_args, N_fm,N_r,d, Krylov_Space_Size = 150, symmetric = True)
+    
+    print('\n')
+    print('Ra,Pr,d =%d,%d,%d'%(Ra,Pr,d))
+    print('N_r,N_θ,∆t =%d,%d,%2.3f'%(N_r,N_fm,dt))
+    print('<Nu> = ',nuT)
+    print('<KE> = ',ke)
+    print('\n')
+
+    #~~~~~~~~~~~ Narrow Gap l=10 ~~~~~~~~~~~
+    Tau = 1.;    Ra_s = 0.0; Pr = 1.;  
+    d   = 0.353; Ra   = 2360.0; 
+
+    N_fm = 48;
+    N_r  = 24;
+    dt   = 0.075;
+
+    D,R  = cheb_radial(N_r,d); 
+    nr   = len(R[1:-1]);
+    N 	 = nr*N_fm;
+
+    filename = 'Non_Linear_Test_thin_gap_dt'+str(dt)+'.h5'; frame =-1;
+    if filename.endswith('.h5'):
+        
+        f = h5py.File(filename, 'r+')
+
+        # Problem Params
+        X      = f['Checkpoints/X_DATA'][frame];
+        Ra     = f['Parameters']["Ra"][()];
+        N_fm   = f['Parameters']["N_fm"][()]
+        N_r    = f['Parameters']["N_r"][()]
+        d 	   = f['Parameters']["d"][()]
+        #start_time = f['Parameters']["start_time"][()];
+        try:
+            start_time  = f['Scalar_Data/Time'][()][frame]
+        except:
+            pass;
+        f.close();
+
+        print("\n Loading time-step %e with parameters Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(start_time,Ra,d,N_fm,N_r))
+    
+    μ_args = [Ra,Ra_s,Tau,Pr];
+    X_new,ke,nuS,nuT,BOOL = _Newton(X,μ_args, N_fm,N_r,d, Krylov_Space_Size = 150, symmetric = True)
+    
+    print('\n')
+    print('Ra,Pr,d =%d,%d,%d'%(Ra,Pr,d))
+    print('N_r,N_θ,∆t =%d,%d,%2.3f'%(N_r,N_fm,dt))
+    print('<Nu> = ',nuT)
+    print('<KE> = ',ke)
+    print('\n')
+
+    return None;
+
 if __name__ == "__main__":
+
+    print('Creating a test directory .... \n')
+    os.rmdir('./Tests')
+    os.mkdir('./Tests')
+    os.chdir('./Tests')
 
     print('Running Transforms Tests ..... \n')
     N = 2**8;
@@ -132,8 +225,9 @@ if __name__ == "__main__":
         Test_Cosine_Transform_deal(k,N);
         Test_Sine_Transform_deal(k+1,N);
 
-    #print('Running Linear Tests ..... \n')
-    #Linear_test();
+    print('Running Linear Tests ..... \n')
+    Linear_test();
 
     print('Running Non-Linear Tests ..... \n')
-    Nonlinear_test()
+    Nonlinear_Tstep__test()
+    Nonlinear_Newton_test()

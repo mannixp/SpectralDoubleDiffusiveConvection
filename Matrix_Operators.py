@@ -1,11 +1,10 @@
-from numba import njit
 import numpy as np
-import sys
-
+from numba      import njit
 from Transforms import IDCT,DCT,IDST,DST,grid
 
 import warnings
 warnings.simplefilter('ignore', np.RankWarning)
+np.seterr(divide='ignore')
 
 def cheb_radial(N,d):
 	
@@ -90,7 +89,7 @@ def R2(R,N_fm):
 
 	return block_diag(AT,format="csr");
 
-def kGR_RT(R,N_fm,d): # Correct
+def kGR_RT(R,N_fm,d):
 	
 	"""
 	Compute the operator g(r) ∂_s f(r,s,t) in spectral space 
@@ -99,8 +98,6 @@ def kGR_RT(R,N_fm,d): # Correct
 
 	returns the sparse matrix which performs this operation
 	"""
-
-	#print("Warning: make sure to call kGR_RT.dot(np vector) as spase matrix")
 
 	nr  = len(R[1:-1]); 
 	R_1 = 1./d;
@@ -125,8 +122,7 @@ def kGR_RT(R,N_fm,d): # Correct
 
 	return bmat(A1,format="csr")
 
-
-@njit(fastmath=True) # Just check dT_0/dr form and sign
+@njit(fastmath=True) 
 def DT0_theta(g, dT0,N_fm,nr, symmetric = False): 
 	
 	"""
@@ -244,7 +240,6 @@ def A2_SINE(g,  D,R,N_fm,nr, symmetric = False):
 # ~~~~~~~~ Time-stepping functions ~~~~~~~~~~~
 
 # O(Nr^3 N_theta) complexity
-#~~~~~~~~~~~~~
 @njit(fastmath=True)
 def NAB2_BSub_TSTEP(g, R2_Nab2,R2,I,N_fm,nr,dt, symmetric = False):
 	
@@ -430,7 +425,6 @@ def A4_BSub_TSTEP(g,  D4,IR4, D2,A2,IR2, N_fm,nr,dt, symmetric = False):
 				bf_e += bj*f[ind_j:ind_j+nr];
 
 	return f;
-#~~~~~~~~~~~~~
 
 @njit(fastmath=True)
 def J_theta_RT(g,     nr,N_fm, symmetric = False):
@@ -685,6 +679,31 @@ def Derivatives(X_hat,JPSI,OMEGA, Dr, N_fm,nr, symmetric = False):
 
 	return JT_psi_hat,kDpsi_hat,komega_hat,DT_hat,DC_hat,omega_hat,Dpsi_hat,kT_hat,kC_hat;
 
+def Kinetic_Energy(Jψ,dr_ψ, R,N_fm):
+
+	"""
+	Compute the volume integrated kinetic energy
+
+	KE = (1/2)*(1/V) int_r1^r2 int_0^π KE(r,θ) r^2 sin(θ) dr dθ
+
+	where
+
+	V = int_r1^r2 int_0^π KE(r,θ) r^2 sin(θ) dr dθ = (2/3)*(r2^3 - r1^3)
+	"""
+	
+	IR2   = np.diag(1./(R[1:-1]**2));
+	IR2   = np.ascontiguousarray(IR2);
+
+	θ     = grid((3*N_fm)//2)
+	
+	KE_rθ = (IR2@Jψ)**2  +  dr_ψ**2; # Extended to (3/2)*N_fm, even function
+	
+	KE_θ  = np.trapz(KE_rθ         ,x=R[1:-1],axis=0 )
+	KE    = np.trapz(KE_θ*np.sin(θ),x=θ      ,axis=-1)	
+	V     = (2./3.)*(R[-1]**3 - R[0]**3);
+
+	return (.5/V)*KE;
+
 def NLIN_FX(X_hat,D,R,N_fm,nr, symmetric = False):
 
 	"""
@@ -701,8 +720,7 @@ def NLIN_FX(X_hat,D,R,N_fm,nr, symmetric = False):
 
 	N  = nr*N_fm; 
 	if N_fm%2 != 0:
-		print("\n\n Must choose an even number of Fourier modes N_fm = 2*N_fm !!! \n\n");
-		sys.exit();
+		raise ValueError('The number of Fourier modes is not even %d' %N_fm)
 
 	# length N vector + Perform theta derivatives O( (nr*N_fm )^2 )
 	JPSI  = J_theta_RT(X_hat[0:N], nr,N_fm, symmetric)      # ~ cos(k_c*x)
@@ -749,34 +767,7 @@ def NLIN_FX(X_hat,D,R,N_fm,nr, symmetric = False):
 
 	return Vecs_To_NX(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric), Kinetic_Energy(JT_psi,Dpsi, R,N_fm);
 
-def Kinetic_Energy(Jψ,dr_ψ, R,N_fm):
-
-	"""
-	Compute the volume integrated kinetic energy
-
-	KE = (1/2)*(1/V) int_r1^r2 int_0^π KE(r,θ) r^2 sin(θ) dr dθ
-
-	where
-
-	V = int_r1^r2 int_0^π KE(r,θ) r^2 sin(θ) dr dθ = (2/3)*(r2^3 - r1^3)
-	"""
-	
-	IR2   = np.diag(1./(R[1:-1]**2));
-	IR2   = np.ascontiguousarray(IR2);
-
-	θ     = grid((3*N_fm)//2)
-	
-	KE_rθ = (IR2@Jψ)**2  +  dr_ψ**2; # Extended to (3/2)*N_fm, even function
-	
-	KE_θ  = np.trapz(KE_rθ         ,x=R[1:-1],axis=0 )
-	KE    = np.trapz(KE_θ*np.sin(θ),x=θ      ,axis=-1)	
-	V     = (2./3.)*(R[-1]**3 - R[0]**3);
-
-	return (.5/V)*KE;
-
-#~~~~~~~ Validated up to here ~~~~~~~~~~
-
-def NLIN_DFX(dv_hat,X_hat,	inv_D,D,R,N_fm,nr, symmetric = False):
+def NLIN_DFX(dv_hat,X_hat,D,R,N_fm,nr, symmetric = False):
 
 	"""
 
@@ -786,105 +777,98 @@ def NLIN_DFX(dv_hat,X_hat,	inv_D,D,R,N_fm,nr, symmetric = False):
 
 	∂_r X(r,s) -> D*X, radial derivatives 
 
-	return DF(X)*dv = N(X,dv) + N(dv,X) a vetor same shape as X
+	return DF(X)*dv = F(X,dv) + F(dv,X) a vetor same shape as X
 
 	"""
 
-	from scipy.fft import dct, idct, dst, idst
-
-	# Dr must be D[1:-1,1:-1]
-	# A2 must be sine
-	# J_theta must have no r dependancy
-	
 	N  = nr*N_fm; 
 	if N_fm%2 != 0:
-		print("\n\n Must choose an even number of Fourier modes N_fm = 2*N_fm !!! \n\n");
-		sys.exit();
+		raise ValueError('The number of Fourier modes is not even %d' %N_fm)
+	
+	Dr    = D[1:-1,1:-1];
+	Dr    = np.ascontiguousarray(Dr);
 
 	# A)  Base state X terms
-	# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
 	# length N vector + Perform theta derivatives O( (nr*N_fm )^2 )
-	JPSI  = J_theta_RT(X_hat[0:N], nr,N_fm, symmetric)
-	OMEGA = A2_SINE_R2(X_hat[0:N], N_fm,nr,D,R, symmetric);
-	Dr    = D[1:-1,1:-1];
+	JPSI  = J_theta_RT(X_hat[0:N], nr,N_fm, symmetric)      # ~ cos(k_c*x)
+	OMEGA = A2_SINE_R2(X_hat[0:N], N_fm,nr,D,R, symmetric); # ~ sin(k_s*x)	
 	JPSI  = np.ascontiguousarray(JPSI);
 	OMEGA = np.ascontiguousarray(OMEGA);
-	Dr    = np.ascontiguousarray(Dr);
-	
+
 	# A.1) Compute derivatives & Transform to Nr x N_fm
 	JT_psi_hat,kDpsi_hat,komega_hat,DT_hat,DC_hat,omega_hat,Dpsi_hat,kT_hat,kC_hat = Derivatives(X_hat,JPSI,OMEGA, Dr,N_fm,nr, symmetric);
 	
-	# A.2) ~~~~ Compute iDCT & iDST ~~~~~ # 
-	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
+	# A.2) ~~~~ Compute iDCT & iDST ~~~~~ 
 
 	# psi, T,C 
-	JT_psi = idct(JT_psi_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Projected okay
-	komega = idct(komega_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # needs shift
-	kDpsi  = idct( kDpsi_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # needs shift
-	DT 	   = idct(    DT_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Projected okay 
-	DC     = idct(    DC_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Projected okay
+	JT_psi = IDCT(JT_psi_hat,n = (3*N_fm)//2) 
+	komega = IDCT(komega_hat,n = (3*N_fm)//2) 
+	kDpsi  = IDCT( kDpsi_hat,n = (3*N_fm)//2) 
+	DT 	   = IDCT(    DT_hat,n = (3*N_fm)//2)  
+	DC     = IDCT(    DC_hat,n = (3*N_fm)//2) 
 
 	# psi, T, C
-	omega  = idst( omega_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Projected okay
-	Dpsi   = idst(  Dpsi_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Projected okay
-	kT 	   = idst(    kT_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Needs shift
-	kC 	   = idst(    kC_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Needs shift
-
+	omega  = IDST( omega_hat,n = (3*N_fm)//2) 
+	Dpsi   = IDST(  Dpsi_hat,n = (3*N_fm)//2) 
+	kT 	   = IDST(    kT_hat,n = (3*N_fm)//2) 
+	kC 	   = IDST(    kC_hat,n = (3*N_fm)//2)
 
 	# B)  Perturbation ∆X terms
-	# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
 	# length N vector + Perform theta derivatives O( (nr*N_fm )^2 )
-	δJψ = J_theta_RT(dv_hat[0:N], nr,N_fm, symmetric)
-	δΩ  = A2_SINE_R2(dv_hat[0:N], N_fm,nr,D,R, symmetric);
-	#Dr    = D[1:-1,1:-1];
+	δJψ = J_theta_RT(dv_hat[0:N], nr,N_fm, symmetric)      # ~ cos(k_c*x)
+	δΩ  = A2_SINE_R2(dv_hat[0:N], N_fm,nr,D,R, symmetric); # ~ sin(k_s*x)	
 	δJψ = np.ascontiguousarray(δJψ);
 	δΩ  = np.ascontiguousarray(δΩ);
-	#Dr    = np.ascontiguousarray(Dr);
 	
-	# ) Compute derivatives & Transform to Nr x N_fm
+	# B.1) Compute derivatives & Transform to Nr x N_fm
 	δJT_ψ_hat,δkDψ_hat,δkΩ_hat,δDT_hat,δDC_hat,δΩ_hat,δDψ_hat,δkT_hat,δkC_hat = Derivatives(dv_hat,δJψ,δΩ, Dr,N_fm,nr, symmetric);
-	
-	# 2) ~~~~ Compute iDCT & iDST ~~~~~ # 
-	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
+
+	# B.2) ~~~~ Compute iDCT & iDST ~~~~~ 
 
 	# psi, T,C 
-	δJT_ψ = idct(δJT_ψ_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Projected okay
-	δkΩ   = idct(  δkΩ_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # needs shift
-	δkDψ  = idct( δkDψ_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # needs shift
-	δDT   = idct(  δDT_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Projected okay 
-	δDC   = idct(  δDC_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Projected okay
+	δJT_ψ = IDCT(δJT_ψ_hat,n = (3*N_fm)//2) 
+	δkΩ   = IDCT(  δkΩ_hat,n = (3*N_fm)//2) 
+	δkDψ  = IDCT( δkDψ_hat,n = (3*N_fm)//2) 
+	δDT   = IDCT(  δDT_hat,n = (3*N_fm)//2)  
+	δDC   = IDCT(  δDC_hat,n = (3*N_fm)//2) 
 
 	# psi, T, C
-	δΩ    = idst(   δΩ_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Projected okay
-	δDψ   = idst(  δDψ_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Projected okay
-	δkT   = idst(  δkT_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Needs shift
-	δkC   = idst(  δkC_hat,type=2,axis=-1,overwrite_x=True,n = (3*N_fm)//2) # Needs shift
+	δΩ    = IDST(   δΩ_hat,n = (3*N_fm)//2) 
+	δDψ   = IDST(  δDψ_hat,n = (3*N_fm)//2) 
+	δkT   = IDST(  δkT_hat,n = (3*N_fm)//2) 
+	δkC   = IDST(  δkC_hat,n = (3*N_fm)//2) 
 
 
 	# 3) Perform mulitplications in physical space O( (nr*N_fm)**2) Correct
 	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
 
 	NJ_PSI__ = Dr@(JT_psi*δΩ)   - (kDpsi*δΩ   + Dpsi*δkΩ);
-	NJ_PSI__+= Dr@(δJT_ψ*omega) - (δkDψ*omega + δDψ*komega)
+	NJ_PSI__+= Dr@(δJT_ψ*omega) - (δkDψ*omega + δDψ*komega);
 	NJ_PSI_T = (δJT_ψ*DT - δDψ*kT) + (JT_psi*δDT - Dpsi*δkT);	
 	NJ_PSI_C = (δJT_ψ*DC - δDψ*kC) + (JT_psi*δDC - Dpsi*δkC);
 
-	# 4) Compute DCT and DST, un-pad, multiply by scaling factor 1/N_fm
+	# 4) Compute DCT and DST & un-pad
 	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
-	J_PSI___hat = dst(NJ_PSI__,type=2,axis=-1,overwrite_x=True)[:,0:N_fm];
-	J_PSI_T_hat = dct(NJ_PSI_T,type=2,axis=-1,overwrite_x=True)[:,0:N_fm]; 
-	J_PSI_C_hat = dct(NJ_PSI_C,type=2,axis=-1,overwrite_x=True)[:,0:N_fm];		
+	J_PSI___hat = DST(NJ_PSI__,axis=-1)[:,0:N_fm];	
+	J_PSI_T_hat = DCT(NJ_PSI_T,axis=-1)[:,0:N_fm];
+	J_PSI_C_hat = DCT(NJ_PSI_C,axis=-1)[:,0:N_fm];
 
-	
-	return Vecs_To_NX(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric);	
+	# Convert from sinusoids back into my code's convention
+	J_PSI___hat[:,0:-1] = J_PSI___hat[:,1:]; J_PSI___hat[:,-1] = 0.0;
 
+	return Vecs_To_NX(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric);
 
-# ~~~~~~~~~~~~ Interpolation functions ~~~~~~~~~~~~~~
+#~~~~~~~ Validated up to here ~~~~~~~~~~
 
+# Interpolation functions
 def INTERP_RADIAL(N_n,N_o,X_o,d):
-
+	"""
+	Interpolate the system state from a radial discretisation
+	using o-collocation points to one with n-collocation points.
+	"""
+	'''
 	if N_n == N_o:
 		return X_o;
 
@@ -922,9 +906,17 @@ def INTERP_RADIAL(N_n,N_o,X_o,d):
 		X_n[ind_n:ind_n+nr_n] = np.polyval(S,R_n[1:-1])
 	
 	return X_n;
+	'''
+	raise NotImplementedError
 
 def INTERP_THETAS(N_fm_n,N_fm_o,X_o):
 
+	"""
+	Interpolate the system state from a latitudinal discretisation
+	using o-collocation points to one with n-collocation points.
+	"""
+	
+	'''
 	if N_fm_n == N_fm_o:
 		return X_o;
 
@@ -989,213 +981,11 @@ def INTERP_THETAS(N_fm_n,N_fm_o,X_o):
 		ind = 2*N_fm_n*nr + k*nr
 		XX[ind:ind+nr] = S_hat[:,k];
 
-	return XX;	
+	return XX
+	'''
+	raise NotImplementedError
 
-# ~~~~~ Full Nr x N_fm blocks ~~~~
-
-# ~~~~~ NABLA2 Cosine~~~~ Correct as of 16/09/22
-def A2_theta_C(R,N_fm): # No 1/R^2
-	
-	# LAP2_theta Cosine-Basis  = r^2 \nabla^2 + A^2_\theta
-
-	from scipy.sparse  import bmat
-	
-	nr = len(R[1:-1]); 
-	IR = np.eye(nr); #diags( np.ones(nr),0,format="csr");  #
-
-	AT = [];
-	for j in range(N_fm): # [0,N_Fm -1]
-		AT_j = [];
-		for k in range(N_fm): # [0,N_Fm -1]
-			
-			if (k == j):
-				AT_j.append(-k*(k + 1.0)*IR)
-			elif (k > j) and ( (k+j)%2 == 0 ):
-				AT_j.append(-k*2.0*IR);		
-			else:
-				AT_j.append(None);
-		AT.append(AT_j);				 
-	
-	return bmat(AT,format="csr");
-
-def NABLA2_COS(D,R,N_fm):
-	
-	from scipy.sparse  import block_diag
-
-	DR = Nabla2(D,R); # r^2 T'' +2r T'
-
-	LAP_2 = [];
-	for k in range(N_fm): # [0,N_Fm -1] cosine basis	
-		if k == 0:
-			LAP_2.append(2.*DR);
-		else:	
-			LAP_2.append(DR);
-
-	return block_diag(LAP_2,format="csr") + A2_theta_C(R,N_fm);
-
-# ~~~~~ J_theta Cosine-Basis~~~~ Correct as of 16/09/22
-def T0J_theta(R,N_fm,d): 
-	
-	# Includes -T'_0; #/r^2
-	from scipy.sparse  import diags
-	from scipy.sparse  import bmat
-
-	R_1 = 1./d; 
-	R_2 = (1. + d)/d;
-	A_t = (R_1*R_2)/(R_1-R_2)
-
-	IR = A_t*diags( 1.0/(R[1:-1]**2),0,format="csr"); 
-	nr = len(R[1:-1]); #print("nr",nr);
-	#IR = np.eye(nr);
-
-	JT = [];
-	for j in range(N_fm): # j cosine [0,N_Fm -1]
-		AT_j = [];
-		for kk in range(N_fm): 
-			k = kk + 1; # k Sine [1,N_Fm]
-			
-			if (k == j) and (j > 0):
-				AT_j.append( (k + 1.0)*IR); 	
-			elif (k > j) and ( (j+k)%2 == 0 ):	
-				AT_j.append(2.*IR);
-			else:
-				if j == 0:
-					AT_j.append( np.zeros((nr,nr)) );
-				else:
-					AT_j.append( None );	
-
-		JT.append(AT_j);				 
-			
-	return bmat(JT,format="csr");
-
-def J_theta(R,N_fm): 
-	
-	# Includes -T'_0; #/r^2
-	from scipy.sparse  import bmat
- 
-	nr = len(R[1:-1]); #print("nr",nr);
-	IR = np.eye(nr);
-
-	JT = [];
-	for j in range(N_fm): # j cosine [0,N_Fm -1]
-		AT_j = [];
-		for kk in range(N_fm): 
-			k = kk + 1; # k Sine [1,N_Fm]
-			
-			if (k == j) and (j > 0):
-				AT_j.append( (k + 1.0)*IR); 	
-			elif (k > j) and ( (j+k)%2 == 0 ):
-				AT_j.append(2.*IR);
-			else:
-				if j == 0:
-					AT_j.append( np.zeros((nr,nr)) );
-				else:
-					AT_j.append( None );	
-
-		JT.append(AT_j);				 
-			
-	return bmat(JT,format="csr");
-
-
-# ~~~~~ g(r)_d_theta ~~~~ not rechecked
-def kGR(R,N_fm,d): # Correct
-	
-	from scipy.sparse import diags,block_diag,identity
-	nr = len(R[1:-1]); R_1 = 1./d;
-	
-	GR = diags( (R_1**2)/(R[1:-1]**2), 0 ,format="csr")
-
-	# Alternatively goes like GR = I ?
-	
-	AT = [];
-	for jj in range(N_fm): 
-		j = jj + 1; # j Sine [1,N_Fm]
-		for k in range(N_fm): # k Cosine [0,N_Fm-1] 
-			if (k == j):
-
-				AT.append(-k*GR);
-	
-	A1 = block_diag(AT,format="csr");
-
-	# AT must be an 
-	#ID = diags(AT, 1,format="csr")
-
-	ID = 0.*identity(nr*N_fm,format="csr");
-	ID[:-1*nr,1*nr:] = A1; # FIX V slow here
-
-	return ID;
-
-
-# ~~~~~ NABLA4 Sine~~~~ Correct as of 19/09/22
-def A2_theta_S(R,N_fm): 
-	
-	# LAP2_theta Sine-Basis, D^2 + (A^2_\theta)/r^2
-
-	from scipy.sparse import diags,bmat
-	
-	IR = diags( 1.0/(R[1:-1]**2),0,format="csr"); #np.ones(len(R[1:-1]));# 
-	
-	AT = [];
-	for jj in range(N_fm): # Sine [1,N_Fm] 
-		j = jj + 1; 
-		
-		AT_j = [];
-		for kk in range(N_fm): # Sine [1,N_Fm] 
-			k = kk + 1; 
-
-			if (k == j):
-				AT_j.append(-j*(j + 1.0)*IR);
-			elif (k > j) and ( (k + j)%2 == 0 ):
-				AT_j.append(-2.0*j*IR);
-			else:
-				AT_j.append(None);
-		AT.append(AT_j);				 
-	
-	return bmat(AT,format="csr");
-
-def NABLA2_SINE(D,R,N_fm):
-
-	from scipy.sparse import block_diag
-
-	DR = (D@D)[1:-1,1:-1];
-
-	LAP_2 = []; 
-	for j in range(N_fm): # [1,N_Fm -1] sine basis
-		LAP_2.append(DR);
-	
-	D2 = block_diag(LAP_2,format="csr");
-	
-	return D2 + A2_theta_S(R,N_fm);
-
-def NABLA4_SINE(D,R,N_fm):
-
-	from scipy.sparse import block_diag
-	# LAP4 full Sine-Basis, includes 1/r^2
-
-	nr  = len(R[1:-1]); 
-	IR2 = np.diag( 1.0/(R**2) ); 
-	IR  = np.diag(1.0/R); # Keep dense
-	
-	LAP_4 = []; DT = []; 
-	D4 = Nabla4(D,R); 
-	D2 = 2.0*(D@D) - 4.0*(IR@D) + 6.0*IR2; 
-	for k in range(N_fm): # Sine [1,N_Fm]
-		LAP_4.append(D4);
-		DT.append(D2[1:-1,1:-1]);
-
-	LAP4 	 = block_diag(LAP_4,format="csr").toarray()
-	DTT 	 = block_diag(DT,format="csr").toarray()
-	A2_theta = A2_theta_S(R,N_fm).toarray()
-
-	return LAP4 + A2_theta@DTT + A2_theta@A2_theta; 
-
-#D,R=cheb_radial(4,1)
-#print(A2_theta_S(R,4).toarray())
-
-
-
-# O(Nr^2 N_theta) complexity & Memory
-#~~~~~~~~~~~~~
+# O(Nr^2 N_theta) complexity & Memory have errors
 def NAB2_TSTEP_MATS(dt,N_fm,nr,D,R):
 
 
@@ -1217,6 +1007,34 @@ def NAB2_TSTEP_MATS(dt,N_fm,nr,D,R):
 		else:
 			M0[:,:,jj] = np.linalg.inv( N2R + bj*I  );
 	
+	return M0;
+
+def A4_TSTEP_MATS(  dt,N_fm,nr,D,R):
+	
+	M0 = np.zeros((nr,nr,N_fm));
+
+	IR2 = np.diag( 1.0/(R**2) ); 
+	IR  = np.diag(1.0/R); 
+	IR4 = np.diag( 1.0/(R[1:-1]**4) );
+	D_sq= np.matmul(D,D); 
+	D4  = Nabla4(D,R); 
+	D2  = np.matmul( IR2 , 2.0*D_sq - 4.0*np.matmul(IR,D) + 6.0*IR2 )[1:-1,1:-1]; 
+	A2  = D_sq[1:-1,1:-1]; 
+	IR2 = IR2[1:-1,1:-1];
+
+	for jj in range(N_fm):
+
+		row = (N_fm - (jj + 1) ); 
+		ind_j = row*nr; # Row ind
+		j = float(N_fm-jj); # Remeber sine counting is from 1 - N_theta
+		bj = -j*(j + 1.); bjt = -2.*j;
+		
+		L1 = D2 + bj*IR4; 
+
+		L = (A2 + bj*IR2) - dt*(D4 + bj*L1);
+
+		M0[:,:,jj] = np.linalg.inv(L);
+
 	return M0;
 
 @njit(fastmath=True)
@@ -1285,36 +1103,6 @@ def NAB2_BSub_TSTEP_V2(g, L_inv,N_fm,nr,dt, symmetric = False):
 		f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr] - b);	
 
 	return f;
-
-# ERROR IN THESE TWO
-
-def A4_TSTEP_MATS(  dt,N_fm,nr,D,R):
-	
-	M0 = np.zeros((nr,nr,N_fm));
-
-	IR2 = np.diag( 1.0/(R**2) ); 
-	IR  = np.diag(1.0/R); 
-	IR4 = np.diag( 1.0/(R[1:-1]**4) );
-	D_sq= np.matmul(D,D); 
-	D4  = Nabla4(D,R); 
-	D2  = np.matmul( IR2 , 2.0*D_sq - 4.0*np.matmul(IR,D) + 6.0*IR2 )[1:-1,1:-1]; 
-	A2  = D_sq[1:-1,1:-1]; 
-	IR2 = IR2[1:-1,1:-1];
-
-	for jj in range(N_fm):
-
-		row = (N_fm - (jj + 1) ); 
-		ind_j = row*nr; # Row ind
-		j = float(N_fm-jj); # Remeber sine counting is from 1 - N_theta
-		bj = -j*(j + 1.); bjt = -2.*j;
-		
-		L1 = D2 + bj*IR4; 
-
-		L = (A2 + bj*IR2) - dt*(D4 + bj*L1);
-
-		M0[:,:,jj] = np.linalg.inv(L);
-
-	return M0;
 
 @njit(fastmath=True)
 def A4_BSub_TSTEP_V2(g,  L_inv,D,R,N_fm,nr,dt, symmetric = False):
@@ -1415,5 +1203,3 @@ def A4_BSub_TSTEP_V2(g,  L_inv,D,R,N_fm,nr,dt, symmetric = False):
 			bf_e += bj*f[ind_j:ind_j+nr];
 
 	return f;
-
-#~~~~~~~~~~~~~

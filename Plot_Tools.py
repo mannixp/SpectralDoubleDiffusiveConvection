@@ -512,8 +512,8 @@ def Plot_Time_Step(filename,logscale=True):
 	if logscale == True:
 		ax0.semilogy(Time,KE,'k-')
 
-		#slope, intercept = np.polyfit(Time,np.log(KE),1)
-		#print("Slope KE m=",slope,"\n");
+		slope, intercept = np.polyfit(Time,np.log(KE),1)
+		print("Slope KE m=",slope,"\n");
 
 		#slope, intercept = np.polyfit(Time,np.log(NuT),1)
 		#print("Slope ||T||_2 m=",slope,"\n");
@@ -726,11 +726,11 @@ if __name__ == "__main__":
 
 	# %% 
 	print("Initialising the code for plotting ...")
-	%matplotlib inline
+	#%matplotlib inline
 	# %%
-	filename ='new_sim(1).h5'; frame = -1;
-	Plot_Time_Step(filename,True);
-	#sys.exit()
+	filename ='new_sim.h5'; frame = -1;
+	Plot_Time_Step(filename,False);
+	sys.exit()
 
 	#Plot_Time_Step(filename,False);
 
@@ -742,7 +742,7 @@ if __name__ == "__main__":
 
 	# %% 
 	print("Initialising the code for plotting ...")
-	%matplotlib inline
+	#%matplotlib inline
 	# %%
 	filename ='Time_Integration_Data_SYM.h5'; frame = -1;
 	Plot_Time_Step(filename);

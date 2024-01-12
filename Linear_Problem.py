@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from Linear_Matrix_Operators import ML_0, Ll_0, cheb_radial
 
 
-def Eig_Vals(Ra1,l,d,Nvals, Ra_s=500,Pr=1,Tau=1./15., Nr = 20):	
+def Eig_Vals(Ra1,l,d,Nvals, Ra_s=0,Pr=1,Tau=1./15., Nr = 30):	
 	
 	"""
 	Solve the EVP for a given 
@@ -47,7 +47,7 @@ def Eig_Vals(Ra1,l,d,Nvals, Ra_s=500,Pr=1,Tau=1./15., Nr = 20):
 	else:
 		return eigenValues[0:Nvals];	
 
-def Eig_Vec( Ra1,l,d,    k, Ra_s=500,Pr=1,Tau=1./15., Nr = 20):
+def Eig_Vec( Ra1,l,d,    k, Ra_s=0,Pr=1,Tau=1./15., Nr = 30):
 	
 	"""
 	Solve the EVP for a given 
@@ -131,9 +131,9 @@ def Ra_Stability_Trace(Ra_c,d,Nvals):
 	
 	N = 20; # Scan_resolution)
 
-	eps = np.linspace(-0.1,0.1,N);
+	eps = np.linspace(-0.02,0.02,N);
 
-	for l in range(1,3,1):
+	for l in range(9,11,1):
 
 		#l = 20
 		print("l=",l,"\n")
@@ -337,10 +337,16 @@ def main_program():
 	#Eig_vec = Eig_Vec( Ra_c,l,d,0);
 	
 	
-	d    = 2.0; Ra_c = 6.77*(10**3) - 10.; l=2;
-	Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=0,Pr=1.,Tau=1., Nr = 30);
+	# d    = 2.0; Ra_c = 6.77*(10**3) - 10.; l=2;
+	# Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=0,Pr=1.,Tau=1., Nr = 30);
+	# print(Eig_val)
+
+	d    = 0.353; Ra_c = 2360.; l=10;
+	Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=0,Pr=1.,Tau=1., Nr = 20);
 	print(Eig_val)
 
+	Ra_c = Critical_Eigval(Ra_c,l,d,1)
+	print(Ra_c)
 	#Ra_Stability_Trace(Ra_c,d,2)
 
 	#Neutral(Ra_c_hopf,Ra_c_steady,l,d)
