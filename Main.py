@@ -5,8 +5,6 @@ import matplotlib.pyplot as plt
 import os, time, warnings, h5py
 warnings.simplefilter('ignore', np.RankWarning)
 
-# ~~~~~~~~~~~~~~~ Gap widths l=10~~~~~~~~~~~~~~~
-#d = 0.353; Ra_HB_c = 2967.37736364 ; Ra_SS_c = 9853.50008503;
 
 def uniquify(path):
     filename, extension = os.path.splitext(path)
@@ -245,16 +243,16 @@ def Build_Matrix_Operators_TimeStep(N_fm,N_r,d):
 	return D,R,	Rsq,DT0,gr_K, N_fm,nr, args_Nab2,args_A4,args_FXS;
 
 
-def _Time_Step(X,μ_args, N_fm,N_r,d, save_filename, start_time = 0., Total_time = 1., dt=1e-04, symmetric = True, linear=False, Verbose=False):
+def _Time_Step(X,μ_args, N_fm,N_r, save_filename, start_time = 0., Total_time = 1., dt=1e-04, symmetric = True, linear=False, Verbose=False):
 
 	from Matrix_Operators import NLIN_FX as FX
 	from Matrix_Operators import DT0_theta,A2_SINE
 	from Matrix_Operators import A4_BSub_TSTEP, NAB2_BSub_TSTEP
 
+	Ra,Ra_s,Tau,Pr,d =μ_args[0],μ_args[1],μ_args[2],μ_args[3],μ_args[4]
+
 	D,R,	Rsq,DT0,gr_k,N_fm,nr,	args_Nab2,args_A4,args_FX = Build_Matrix_Operators_TimeStep(N_fm,N_r,d);
 	
-	Ra,Ra_s,Tau,Pr =μ_args[0],μ_args[1],μ_args[2],μ_args[3]
-
 	Time    = []; 
 	X_DATA  = [];
 	KE  = [];  
@@ -269,7 +267,7 @@ def _Time_Step(X,μ_args, N_fm,N_r,d, save_filename, start_time = 0., Total_time
 	else:
 		X_SYM  = np.ones(X.shape);
 
-	X_SYM  = Eq_SYM(X,R);	
+	X_SYM     = Eq_SYM(X,R);	
 	error     = 1.0;
 	iteration = 0;
 	N_iters   = int(Total_time/dt);
@@ -347,7 +345,7 @@ def _Time_Step(X,μ_args, N_fm,N_r,d, save_filename, start_time = 0., Total_time
 
 			# Problem Params
 			Parameters = Tstep_file.create_group("Parameters");
-			for key,val in {"Ra":Ra,"d":d,	"N_r":N_r,"N_fm":N_fm,"dt":dt,	"start_time":start_time}.items():
+			for key,val in {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,	"N_r":N_r,"N_fm":N_fm,"dt":dt,	"start_time":start_time, "symmetric":symmetric}.items():
 				Parameters[key] = val;
 
 			Tstep_file.close();  		
@@ -360,7 +358,7 @@ def _Time_Step(X,μ_args, N_fm,N_r,d, save_filename, start_time = 0., Total_time
 
 	return X_new;
 
-def Time_Step(open_filename='blah',save_filename = 'new_sim.h5',frame=-1):
+def Time_Step(open_filename='blah',save_filename = 'New_Time_Sim.h5',frame=-1):
 
 	"""
 	Given an initial condition and full parameter specification time-step the system
@@ -372,68 +370,56 @@ def Time_Step(open_filename='blah',save_filename = 'new_sim.h5',frame=-1):
 
 	"""
 
-	N_fm = 8; 
-	N_r  = 16;
-	d    = 2.0; 
+	start_time = 0.;
+	Total_time = .5;
+
+	# ~~~~~~~~~~~~~~~ Gap widths l=10~~~~~~~~~~~~~~~
+	Tau = 1/15; Ra_s = 500; Pr=1;
+	d = 0.353;  Ra   = 9853.50008503 - 0.01;
+
+	N_fm = 2**7;
+	N_r  = 2**5;
 
 	# ~~~~~~~~~ Random Initial Conditions ~~~~~~~~~~~~~~~~
-	D,R  = cheb_radial(N_r,d); 
-	nr   = len(R[1:-1]);
-	N 	 = nr*N_fm;
-
+	N = (N_r - 1)*N_fm;
 	X = np.random.rand(3*N);
-	X = 1e-01*(X/np.linalg.norm(X,2))
+	X = 1e-03*(X/np.linalg.norm(X,2))
 	
-	start_time = 0.;
-	# ~~~~~~~~~ Old Initial Conditions ~~~~~~~~~~~~~~~~~~
-	if open_filename.endswith('.npy'):
-		Y  = np.load(open_filename);
-		X  = Y[0:-1,0]; 
-		Ra = Y[-1,0];
-		print(X.shape);
-		print(Ra)
-
-	# ~~~~~~~~~ New Initial Conditions ~~~~~~~~~~~~~~~~~~
+	# ~~~~~~~~~ Initial Conditions ~~~~~~~~~~~~~~~~~~
 	if open_filename.endswith('.h5'):
 
 		f = h5py.File(open_filename, 'r+')
 
 		# Problem Params
 		X      = f['Checkpoints/X_DATA'][frame];
+		
 		Ra     = f['Parameters']["Ra"][()];
+		Ra_s   = f['Parameters']["Ra_s"][()];
+		Tau    = f['Parameters']["Tau"][()];
+		Pr     = f['Parameters']["Pr"][()];
+		d 	   = f['Parameters']["d"][()]
+
 		N_fm   = f['Parameters']["N_fm"][()]
 		N_r    = f['Parameters']["N_r"][()]
-		d 	   = f['Parameters']["d"][()]
+
 		st_time= f['Scalar_Data/Time'][()][frame]
 		f.close();    
 
 		print("\n Loading time-step %e with parameters Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(st_time,Ra,d,N_fm,N_r))    
 
-		
 		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
 		from Matrix_Operators import INTERP_RADIAL, INTERP_THETAS
 		fac_R =1; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
 		fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	Total_time = 2*(10**3)#0.*(1./Tau);
-
-	# ~~~~~~~~~~~~~~~ Validation Case l=2~~~~~~~~~~~~~~~
-	#Tau = 1.;  Ra_s = 500.0; Pr = 1.; 
-	#d   = 2.0; Ra   = 7.267365e+03 + 1.;
-
-	# ~~~~~~~~~~~~~~~ Nonlinear Validation Case ~~~~~~~~~ 
-	Tau = 1.; Ra_s = 0.0; Pr = 1.;  
-	d   = 2.; Ra   = 6.77*(10**3) + 10.; #RBC bif
-	# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-	μ_args = [Ra,Ra_s,Tau,Pr]
-	X_new  = _Time_Step(X,μ_args, N_fm,N_r,d, save_filename,start_time, Total_time, dt=0.075, symmetric=False,Verbose=False);
+	μ_args = [Ra,Ra_s,Tau,Pr,d]
+	X_new  = _Time_Step(X,μ_args, N_fm,N_r, save_filename,start_time, Total_time, dt=1e-03, symmetric=True,linear=True,Verbose=True);
 
 	return None;
 
 
-def _Newton(X,μ_args, N_fm,N_r,d, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-04,Krylov_Space_Size = 150, symmetric = True):
+def _Newton(X,μ_args, N_fm,N_r, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-04,Krylov_Space_Size = 150, symmetric = True):
 	
 	"""
 	Given a starting point and a control parameter compute a new steady-state using Newton iteration
@@ -456,17 +442,15 @@ def _Newton(X,μ_args, N_fm,N_r,d, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e
 
 	import scipy.sparse.linalg as spla # Used for Gmres Netwon Sovler
 
-
 	from Matrix_Operators import NLIN_DFX as DFX
 	from Matrix_Operators import NLIN_FX as FX
 	from Matrix_Operators import DT0_theta,A2_SINE
 	from Matrix_Operators import A4_BSub_TSTEP, NAB2_BSub_TSTEP
 
+	Ra,Ra_s,Tau,Pr,d =μ_args[0],μ_args[1],μ_args[2],μ_args[3],μ_args[4]
+
 	D,R,	Rsq,DT0,gr_k,N_fm,nr,	args_Nab2,args_A4,args_FX = Build_Matrix_Operators_TimeStep(N_fm,N_r,d);
 	
-	Ra,Ra_s,Tau,Pr =μ_args[0],μ_args[1],μ_args[2],μ_args[3]
-
-	nr = int( X.shape[0]/(3*N_fm) );
 	N  = N_fm*nr; 
 	dv = np.random.randn(X.shape[0]);
 	
@@ -552,14 +536,17 @@ def _Newton(X,μ_args, N_fm,N_r,d, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e
 
 		raise ValueError('Newton iteration could not converge');
 	else:	
-		# Compute diagnoistics	
-		KE = Kinetic_Energy(X,    R,D,N_fm,nr);
-		NuT= Nusselt(X[N:2*N]  ,d,R,D,N_fm,nr);
-		NuS= Nusselt(X[2*N:3*N],d,R,D,N_fm,nr);
+		# Compute diagnoistics
+		Norm = np.linalg.norm(X,2);
+		KE   = Kinetic_Energy(X,    R,D,N_fm,nr);
+		NuT  = Nusselt(X[N:2*N]  ,d,R,D,N_fm,nr);
+		NuS  = Nusselt(X[2*N:3*N],d,R,D,N_fm,nr);
 
-		return X,KE,NuT,NuS,True;
 
-def Newton(filename='blah',frame=-1,**kw_args):
+
+		return X,Norm,KE,NuT,NuS;
+
+def Newton(open_filename='blah',save_filename = 'New_Newton_sim.h5',frame=-1):
 
 	"""
 	Given an initial condition and full parameter specification solve 
@@ -571,26 +558,88 @@ def Newton(filename='blah',frame=-1,**kw_args):
 
 	"""
 
-	try:
+	#~~~~~~~~~~#~~~~~~~~~~#
+	# Load data
+	#~~~~~~~~~~#~~~~~~~~~~#
+	if open_filename.endswith('.h5'):
 
-		Result = Data_Handler(filename)
+		f = h5py.File(open_filename, 'r+')
 
-		X,start_time= Result.load(frame); 
-		μ_args      = Result.Parameters(frame);
-		N_fm,N_r,dt = Result.Resolution(frame);
-				
-		print("\n Loading time-step %e with parameters Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(start_time,μ_args['Ra'],d,N_fm,N_r));
+		# Problem Params
+		X      = f['Checkpoints/X_DATA'][frame];
+		
+		Ra     = f['Parameters']["Ra"][()];
+		Ra_s   = f['Parameters']["Ra_s"][()];
+		Tau    = f['Parameters']["Tau"][()];
+		Pr     = f['Parameters']["Pr"][()];
+		d 	   = f['Parameters']["d"][()]
+
+		N_fm   = f['Parameters']["N_fm"][()]
+		N_r    = f['Parameters']["N_r"][()]
+
+		symmetric = f['Parameters']["symmetric"][()]
+
+		st_time= f['Scalar_Data/Time'][()][frame]
+		f.close();
+
+		print("\n Loading time-step %e with parameters Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(st_time,Ra,d,N_fm,N_r))    
+
+		# # ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
+		# from Matrix_Operators import INTERP_RADIAL, INTERP_THETAS
+		# fac_R =1; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
+		# fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
+		# # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	
-	except:
+	# ~~~~~~~~~ Old Initial Conditions ~~~~~~~~~~~~~~~~~~
+	if open_filename.endswith('.npy'):
+		X  = np.load(open_filename);
 
-		Result = Data_Handler()
+		Ra     = 9853.50008503 - 1e-02
+		Ra_s   = 500.
+		Tau    = 1./15.;
+		Pr     = 1.
+		d 	   = 0.353
 
-		μ_args = {'Ra':Ra,'Ra_s':Ra_s,'Tau':Tau,'Pr':Pr, 'd':d}
-		N = N_fm*(N_r-1);
-		X = np.random.rand(3*N);
-		X = 1e-03*(X/np.linalg.norm(X,2));
+		N_fm   = 50; #300
+		N_r    = 20; #30
 
-	X_new,ke,nuS,nuT = _Newton(X,μ_args, N_fm,N_r, Krylov_Space_Size = 150, symmetric = True)
+		symmetric = True
+		st_time   = 0.
+
+		#X /= 0.01*np.linalg.norm(X,2)
+
+	#~~~~~~~~~~#~~~~~~~~~~#
+	# Run Code
+	#~~~~~~~~~~#~~~~~~~~~~#
+	μ_args = [Ra,Ra_s,Tau,Pr,d]
+	X_new,Norm,KE,NuT,NuS = _Newton(X,μ_args, N_fm,N_r, Krylov_Space_Size = 150, symmetric = True,tol_newton = 1e-8)
+
+	#~~~~~~~~~~#~~~~~~~~~~#
+	# Save data
+	#~~~~~~~~~~#~~~~~~~~~~# 
+	Newton_file = h5py.File(save_filename,'w')
+
+	# Checkpoints
+	Checkpoints = Newton_file.create_group("Checkpoints");
+	Checkpoints['X_DATA'] = [X_new];
+
+	# Scalar Data
+	Scalar_Data = Newton_file.create_group("Scalar_Data")
+	Scalar_Data['Norm'] = [Norm];
+	Scalar_Data['KE']   = [KE];
+	Scalar_Data['Nu_T'] = [NuT];
+	Scalar_Data['Nu_S'] = [NuS];
+	Scalar_Data['Time'] = [0.0];
+
+	# Problem Params
+	Parameters = Newton_file.create_group("Parameters");
+	for key,val in {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,	"N_r":N_r,"N_fm":N_fm,"dt":10**4,	"start_time":0.0, "symmetric":symmetric}.items():
+		Parameters[key] = val;
+	
+	Newton_file.close();
+
+	from Plot_Tools import Cartesian_Plot
+	Cartesian_Plot(save_filename,frame=-1)
 
 	return None;
 
@@ -602,8 +651,8 @@ class Data_Handler():
 		
 		try:
 
-			# Load an old file	
-			self.f = h5py.File( filename + '.h5', 'w')
+			# Load an old file, if it loads give it write permissions
+			self.f = h5py.File( filename + '.h5', 'r')
 			
 		except:
 
@@ -661,7 +710,6 @@ class Data_Handler():
 		self.f.close()
 
 		return None;
-
 
 # ~~~ All in need of validation below here ~~~~~~~~~~~
 
@@ -1088,8 +1136,7 @@ def _plot_bif(filename):
 def Continuation(filename,frame):
 
 	"""
-	Given an initial condition and full parameter specification time-step the system
-	using time-stepping scheme CNAB1
+	Given an initial condition and full parameter specification perform branch continuation
 
 	Inputs:
 
@@ -1143,22 +1190,11 @@ if __name__ == "__main__":
 	
 	# %%
 	print("Initialising the code for running...")
-	N_r = 8;
-	d = 2.0
-	D,R  = cheb_radial(N_r,d); 
-	nr   = len(R[1:-1]); #N_r - 1;
-
-	print('nr =',nr)
-	print('N_r=',N_r)
 	
-
 	# %%
-	#file = 'new_sim.h5'; frame = -1;
-	#file = 'Y_Nt300_Nr30_INIT_l10_POS.npy'; frame = -1;
-	#Newton(file,frame);
+	Newton(open_filename='New_Newton_Sim.h5',save_filename = 'New_Newton_Sim1.h5',frame=-1);
 	
 	#%%
-	#file ='Newton_Iteration_Data.h5'; frame = 0;
 	#Time_Step()#file,file,frame);
 
 	#Continuation(file,frame)

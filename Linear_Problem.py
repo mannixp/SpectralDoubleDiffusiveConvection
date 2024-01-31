@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 
 from Linear_Matrix_Operators import ML_0, Ll_0, cheb_radial
 
-
 def Eig_Vals(Ra1,l,d,Nvals, Ra_s=0,Pr=1,Tau=1./15., Nr = 30):	
 	
 	"""
@@ -312,12 +311,36 @@ def Neutral(Ra_c_hopf,Ra_c_steady,l,d_org):
 
 	return None;
 
+def Full_Eig_Vec(f,l,N_fm,nr,symmetric=False):
+
+	from Transforms import grid,DCT,DST
+	from Matrix_Operators import Vecs_To_NX
+	from scipy.special import eval_legendre, eval_gegenbauer
+
+	θ  = grid(N_fm)
+	Gl = -(np.sin(θ)**2)*eval_gegenbauer(l-1,1.5,np.cos(θ));
+	Pl = eval_legendre(  l,    np.cos(θ));
+
+	Gl_hat = DST(Gl)
+	Pl_hat = DCT(Pl)
+
+	ψn_hat = np.outer(f[0*nr:1*nr],Gl_hat)
+	Tn_hat = np.outer(f[1*nr:2*nr],Pl_hat)
+	Cn_hat = np.outer(f[2*nr:3*nr],Pl_hat)
+	
+	return Vecs_To_NX(ψn_hat,Tn_hat,Cn_hat, N_fm,nr, symmetric)
+
 def main_program():
 
-	# Validation Case
+	# # ~~~~~# Validation Case (1) # ~~~~~#
 	#d = 2; Ra_c = 7268.365; l =2;
 	#Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=500,Pr=1.,Tau=1., Nr = 20);
 	#print(Eig_val)
+
+	# # ~~~~~# Validation Case (2) # ~~~~~#
+	# d    = 2.0; Ra_c = 6.77*(10**3) - 10.; l=2;
+	# Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=0,Pr=1.,Tau=1., Nr = 30);
+	# print(Eig_val)
 
 	# ~~~~~# L = 20 Gap #~~~~~~~~~# 
 	#d = 0.1625; 
@@ -335,21 +358,26 @@ def main_program():
 
 	#Eig_val = Eig_Vals(Ra_c,l,d,2);
 	#Eig_vec = Eig_Vec( Ra_c,l,d,0);
+
+	Nr = 20;
+	l  = 10;
+	d  = 0.353; Ra_c = 9853.50008503;
+	lambda_i = 1
+	Eig_val = Eig_Vals(Ra_c,l,d,Nvals = 2 ,Ra_s=500,Pr=1,Tau=1./15.,Nr=Nr)
+	Eig_vec = Eig_Vec( Ra_c,l,d,k=lambda_i,Ra_s=500,Pr=1,Tau=1./15.,Nr=Nr)
 	
-	
-	# d    = 2.0; Ra_c = 6.77*(10**3) - 10.; l=2;
-	# Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=0,Pr=1.,Tau=1., Nr = 30);
-	# print(Eig_val)
+	print('\n #~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~#')
+	print('Eigen Values = ',Eig_val)
+	print('Chose Eigenvector for \lambda_%d = %e'%(lambda_i,Eig_val[lambda_i]) )
+	print('#~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~# \n')
 
-	d    = 0.353; Ra_c = 2360.; l=10;
-	Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=0,Pr=1.,Tau=1., Nr = 20);
-	print(Eig_val)
+	filename = 'EigVec.npy'
+	N_fm = 50;
+	X    = Full_Eig_Vec(Eig_vec,l,N_fm,nr=Nr-1,symmetric=False)
+	np.save(filename,X)
 
-	Ra_c = Critical_Eigval(Ra_c,l,d,1)
-	print(Ra_c)
-	#Ra_Stability_Trace(Ra_c,d,2)
-
-	#Neutral(Ra_c_hopf,Ra_c_steady,l,d)
+	from Plot_Tools import Cartesian_Plot
+	Cartesian_Plot(filename,frame=-1,Include_Base_State=False)
 
 	return None;
 

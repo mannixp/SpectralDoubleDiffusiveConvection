@@ -495,7 +495,7 @@ def Plot_Time_Step(filename,logscale=True):
 
 	print(list(f.keys()))
 
-	st_pt = 10
+	st_pt = 0
 	Time  = f['Scalar_Data/Time'][()][st_pt:-1]
 	KE    = f['Scalar_Data/KE'][()][st_pt:-1]
 	NuT   = f['Scalar_Data/Nu_T'][()][st_pt:-1]
@@ -512,8 +512,8 @@ def Plot_Time_Step(filename,logscale=True):
 	if logscale == True:
 		ax0.semilogy(Time,KE,'k-')
 
-		slope, intercept = np.polyfit(Time,np.log(KE),1)
-		print("Slope KE m=",slope,"\n");
+		#slope, intercept = np.polyfit(Time,np.log(KE),1)
+		#print("Slope KE m=",slope,"\n");
 
 		#slope, intercept = np.polyfit(Time,np.log(NuT),1)
 		#print("Slope ||T||_2 m=",slope,"\n");
@@ -524,7 +524,7 @@ def Plot_Time_Step(filename,logscale=True):
 	ax0.set_xlabel(r'Time $T$',fontsize=25)
 	ax0.set_title(r'$\mathcal{E}$',fontsize=25)
 
-	ax0.set_xlim([Time[0],Time[-1]])
+	#ax0.set_xlim([Time[0],Time[-1]])
 
 	if logscale == True:
 		ax1.semilogy(Time,NuT,'k-')
@@ -617,14 +617,24 @@ def Spectral_To_Gridpoints(X, R,xx,N_fm,d): # Fix this code to extend to the bou
 
 def Cartesian_Plot(filename,frame,Include_Base_State=True):
 
-	f    = h5py.File(filename, 'r');
-	
-	X    = f['Checkpoints/X_DATA'][frame,:];
-	N_fm = f['Parameters']["N_fm"][()];
-	N_r  = f['Parameters']["N_r"][()];
-	d    = f['Parameters']["d"][()];
 
-	f.close()
+	if filename.endswith('.h5'):
+		f    = h5py.File(filename, 'r');
+		
+		X    = f['Checkpoints/X_DATA'][frame,:];
+		N_fm = f['Parameters']["N_fm"][()];
+		N_r  = f['Parameters']["N_r"][()];
+		d    = f['Parameters']["d"][()];
+
+		f.close()
+
+	if filename.endswith('.npy'):
+
+		X = np.load(filename);
+		N_fm = 50
+		N_r = 20
+		d = 0.353;
+	
 
 	from Matrix_Operators import cheb_radial
 
@@ -728,9 +738,9 @@ if __name__ == "__main__":
 	print("Initialising the code for plotting ...")
 	#%matplotlib inline
 	# %%
-	filename ='new_sim.h5'; frame = -1;
-	Plot_Time_Step(filename,False);
-	sys.exit()
+	filename ='New_Time_Sim.h5'; frame = -1;
+	Plot_Time_Step(filename,logscale=True);
+	#sys.exit()
 
 	#Plot_Time_Step(filename,False);
 
@@ -739,6 +749,7 @@ if __name__ == "__main__":
 	Uradial_plot(filename,frame)
 	Energy(filename, frame)
 	Cartesian_Plot(filename, frame);
+	sys.exit()
 
 	# %% 
 	print("Initialising the code for plotting ...")
