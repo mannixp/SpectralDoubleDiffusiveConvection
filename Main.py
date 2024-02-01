@@ -5,16 +5,30 @@ import matplotlib.pyplot as plt
 import os, time, warnings, h5py
 warnings.simplefilter('ignore', np.RankWarning)
 
-
+# File handling methods
 def uniquify(path):
     filename, extension = os.path.splitext(path)
-    counter = 1
+    counter = 0
 
     while os.path.exists(path):
-        path = filename + "(" + str(counter) + ")" + extension
+        path = filename.split('_')[0] + "_" +str(counter) + extension
         counter += 1
 
     return path
+
+def print_h5py(filename):
+
+	f = h5py.File(filename,'r')	
+
+	print('\n')
+	print('#~~~~~~~ Parameters ~~~~~~~~~~~~~~')
+	for key,value in f['Parameters'].items():
+		print(key,'=',value[()])
+	print('#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
+	
+	f.close()
+
+	return None;
 
 # Self-made packages
 from Matrix_Operators import cheb_radial
@@ -326,27 +340,23 @@ def _Time_Step(X,Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, save_filename, start_time = 0., Tot
 
 			X_DATA.append(X_new);
 
-			# Save the different errors 
-			Tstep_file = h5py.File(save_filename,'w')
+			f = h5py.File(save_filename,'w')
 
-			# Checkpoints
-			Checkpoints = Tstep_file.create_group("Checkpoints");
+			Checkpoints = f.create_group("Checkpoints");
 			Checkpoints['X_DATA'] = X_DATA;
 
-			# Scalar Data
-			Scalar_Data = Tstep_file.create_group("Scalar_Data")
+			Scalar_Data = f.create_group("Scalar_Data")
 			Scalar_Data['Norm'] = Norm;
 			Scalar_Data['KE']   = KE;
 			Scalar_Data['Nu_T'] = NuT;
 			Scalar_Data['Nu_S'] = NuS;
 			Scalar_Data['Time'] = Time;
 
-			# Problem Params
-			Parameters = Tstep_file.create_group("Parameters");
+			Parameters = f.create_group("Parameters");
 			for key,val in {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,	"N_r":N_r,"N_fm":N_fm,"dt":dt,	"start_time":start_time, "symmetric":symmetric}.items():
 				Parameters[key] = val;
 
-			Tstep_file.close();  		
+			f.close();  		
 
 		X = X_SYM*X_new;	
 		iteration+=1;    
@@ -356,7 +366,7 @@ def _Time_Step(X,Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, save_filename, start_time = 0., Tot
 
 	return X_new;
 
-def Time_Step(open_filename='blah',save_filename = 'New_Time_Sim.h5',frame=-1):
+def Time_Step(open_filename='TimeStep_0.h5',save_filename = None,frame=-1):
 
 	"""
 	Given an initial condition and full parameter specification time-step the system
@@ -521,7 +531,7 @@ def _Newton(X,	Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=10**4,	tol_newton
 
 		# Solve pre-conditioned DF(X)*dv = F(X); 
 		b_norm 	= np.linalg.norm(fx,2);
-		dv,exit = spla.lgmres(dfx,fx, tol = tol_gmres*b_norm, maxiter=250, inner_m = Krylov_Space_Size, atol = tol_gmres*b_norm);
+		dv,exit = spla.lgmres(dfx,fx, maxiter=250, inner_m = Krylov_Space_Size, atol = tol_gmres*b_norm);
 		X 		= X - dv;
 		error 	= np.linalg.norm(dv,2)/np.linalg.norm(X,2);
 
@@ -541,10 +551,9 @@ def _Newton(X,	Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=10**4,	tol_newton
 		NuT  = Nusselt(X[N:2*N]  ,d,R,D,N_fm,nr);
 		NuS  = Nusselt(X[2*N:3*N],d,R,D,N_fm,nr);
 
-
 		return X,	Norm,KE,NuT,NuS, True;
 
-def Newton(open_filename='blah',save_filename = 'New_Newton_sim.h5',frame=-1):
+def Newton(open_filename='NewtonSolve_0.h5',save_filename = None,frame=-1):
 
 	"""
 	Given an initial condition and full parameter specification solve 
@@ -610,104 +619,37 @@ def Newton(open_filename='blah',save_filename = 'New_Newton_sim.h5',frame=-1):
 	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm,"N_r":N_r}
 	X_new,Norm,KE,NuT,NuS,_ = _Newton(X,**kwargs,symmetric = True,tol_newton = 1e-8)
 
+	
 	#~~~~~~~~~~#~~~~~~~~~~#
 	# Save data
 	#~~~~~~~~~~#~~~~~~~~~~# 
-	Newton_file = h5py.File(save_filename,'w')
+	if save_filename == None:
+		filename = uniquify(open_filename)
+	else:
+		filename = uniquify(save_filename)
+	
+	f = h5py.File(filename,'w')
 
-	# Checkpoints
-	Checkpoints = Newton_file.create_group("Checkpoints");
+	Checkpoints = f.create_group("Checkpoints");
 	Checkpoints['X_DATA'] = [X_new];
 
-	# Scalar Data
-	Scalar_Data = Newton_file.create_group("Scalar_Data")
+	Scalar_Data = f.create_group("Scalar_Data")
 	Scalar_Data['Norm'] = [Norm];
 	Scalar_Data['KE']   = [KE];
 	Scalar_Data['Nu_T'] = [NuT];
 	Scalar_Data['Nu_S'] = [NuS];
 	Scalar_Data['Time'] = [0.0];
 
-	# Problem Params
-	Parameters = Newton_file.create_group("Parameters");
+	Parameters = f.create_group("Parameters");
 	for key,val in kwargs.items():
 		Parameters[key] = val;
 	
-	Newton_file.close();
+	f.close();
 
 	from Plot_Tools import Cartesian_Plot
-	Cartesian_Plot(save_filename,frame=-1)
+	Cartesian_Plot(filename,frame=-1)
 
 	return None;
-
-
-# ~~~ All in need of validation below here ~~~~~~~~~~~
-
-class Data_Handler():
-
-
-	def __init__(self,filename='Simulation_Data'):
-		
-		try:
-
-			# Load an old file, if it loads give it write permissions
-			self.f = h5py.File( filename + '.h5', 'r')
-			
-		except:
-
-			# Create a new file
-			self.f = h5py.File( filename + '.h5', 'w')
-
-			# Checkpoints
-			Checkpoints = self.f.create_group("Checkpoints");
-			Checkpoints['X_DATA'] = [];
-
-			# Scalar Data
-			Scalar_Data = self.f.create_group("Scalar_Data")
-			Scalar_Data['KE']   = [];
-			Scalar_Data['Nu_T'] = [];
-			Scalar_Data['Nu_S'] = [];
-
-			Scalar_Data['t']    = []; # Time
-			Scalar_Data['μ']    = []; # Contiuation parameter
-
-			# Problem Parameters
-			Parameters = self.f.create_group("Parameters");
-			Parameters['Ra']   = [];
-			Parameters['Ra_s'] = [];
-			Parameters['Tau']  = [];
-			Parameters['Pr']   = []; 
-			Parameters['d']    = []; 
-			
-			# Numerical Parameters
-			Resolution = self.f.create_group("Resolution");
-			Resolution['N_r'] = [];
-			Resolution['N_fm']= [];
-			Resolution['dt']  = [];
-
-		return None;
-
-	def load(self,frame=-1):
-
-		return self.f['Checkpoints/X_DATA'][frame]
-
-	def Parameters(self,frame=-1):
-		
-		return self.f['Parameters'][frame]
-
-	def Resolution(self,frame=-1):
-			
-		return self.f['Resolution'][frame]
-
-	# How to make this step as efficient and accessible as possible
-	def save(self, X_DATA, Scalar_Data,Parameters,Resolution):
-
-		self.f['Checkpoints/X_DATA'].append(X_DATA);
-		self.f['Scalar_Data'].append(Scalar_Data);
-		self.f['Parameters' ].append(Parameters);
-		self.f['Resolution' ].append(Resolution);
-		self.f.close()
-
-		return None;
 
 
 '''
@@ -967,36 +909,6 @@ class result():
 		);
 		return s
 
-def _plot_bif(filename):
-
-	obj = result();
-	with h5py.File(filename, 'r') as f:
-		ff=f["Bifurcation"]
-		for key in ff.keys():
-			setattr(obj, key, ff[key][()])
-
-	
-	fig, (ax0, ax1, ax2) = plt.subplots(nrows=1, ncols=3,figsize=(12, 6))
-
-	ax0.semilogy(obj.Ra,obj.KE,'k-')
-	ax0.set_title(r'Kinetic Energy',fontsize=25)
-
-	ax1.semilogy(obj.Ra,obj.NuT,'k-')
-	ax1.set_title(r'$Nu_T-1$',fontsize=25)
-
-	ax2.semilogy(obj.Ra,obj.NuS,'k-')
-	ax2.set_title(r'$Nu_S-1$',fontsize=25)
-	
-	for f in (ax0, ax1, ax2):
-		f.set_xlabel(r'$Ra$',fontsize=25)
-		f.set_xlim([obj.Ra[0],obj.Ra[-1]])
-	
-	plt.tight_layout()
-	plt.savefig("Bifurcation_Series.pdf",format='pdf', dpi=1200)
-	plt.show()        
-
-	return None;
-
 def _NewtonC(		 Y  ,sign,ds, **kwargs_f):
 	
 	"""
@@ -1118,29 +1030,25 @@ def _Continuation(filename,N_steps,	Y,**kwargs):
 			Result.X_DATA.append( Y[0:-1]);
 			Result.Ra_DATA.append(Y[  -1]);
 
-			Continuation_file = h5py.File(filename, 'w');
+			f = h5py.File(filename, 'w');
 
-			# Checkpoints for Newton + Timestep
-			Checkpoints = Continuation_file.create_group("Checkpoints");
+			Checkpoints = f.create_group("Checkpoints");
 			Checkpoints['X_DATA']  = Result.X_DATA;
 			Checkpoints['Ra_DATA'] = Result.Ra_DATA;
 
-			# # Problem Params Newton + Timestep
-			Parameters = Continuation_file.create_group("Parameters");
+			Parameters = f.create_group("Parameters");
 			for key,val in kwargs.items():
 				Parameters[key] = val;
 
-			# Write the bifurcation object to the file
-			Bifurcation = Continuation_file.create_group("Bifurcation");	
+			Bifurcation = f.create_group("Bifurcation");	
 			for item in vars(Result).items():
 				Bifurcation.create_dataset(item[0], data = item[1])
 
-			#print(Bifurcation.keys())
-			Continuation_file.close()
+			f.close()
 
 	return None;	
 
-def Continuation(open_filename,save_filename = 'Continuation_Test_1.h5',frame=-1):
+def Continuation(open_filename,save_filename='ContinuationTest_0.h5',frame=-1):
 
 	"""
 	Given an initial condition and full parameter specification perform branch continuation
@@ -1180,41 +1088,116 @@ def Continuation(open_filename,save_filename = 'Continuation_Test_1.h5',frame=-1
 
 		print("\n Loading Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(Ra,d,N_fm,N_r))    
 
-		# # ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
-		# from Matrix_Operators import INTERP_RADIAL, INTERP_THETAS
-		# fac_R =1; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
-		# fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
-		# # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
+		from Matrix_Operators import INTERP_RADIAL,INTERP_THETAS
+		#fac_R =2; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
+		fac_T =2; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
+		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	N_steps= 100;
+	N_steps= 200;
 	Y      = np.hstack( (X,Ra) );
 	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm,"N_r":N_r}
+
+	save_filename = uniquify(save_filename)
+	
 	_Continuation(save_filename,N_steps,Y,**kwargs)
 
-	#_plot_bif(save_filename)
+	_plot_bif(save_filename)
 
 	return None;
 
+
+def _plot_bif(filename):
+
+	obj = result();
+	with h5py.File(filename, 'r') as f:
+		ff=f["Bifurcation"]
+		for key in ff.keys():
+			setattr(obj, key, ff[key][()])
+
+	fig, (ax0, ax1, ax2) = plt.subplots(nrows=1, ncols=3,figsize=(12, 6))
+
+	ax0.semilogy(obj.Ra,obj.KE,'k-')
+	ax0.set_title(r'Kinetic Energy',fontsize=25)
+
+	ax1.semilogy(obj.Ra,obj.NuT,'k-')
+	ax1.set_title(r'$Nu_T-1$',fontsize=25)
+
+	ax2.semilogy(obj.Ra,obj.NuS,'k-')
+	ax2.set_title(r'$Nu_S-1$',fontsize=25)
+	
+	for f in (ax0, ax1, ax2):
+		f.set_xlabel(r'$Ra$',fontsize=25)
+		f.set_xlim([obj.Ra[0],obj.Ra[-1]])
+	
+	plt.tight_layout()
+	plt.savefig("Bifurcation_Series.pdf",format='pdf', dpi=1200)
+	plt.show()        
+
+	return None;
+
+def Plot_full_bif(folder):
+
+	import glob
+
+	fig, (ax0, ax1, ax2) = plt.subplots(nrows=1, ncols=3,figsize=(12, 6))
+	ax0.set_title(r'Kinetic Energy',fontsize=25)
+	ax1.set_title(r'$Nu_T-1$',fontsize=25)
+	ax2.set_title(r'$Nu_S-1$',fontsize=25)
+	for f in (ax0, ax1, ax2):
+		f.set_xlabel(r'$Ra$',fontsize=25)
+
+	def add_to_fig(obj):
+		ax0.semilogy(obj.Ra,obj.KE ,'k-')
+		ax1.semilogy(obj.Ra,obj.NuT,'k-')
+		ax2.semilogy(obj.Ra,obj.NuS,'k-')
+		return None;
+
+	for filename in glob.glob(folder + '/*'):
+		
+		print(filename)
+		
+		obj = result();
+		with h5py.File(filename, 'r') as f:
+			ff=f["Bifurcation"]
+			for key in ff.keys():
+				setattr(obj, key, ff[key][()])
+
+		add_to_fig(obj)
+
+	plt.tight_layout()
+	plt.savefig("Bifurcation_Series.pdf",format='pdf', dpi=1200)
+	plt.show()   
+
+	return None;	
 
 # Execute main
 if __name__ == "__main__":
 	
 	# %%
 	print("Initialising the code for running...")
-	
-	# %%
-	#Newton(open_filename='New_Newton_Sim.h5',save_filename = 'New_Newton_Sim1.h5',frame=-1);
-	
-	#%%
 	#Time_Step()#file,file,frame);
 
-	Continuation(open_filename='Continuation_Test.h5',frame=-1)
+	# %% 
+	print_h5py('NewtonSolve_0.h5')
+
+	from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
+	Cartesian_Plot(filename='NewtonSolve_0.h5',frame=-1,Include_Base_State=False)
+	Energy(filename='NewtonSolve_0.h5',frame=-1)
+
+	#%%
+	Newton(open_filename='NewtonSolve_0.h5',frame=-1);
+	
+	#%%
+	Continuation(open_filename='ContinuationTest_2.h5',frame=-1)
 
 	# %%
-	_plot_bif( 'Continuation_Test_1.h5')
+	Plot_full_bif(folder='/home/pmannix/SpectralDoubleDiffusiveConvection/Branch_l10')
 
-	from Plot_Tools import Cartesian_Plot
+	# %%
+	from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
+	Cartesian_Plot(filename='ContinuationTest_3.h5',frame=-1,Include_Base_State=False)
+	Energy(filename='ContinuationTest_3.h5',frame=-1)
 
-	Cartesian_Plot(filename='Continuation_Test_1.h5',frame=-1,Include_Base_State=False)
 ##	
 # %%

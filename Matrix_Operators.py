@@ -860,17 +860,12 @@ def NLIN_DFX(dv_hat,X_hat,D,R,N_fm,nr, symmetric = False):
 
 	return Vecs_To_NX(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric);
 
-#~~~~~~~ Validated up to here ~~~~~~~~~~
-
-# Interpolation functions
 def INTERP_RADIAL(N_n,N_o,X_o,d):
-	"""
-	Interpolate the system state from a radial discretisation
-	using o-collocation points to one with n-collocation points.
-	"""
-	'''
+
 	if N_n == N_o:
 		return X_o;
+
+	print('Interpolated in r from %d to %d'%(N_o,N_n),'\n')
 
 	_,R_n=cheb_radial(N_n,d)
 	nr_n = len(R_n[1:-1]);
@@ -906,21 +901,13 @@ def INTERP_RADIAL(N_n,N_o,X_o,d):
 		X_n[ind_n:ind_n+nr_n] = np.polyval(S,R_n[1:-1])
 	
 	return X_n;
-	'''
-	raise NotImplementedError
 
 def INTERP_THETAS(N_fm_n,N_fm_o,X_o):
 
-	"""
-	Interpolate the system state from a latitudinal discretisation
-	using o-collocation points to one with n-collocation points.
-	"""
-	
-	'''
 	if N_fm_n == N_fm_o:
 		return X_o;
 
-	from scipy.fft import dct, idct, dst, idst
+	from Transforms import DCT,DST,IDST,IDCT
 
 	nr  = len(X_o)//(3*N_fm_o);
 	XX = np.zeros(3*nr*N_fm_n);
@@ -955,16 +942,16 @@ def INTERP_THETAS(N_fm_n,N_fm_o,X_o):
 
 
 	# 2) iDCT or iDST Interpolate onto a grid 
-	PSI_X = idst(PSI_X,type=2,axis=-1,overwrite_x=True) 
-	T_X   = idct(T_X  ,type=2,axis=-1,overwrite_x=True) 
-	S_X   = idct(S_X  ,type=2,axis=-1,overwrite_x=True) 
+	PSI_X = IDST(PSI_X) 
+	T_X   = IDCT(T_X  ) 
+	S_X   = IDCT(S_X  ) 
 
 
 	# 3) Compute DCT and DST, un-pad De-ALIASING !!!!!
 	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
-	PSI_hat = dst(PSI_X,type=2,axis=-1,overwrite_x=True)[:,0:N_fm_n]
-	T_hat   = dct(T_X  ,type=2,axis=-1,overwrite_x=True)[:,0:N_fm_n]
-	S_hat   = dct(S_X  ,type=2,axis=-1,overwrite_x=True)[:,0:N_fm_n]
+	PSI_hat = DST(PSI_X,n=N_fm_n)
+	T_hat   = DCT(T_X  ,n=N_fm_n)
+	S_hat   = DCT(S_X  ,n=N_fm_n)
 
 	# 4) DCT or DST onto more polynomials
 	for k in range(N_fm_n):
@@ -981,9 +968,85 @@ def INTERP_THETAS(N_fm_n,N_fm_o,X_o):
 		ind = 2*N_fm_n*nr + k*nr
 		XX[ind:ind+nr] = S_hat[:,k];
 
-	return XX
-	'''
-	raise NotImplementedError
+	return XX;
+
+#~~~~~~~ Validated up to here ~~~~~~~~~~
+# This doesn't work
+def Interpolate(N_fm_new,N_r_new,	X,N_fm,N_r,d):
+
+	"""
+	
+	"""
+
+	if (N_fm_new == N_fm) and (N_r == N_r_new):
+		return X,N_fm,N_r;
+	else:
+		nr=N_r-1
+		ψ_hat = np.zeros((nr,N_fm)) 
+		T_hat = np.zeros((nr,N_fm)) 
+		S_hat = np.zeros((nr,N_fm))
+		for k in range(N_fm):	
+			ψ_hat[:,k] = X[(0+k)*nr:(1+k)*nr]
+			T_hat[:,k] = X[(1+k)*nr:(2+k)*nr]
+			S_hat[:,k] = X[(2+k)*nr:(3+k)*nr]
+	
+	# 1) Interpolate in r
+	if N_r != N_r_new:
+		
+		# Use Chebyshev grid here
+		# print('Interpolated in r from %d to %d'%(N_r,N_r_new),'\n')
+
+		# R =cheb_radial(N_r,d)[1]
+		# nr=N_r - 1;
+
+		# R_new =cheb_radial(N_r_new,d)[1]
+		# nr_new=N_r_new - 1;
+
+		# ψ_hat = np.zeros((nr_new,N_fm)) 
+		# T_hat = np.zeros((nr_new,N_fm)) 
+		# S_hat = np.zeros((nr_new,N_fm))
+		# for k in range(N_fm-1):
+			
+		# 	ψ_k = np.hstack( ([0.], X[(0+k)*nr:(1+k)*nr] ,[0.])   )
+		# 	ψ_hat[:,k] = np.interp(R_new,R,ψ_k)[1:-1]
+			
+		# 	T_k = np.hstack( ([0.], X[(1+k)*nr:(2+k)*nr] ,[0.])   )
+		# 	T_hat[:,k] = np.interp(R_new,R,T_k)[1:-1]
+			
+		# 	S_k = np.hstack( ([0.], X[(2+k)*nr:(3+k)*nr] ,[0.])   )
+		# 	S_hat[:,k] = np.interp(R_new,R,S_k)[1:-1]
+
+		# 	# print('k=',k)
+		# 	# import matplotlib.pyplot as plt
+		# 	# #plt.plot(R,T_k,'ko',label='r old')
+		# 	# plt.plot(R,ψ_k,'k-',label='r old')
+		# 	# plt.plot(R_new[1:-1],ψ_hat[:,k],'rs',label='new')
+		# 	# #plt.plot(R_new[1:-1],T_hat[:,k],'r-',label='new')
+		# 	# plt.legend()
+		# 	# plt.show()
+		raise NotImplementedError
+
+	# 2) Interpolate in θ
+	if N_fm_new != N_fm:
+
+		print('Interpolated in θ from %d to %d'%(N_fm,N_fm_new),'\n')
+
+		# ψ_hat = DST(IDST(ψ_hat,n = N_fm_new))
+		# T_hat = DCT(IDCT(T_hat,n = N_fm_new))
+		# S_hat = DCT(IDCT(S_hat,n = N_fm_new))
+
+		nr=N_r-1
+		ψ_hat = np.zeros((nr,N_fm_new)) 
+		T_hat = np.zeros((nr,N_fm_new)) 
+		S_hat = np.zeros((nr,N_fm_new))
+		for k in range(N_fm):	
+			ψ_hat[:,k] = X[(0+k)*nr:(1+k)*nr]
+			T_hat[:,k] = X[(1+k)*nr:(2+k)*nr]
+			S_hat[:,k] = X[(2+k)*nr:(3+k)*nr]
+
+	X_new = Vecs_To_NX(ψ_hat,T_hat,S_hat, N_fm_new,N_r_new-1)
+
+	return X_new,N_fm_new,N_r_new;
 
 # O(Nr^2 N_theta) complexity & Memory have errors
 def NAB2_TSTEP_MATS(dt,N_fm,nr,D,R):
