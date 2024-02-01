@@ -387,6 +387,16 @@ if __name__ == "__main__":
 
 	# %%
 	%matplotlib inline
+
+	#%%
+	def func(a,*args): # Accepting a variable number of arguments -> turns it into a tuple
+		print(a)
+		print(*args) # printing them unpacked
+		return None;
+
+	args = (2,3)
+	func(1,*args) # Passing it in unpacked
+
 	# %%
 	main_program();
 

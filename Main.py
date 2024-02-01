@@ -243,13 +243,11 @@ def Build_Matrix_Operators_TimeStep(N_fm,N_r,d):
 	return D,R,	Rsq,DT0,gr_K, N_fm,nr, args_Nab2,args_A4,args_FXS;
 
 
-def _Time_Step(X,μ_args, N_fm,N_r, save_filename, start_time = 0., Total_time = 1., dt=1e-04, symmetric = True, linear=False, Verbose=False):
+def _Time_Step(X,Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, save_filename, start_time = 0., Total_time = 1., dt=1e-04, symmetric = True, linear=False, Verbose=False):
 
 	from Matrix_Operators import NLIN_FX as FX
 	from Matrix_Operators import DT0_theta,A2_SINE
 	from Matrix_Operators import A4_BSub_TSTEP, NAB2_BSub_TSTEP
-
-	Ra,Ra_s,Tau,Pr,d =μ_args[0],μ_args[1],μ_args[2],μ_args[3],μ_args[4]
 
 	D,R,	Rsq,DT0,gr_k,N_fm,nr,	args_Nab2,args_A4,args_FX = Build_Matrix_Operators_TimeStep(N_fm,N_r,d);
 	
@@ -413,13 +411,13 @@ def Time_Step(open_filename='blah',save_filename = 'New_Time_Sim.h5',frame=-1):
 		fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	μ_args = [Ra,Ra_s,Tau,Pr,d]
-	X_new  = _Time_Step(X,μ_args, N_fm,N_r, save_filename,start_time, Total_time, dt=1e-03, symmetric=True,linear=True,Verbose=True);
+	#kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm,"N_r":N_r}
+	#X_new  = _Time_Step(X,**kwargs, save_filename,start_time, Total_time, dt=1e-03, symmetric=True,linear=True,Verbose=True);
 
 	return None;
 
 
-def _Newton(X,μ_args, N_fm,N_r, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-04,Krylov_Space_Size = 150, symmetric = True):
+def _Newton(X,	Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=10**4,	tol_newton = 1e-10,tol_gmres = 1e-04,Krylov_Space_Size = 150):
 	
 	"""
 	Given a starting point and a control parameter compute a new steady-state using Newton iteration
@@ -446,8 +444,6 @@ def _Newton(X,μ_args, N_fm,N_r, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-0
 	from Matrix_Operators import NLIN_FX as FX
 	from Matrix_Operators import DT0_theta,A2_SINE
 	from Matrix_Operators import A4_BSub_TSTEP, NAB2_BSub_TSTEP
-
-	Ra,Ra_s,Tau,Pr,d =μ_args[0],μ_args[1],μ_args[2],μ_args[3],μ_args[4]
 
 	D,R,	Rsq,DT0,gr_k,N_fm,nr,	args_Nab2,args_A4,args_FX = Build_Matrix_Operators_TimeStep(N_fm,N_r,d);
 	
@@ -534,8 +530,11 @@ def _Newton(X,μ_args, N_fm,N_r, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-0
 
 	if (iteration == 20) or (exit != 0):
 
-		raise ValueError('Newton iteration could not converge');
+		print('Newton iteration could not converge');
+		return _,	_,_,_,_, False;
+	
 	else:	
+		
 		# Compute diagnoistics
 		Norm = np.linalg.norm(X,2);
 		KE   = Kinetic_Energy(X,    R,D,N_fm,nr);
@@ -543,8 +542,7 @@ def _Newton(X,μ_args, N_fm,N_r, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-0
 		NuS  = Nusselt(X[2*N:3*N],d,R,D,N_fm,nr);
 
 
-
-		return X,Norm,KE,NuT,NuS;
+		return X,	Norm,KE,NuT,NuS, True;
 
 def Newton(open_filename='blah',save_filename = 'New_Newton_sim.h5',frame=-1):
 
@@ -576,8 +574,6 @@ def Newton(open_filename='blah',save_filename = 'New_Newton_sim.h5',frame=-1):
 
 		N_fm   = f['Parameters']["N_fm"][()]
 		N_r    = f['Parameters']["N_r"][()]
-
-		symmetric = f['Parameters']["symmetric"][()]
 
 		st_time= f['Scalar_Data/Time'][()][frame]
 		f.close();
@@ -611,8 +607,8 @@ def Newton(open_filename='blah',save_filename = 'New_Newton_sim.h5',frame=-1):
 	#~~~~~~~~~~#~~~~~~~~~~#
 	# Run Code
 	#~~~~~~~~~~#~~~~~~~~~~#
-	μ_args = [Ra,Ra_s,Tau,Pr,d]
-	X_new,Norm,KE,NuT,NuS = _Newton(X,μ_args, N_fm,N_r, Krylov_Space_Size = 150, symmetric = True,tol_newton = 1e-8)
+	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm,"N_r":N_r}
+	X_new,Norm,KE,NuT,NuS,_ = _Newton(X,**kwargs,symmetric = True,tol_newton = 1e-8)
 
 	#~~~~~~~~~~#~~~~~~~~~~#
 	# Save data
@@ -633,7 +629,7 @@ def Newton(open_filename='blah',save_filename = 'New_Newton_sim.h5',frame=-1):
 
 	# Problem Params
 	Parameters = Newton_file.create_group("Parameters");
-	for key,val in {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,	"N_r":N_r,"N_fm":N_fm,"dt":10**4,	"start_time":0.0, "symmetric":symmetric}.items():
+	for key,val in kwargs.items():
 		Parameters[key] = val;
 	
 	Newton_file.close();
@@ -643,6 +639,8 @@ def Newton(open_filename='blah',save_filename = 'New_Newton_sim.h5',frame=-1):
 
 	return None;
 
+
+# ~~~ All in need of validation below here ~~~~~~~~~~~
 
 class Data_Handler():
 
@@ -711,69 +709,8 @@ class Data_Handler():
 
 		return None;
 
-# ~~~ All in need of validation below here ~~~~~~~~~~~
 
-class result():
-    
-	"""
-	class for result of continuation
-
-	Inputs:
-	None
-
-	Returns:
-	None
-	"""
-	def __init__(self):
-
-		# System State
-		self.X_DATA  = [];
-
-		# Scalar_Data
-		self.Scalar_Data = [];
-	
-		# Parameters
-		self.Parameters = [];
-	
-		# Numerical 
-		self.Numerical = []
-
-	def __str__(self):
-
-		s= ( 'Continuation succeed \n'
-			+'Total iterations  = '+str(self.Iterations)        	  +'\n'
-			+'Ra                = '+str(self.Ra[    self.Iterations]) +'\n'
-			+'Ra_dot            = '+str(self.Ra_dot[self.Iterations]) +'\n'
-			+'NuT               = '+str(self.NuT[   self.Iterations]) +'\n'
-			+'NuS               = '+str(self.NuS[   self.Iterations]) +'\n'
-			+'KE                = '+str(self.KE[   self.Iterations]) +'\n'
-			);
-		return s
-
-def _NewtonC(		 Y  ,sign,ds, *args_f):
-	
-	"""
-
-	"""
-
-	Iteration = 0;
-	while (Iteration < 10):
-	
-		# Shallow copy as mutable
-		X  = Y[0:-1].copy();
-		Ra = Y[-1].copy() + sign*ds;
-
-		X_new,	KE,NuT,NuS, exitcode = _Newton(X,Ra, *args_f);
-
-		if exitcode == True:
-			Y_new = np.hstack( (X_new,Ra) )
-			return Y_new,sign,ds,	KE,NuT,NuS,	exitcode;
-		else:
-			ds*=0.5;
-			Iteration+=1;		
-
-	return Y,sign,ds,	KE,NuT,NuS,	exitcode;
-
+'''
 def _ContinC(Y_0_dot,Y_0,sign,ds, *args_f):
 
 	"""
@@ -989,119 +926,46 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, *args_f):
 		Y_dot = Y_dot/np.sqrt( δ*np.dot(Y_dot[0:-1],Y_dot[0:-1]) + (1. - δ)*(Y_dot[-1]**2) );
 
 		return    Y_dot,Y,sign,ds, KE,NuT,NuS, True;
+'''
 
-def _Continuation(filename,N_steps,	Y, N_fm,N_r,d, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-04,Krylov_Space_Size = 150, symmetric = True):
+class result():
+	"""
+	class for result of continuation
 
+	Inputs:
+	None
+
+	Returns:
+	None
 	"""
 
-	"""
+	def __init__(self):
 
-	args_f=(N_fm,N_r,d);
+		self.NuT = []; 
+		self.NuS = []; 
+		self.KE  = [];
+		self.Norm= [];
 
-	Y     = Y.copy()
-	Y_dot = np.zeros( Y.shape[0] );
+		self.Ra     = [];
+		self.Ra_dot = []; 
+		self.Y_FOLD = [];
 
-	# Default parameters	
-	ds    =10.0;	
-	sign  =1.;
-	ds_min=1.0;
-	ds_max=10.0;
+		self.X_DATA  = [];
+		self.Ra_DATA = [];
 
-	Result= result()
-	try:
-		with h5py.File(filename, 'r') as f:
-			ff=f["Bifurcation"]
-			for key in ff.keys():
-				
-				if isinstance(ff[key][()], np.ndarray):
-					setattr(Result, key, ff[key][()].tolist());
-				else:
-					setattr(Result, key, ff[key][()] 		 );	
-		f.close()
+		self.Iterations = 0;
 
-		N_steps+=Result.Iterations;
-		Y[0:-1] = Result.X_DATA[-1];
-		Y[-1]   = Result.Ra_DATA[-1];
+	def __str__(self):
 
-	except:
-		pass;			
-
-
-	# Main-Loop	
-	while (Result.Iterations < N_steps):
-
-		# 1) Netwon Solve
-		if ds > ds_min:
-
-			Y_new,sign,ds,	KE,NuT,NuS,	exitcode  = _NewtonC(Y,sign,ds, *args_f);			
-
-			if exitcode == False:
-				Y_dot_new, Y_new,sign,ds,	KE,NuT,NuS,	exitcode = _ContinC(Y_dot,Y,sign,ds_min,*args_f);
-				if exitcode == False:
-					raise ValueError("Neither Netwon nor Psuedo-Arc length converged terminating .... \n")
-
-			elif (ds > ds_max):
-				ds = ds_max;	
-
-		# 2) Psuedo Solve		
-		elif ds <= ds_min:
-
-			Y_dot_new, Y_new,sign,ds,	KE,NuT,NuS,	exitcode = _ContinC(Y_dot,Y,sign,ds,*args_f);
-
-			# Saddle detection
-			if (Y_dot_new[-1]*Y_dot[-1]) < 0:
-				Result.Y_FOLD.append(Y_new);
-
-			# Determine sign for Netwon Step
-			if (Y_new[-1] > Y[-1]):
-				sign = 1.0;
-			else:
-				sign = -1.;	
-
-		
-		# 3) Update solution
-		Y 	  = Y_new.copy(); 	
-		try:
-			Y_dot = Y_dot_new.copy();
-		except:
-			Y_dot =0.*Y;
-
-		# 4) Append & Save data
-		Result.Ra.append( Y[-1]);
-		Result.Ra_dot.append(Y_dot[-1]);
-		
-		Result.KE.append(  KE  );
-		Result.NuT.append( NuT );
-		Result.NuS.append( NuS );         
-		
-		print(Result,flush=True);
-		Result.Iterations+=1
-
-		if Result.Iterations%5==0:
-
-			Result.X_DATA.append( Y[0:-1]);
-			Result.Ra_DATA.append(Y[  -1]);
-
-			Continuation_file = h5py.File(filename, 'w');
-			
-			# Checkpoints for Newton + Timestep
-			Checkpoints = Continuation_file.create_group("Checkpoints");
-			Checkpoints['X_DATA']  = Result.X_DATA;
-			Checkpoints['Ra_DATA'] = Result.Ra_DATA;
-
-			# Problem Params Newton + Timestep
-			Parameters = Continuation_file.create_group("Parameters");
-			for key,val in {"Ra":Result.Ra_DATA[-1],"d":d,	"N_r":N_r,"N_fm":N_fm,"dt":10**4,	"start_time":0.}.items():
-				Parameters[key] = val;
-				
-			# Write thebifurcation object to the file
-			Bifurcation = Continuation_file.create_group("Bifurcation");	
-			for item in vars(Result).items():
-				Bifurcation.create_dataset(item[0], data = item[1])
-			print(Bifurcation.keys())
-			Continuation_file.close()
-
-	return None;	
+		s= ( 'Continuation succeed \n'
+			+'Total iterations  = '+str(self.Iterations)        	  +'\n'
+			+'Ra                = '+str(self.Ra[    self.Iterations]) +'\n'
+			+'Ra_dot            = '+str(self.Ra_dot[self.Iterations]) +'\n'
+			+'NuT               = '+str(self.NuT[   self.Iterations]) +'\n'
+			+'NuS               = '+str(self.NuS[   self.Iterations]) +'\n'
+			+'KE                = '+str(self.KE[    self.Iterations]) +'\n'
+		);
+		return s
 
 def _plot_bif(filename):
 
@@ -1114,13 +978,13 @@ def _plot_bif(filename):
 	
 	fig, (ax0, ax1, ax2) = plt.subplots(nrows=1, ncols=3,figsize=(12, 6))
 
-	ax0.plot(obj.Ra,obj.KE,'k-')
+	ax0.semilogy(obj.Ra,obj.KE,'k-')
 	ax0.set_title(r'Kinetic Energy',fontsize=25)
 
-	ax1.plot(obj.Ra,obj.NuT,'k-')
+	ax1.semilogy(obj.Ra,obj.NuT,'k-')
 	ax1.set_title(r'$Nu_T-1$',fontsize=25)
 
-	ax2.plot(obj.Ra,obj.NuS,'k-')
+	ax2.semilogy(obj.Ra,obj.NuS,'k-')
 	ax2.set_title(r'$Nu_S-1$',fontsize=25)
 	
 	for f in (ax0, ax1, ax2):
@@ -1133,54 +997,201 @@ def _plot_bif(filename):
 
 	return None;
 
-def Continuation(filename,frame):
+def _NewtonC(		 Y  ,sign,ds, **kwargs_f):
+	
+	"""
+
+	"""
+
+	Iteration = 0;
+	while (Iteration < 10):
+	
+		# Shallow copy as mutable
+		X  = Y[0:-1].copy();
+		Ra = Y[  -1].copy() + sign*ds;
+
+		kwargs_f["Ra"] = Ra
+		X_new,Norm,KE,NuT,NuS,exitcode = _Newton(X,**kwargs_f);
+
+		if exitcode == True:
+			ds*=1.5;
+			Y_new = np.hstack( (X_new,Ra) )
+			return Y_new,sign,ds,	Norm,KE,NuT,NuS,	exitcode;
+		else:
+			ds*=0.5;
+			Iteration+=1;		
+
+	return Y,sign,ds,	Norm,KE,NuT,NuS,	exitcode;
+
+def _Continuation(filename,N_steps,	Y,**kwargs):
+
+	"""
+
+	"""
+
+	Y     = Y.copy()
+	Y_dot = np.zeros( Y.shape[0] );
+
+	# Default parameters	
+	ds    =.01;	
+	sign  =-1.;
+	ds_min=0.005;
+	ds_max=10.0;
+
+	# file saving
+	Result = result()
+	# try:
+	# 	## Appending onto the old file
+	# 	with h5py.File(filename, 'r') as f:
+	# 		ff=f["Bifurcation"]
+	# 		for key in ff.keys():
+				
+	# 			if isinstance(ff[key][()], np.ndarray):
+	# 				setattr(Result, key, ff[key][()].tolist());
+	# 			else:
+	# 				setattr(Result, key, ff[key][()] 		 );	
+	# 	f.close()
+
+	# 	N_steps+=Result.Iterations;
+	# 	Y[0:-1] = Result.X_DATA[ -1];
+	# 	Y[  -1] = Result.Ra_DATA[-1];
+
+	# except:
+	# 	pass;	
+	
+	# Main-Loop	
+	while (Result.Iterations < N_steps):
+
+		Y_new,sign,ds, Norm,KE,NuT,NuS, exitcode  = _NewtonC(Y,sign,ds, **kwargs);
+
+		# 1) Netwon Solve
+		if ds > ds_min:
+
+			Y_new,sign,ds, Norm,KE,NuT,NuS, exitcode  = _NewtonC(Y,sign,ds, **kwargs);	
+
+			# if exitcode == False:
+			# 	Y_dot_new, Y_new,sign,ds,	KE,NuT,NuS,	exitcode = _ContinC(Y_dot,Y,sign,ds_min,*args_f);
+			# 	if exitcode == False:
+			# 		raise ValueError("Neither Netwon nor Psuedo-Arc length converged terminating .... \n")
+
+			if (ds > ds_max):
+				ds = ds_max;	
+
+		# # 2) Psuedo Solve		
+		# elif ds <= ds_min:
+
+		# 	Y_dot_new, Y_new,sign,ds,	KE,NuT,NuS,	exitcode = _ContinC(Y_dot,Y,sign,ds,*args_f);
+
+		# 	# Saddle detection
+		# 	if (Y_dot_new[-1]*Y_dot[-1]) < 0:
+		# 		Result.Y_FOLD.append(Y_new);
+
+		# 	# Determine sign for Netwon Step
+		# 	if (Y_new[-1] > Y[-1]):
+		# 		sign = 1.0;
+		# 	else:
+		# 		sign = -1.;	
+
+		
+		# 3) Update solution
+		Y 	  = Y_new.copy(); 	
+		#try:
+		#	Y_dot = Y_dot_new.copy();
+		#except:
+		Y_dot =0.*Y;
+
+		# 4) Append & Save data for bifurcation diag
+		Result.Ra.append( Y[-1]);
+		Result.Ra_dot.append(Y_dot[-1]);
+		
+		Result.Norm.append(Norm);
+		Result.KE.append(  KE  );
+		Result.NuT.append( NuT );
+		Result.NuS.append( NuS );         
+		
+		print(Result,flush=True);
+
+		Result.Iterations+=1
+
+		if Result.Iterations%5==0:
+
+			Result.X_DATA.append( Y[0:-1]);
+			Result.Ra_DATA.append(Y[  -1]);
+
+			Continuation_file = h5py.File(filename, 'w');
+
+			# Checkpoints for Newton + Timestep
+			Checkpoints = Continuation_file.create_group("Checkpoints");
+			Checkpoints['X_DATA']  = Result.X_DATA;
+			Checkpoints['Ra_DATA'] = Result.Ra_DATA;
+
+			# # Problem Params Newton + Timestep
+			Parameters = Continuation_file.create_group("Parameters");
+			for key,val in kwargs.items():
+				Parameters[key] = val;
+
+			# Write the bifurcation object to the file
+			Bifurcation = Continuation_file.create_group("Bifurcation");	
+			for item in vars(Result).items():
+				Bifurcation.create_dataset(item[0], data = item[1])
+
+			#print(Bifurcation.keys())
+			Continuation_file.close()
+
+	return None;	
+
+def Continuation(open_filename,save_filename = 'Continuation_Test_1.h5',frame=-1):
 
 	"""
 	Given an initial condition and full parameter specification perform branch continuation
 
 	Inputs:
 
-	filename
-	defaults
-	dt - (float) default time-step for time-integration
+	open_filename (.h5) 
+	save_filename (.h5)
+	frame integer
 
 	Returns:
+	None
 
 	"""
 
-	# ~~~~~~~~~ New Initial Conditions ~~~~~~~~~~~~~~~~~~
-	if filename.endswith('.h5'):
+	if open_filename.endswith('.h5'):
 
-		f = h5py.File(filename, 'r+')
+		f = h5py.File(open_filename, 'r+')
 
 		# Problem Params
 		X      = f['Checkpoints/X_DATA'][frame];
-		Ra     = f['Parameters']["Ra"][()];
+		
+		try:
+			Ra = f['Checkpoints/Ra_DATA'][frame];
+		except:
+			Ra = f['Parameters']["Ra"][()];
+
+		Ra_s   = f['Parameters']["Ra_s"][()];
+		Tau    = f['Parameters']["Tau"][()];
+		Pr     = f['Parameters']["Pr"][()];
+		d 	   = f['Parameters']["d"][()]
+
 		N_fm   = f['Parameters']["N_fm"][()]
 		N_r    = f['Parameters']["N_r"][()]
-		d 	   = f['Parameters']["d"][()]
-		try:
-			start_time  = f['Scalar_Data/Time'][()][frame]
-		except:
-			start_time  =0
-			pass;
-		f.close();    
 
-		print("\n Loading time-step %e with parameters Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(start_time,Ra,d,N_fm,N_r))    
+		f.close();
 
-		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
-		from Matrix_Operators import INTERP_RADIAL, INTERP_THETAS
-		fac_R =1; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
-		fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
-		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		print("\n Loading Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(Ra,d,N_fm,N_r))    
 
-	fname  = 'Continuation_Test.h5'
-	Y      = np.hstack( (X,Ra) );
+		# # ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
+		# from Matrix_Operators import INTERP_RADIAL, INTERP_THETAS
+		# fac_R =1; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
+		# fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
+		# # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 	N_steps= 100;
-	
-	_Continuation(fname,N_steps,Y, N_fm,N_r,d, dt = 10**4, tol_newton = 1e-10,tol_gmres = 1e-04,Krylov_Space_Size = 150, symmetric = True)
+	Y      = np.hstack( (X,Ra) );
+	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm,"N_r":N_r}
+	_Continuation(save_filename,N_steps,Y,**kwargs)
 
-	_plot_bif(fname)
+	#_plot_bif(save_filename)
 
 	return None;
 
@@ -1192,12 +1203,18 @@ if __name__ == "__main__":
 	print("Initialising the code for running...")
 	
 	# %%
-	Newton(open_filename='New_Newton_Sim.h5',save_filename = 'New_Newton_Sim1.h5',frame=-1);
+	#Newton(open_filename='New_Newton_Sim.h5',save_filename = 'New_Newton_Sim1.h5',frame=-1);
 	
 	#%%
 	#Time_Step()#file,file,frame);
 
-	#Continuation(file,frame)
+	Continuation(open_filename='Continuation_Test.h5',frame=-1)
 
+	# %%
+	_plot_bif( 'Continuation_Test_1.h5')
+
+	from Plot_Tools import Cartesian_Plot
+
+	Cartesian_Plot(filename='Continuation_Test_1.h5',frame=-1,Include_Base_State=False)
 ##	
 # %%
