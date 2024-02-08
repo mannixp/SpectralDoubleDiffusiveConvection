@@ -520,7 +520,7 @@ def _Newton(X,	Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=10**4,	tol_newton
 
 		return np.hstack((ψ_new,T_new,S_new));	
 
-	while (error > tol_newton) and (iteration < 20):
+	while (error > tol_newton) and (iteration < 10):
 		
 		X = X_SYM*X;	
 		
@@ -538,7 +538,7 @@ def _Newton(X,	Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=10**4,	tol_newton
 		print('Newton Iteration = %d, Error = %e'%(iteration,error),"\n")
 		iteration+=1
 
-	if (iteration == 20) or (exit != 0):
+	if (iteration == 10) or (exit != 0):
 
 		print('Newton iteration could not converge');
 		return _,	_,_,_,_, False;
@@ -651,225 +651,6 @@ def Newton(open_filename='NewtonSolve_0.h5',save_filename = None,frame=-1):
 
 	return None;
 
-
-'''
-def _ContinC(Y_0_dot,Y_0,sign,ds, *args_f):
-
-	"""
-	
-	
-
-	"""
-	from Matrix_Operators import NLIN_DFX as DFX
-	from Matrix_Operators import NLIN_FX as FX
-	from Matrix_Operators import DT0_theta,A2_SINE
-	
-	D,R,	Rsq,DT0,gr_k,N_fm,nr,	args_Nab2,args_A4,args_FX = Build_Matrix_Operators_TimeStep(N_fm,N_r,d);
-
-	args_Nab2_T = args_Nab2; 
-	args_Nab2_S = args_Nab2;
-	from Matrix_Operators import A4_BSub_TSTEP, NAB2_BSub_TSTEP
-
-	import scipy.sparse.linalg as spla # Used for Gmres Netwon Sovler
-
-	
-	# Shallow copy as mutable
-	X_0  = Y_0[0:-1].copy();
-	µ_0  = Y_0[  -1].copy();
-
-	if symmetric == True:
-		X_SYM  = Eq_SYM(X_0,R);
-		X_0    = X_SYM*X_0;
-	
-	nr = int( X_0.shape[0]/(3*N_fm) );
-	N  = N_fm*nr; 
-	dv = np.random.randn(X_0.shape[0]);
-
-	# Hyper-parameter to balance IP
-	δ  = 1./(3.*N);
-	
-	def PFX(Xn,Ra):
-
-		NX 	= np.zeros(3*N);
-		
-		ψ = Xn[0:N];
-		T = Xn[N:2*N];
-		S = Xn[2*N:3*N];
-
-		# Linear
-		NX[:] = -1.*dt*FX(Xn, *args_FX,     symmetric); # 36% FIX
-		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric);
-		Ω     = A2_SINE(ψ,     D,R,N_fm,nr, symmetric); 
-
-		# 1) Vorticity - Ω
-		NX[0:N]     += Ω + dt*Pr*gr_k.dot(Ra*T - Ra_s*S);
-		ψ_new        =   A4_BSub_TSTEP(NX[0:N],     *args_A4,     Pr*dt, symmetric) - ψ;
-
-		# 2) Temperature - T
-		NX[N:2*N]   += Rsq.dot(T) - dt*ψ_T0;
-		T_new        = NAB2_BSub_TSTEP(NX[N:2*N],   *args_Nab2_T,    dt, symmetric) - T;
-
-		# 3) Solute - S
-		NX[2*N:3*N] += Rsq.dot(S) - dt*ψ_T0;
-		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2_S,Tau*dt, symmetric) - S;
-
-		return np.hstack((ψ_new,T_new,S_new));
-
-	def PDFX(dv,Xn,Ra):
-
-		NX 	   = np.zeros(3*N);
-
-		δψ = dv[0:N];
-		δT = dv[N:2*N];
-		δS = dv[2*N:3*N];
-
-		ψ = Xn[0:N];
-		T = Xn[N:2*N];
-		S = Xn[2*N:3*N];
-
-		# Linear
-		NX[:]  = -1.*dt*DFX(dv,Xn, *args_FX,     symmetric); # 36% FIX
-		δψ_T0  = DT0_theta(δψ,   	DT0,N_fm,nr, symmetric);
-		δΩ     = A2_SINE(δψ,     	D,R,N_fm,nr, symmetric); 
-
-		# 1) Vorticity - ∆Ω
-		NX[0:N]     += δΩ + dt*Pr*gr_k.dot(Ra*δT - Ra_s*δS);
-		ψ_new        =   A4_BSub_TSTEP(NX[0:N],     *args_A4,     Pr*dt, symmetric) - δψ;
-
-		# 2) Temperature - ∆T
-		NX[N:2*N]   += Rsq.dot(δT) - dt*δψ_T0;
-		T_new        = NAB2_BSub_TSTEP(NX[N:2*N],   *args_Nab2_T,    dt, symmetric) - δT;
-
-		# 3) Solute - ∆S
-		NX[2*N:3*N] += Rsq.dot(δS) - dt*δψ_T0;
-		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2_S,Tau*dt, symmetric) - δS;
-
-		return np.hstack((ψ_new,T_new,S_new));
-
-	def PDFµ(Xn):
-		
-		ψ = Xn[0:N];
-		T = Xn[N:2*N];
-		S = Xn[2*N:3*N];
-
-		# DF(X,µ)_µ
-		dfµ       = np.zeros(Xn.shape[0])
-		fµ		  = dt*Pr*gr_k.dot(T)	
-		dfµ[0:N]  = A4_BSub_TSTEP( fµ , *args_A4, Pr*dt, symmetric);
-	
-		return dfµ;
-
-
-	# 1) ~~~~~~~~~~~~~~~~~ Compute Prediction ~~~~~~~~~~~~~~~~~ 
-	if np.linalg.norm(Y_dot,2) == 0:
-		
-		# P*DF(X,µ)_µ	
-		dfµ  = (-1.)*PDFµ(X_0)
-
-		# P*DF(X,µ)_X
-		DF_X = lambda dv: PDFX(dv,X_0,µ_0);
-		dfx  = spla.LinearOperator((X.shape[0],X.shape[0]),matvec=DF_X,dtype='float64');
-
-		# a) Solve pre-conditioned P*DF_X(X_0)*ξ = (-1)*P*DF_µ(X); 
-		b_norm 	= np.linalg.norm(dfµ,2);
-		ξ,exit  = spla.lgmres(dfx,dfµ, tol = tol_gmres*b_norm, maxiter=250, inner_m = Krylov_Space_Size);
-
-		if (exit != 0): 
-			print("\n Warning: couldn't compute prediction for ξ \n")
-			return _,_,_,_,_,False;
-
-		# b) ~~~~~~~~~~~~~~~~~ Compute x_dot, µ_dot algebra ~~~~~~~~~~
-		µ_dot = sign/np.sqrt( 1.0 + δ*(np.linalg.norm(ξ,2)-1.0) );
-		X_dot = µ_dot*ξ; 
-		
-		print("mu_dot ",mu_dot);
-
-	else:
-
-		# Shallow copy as mutable
-		X_dot = Y_0_dot[0:-1].copy(); 
-		µ_dot = Y_0_dot[  -1].copy();	
-
-	# Make prediction	
-	X = X_0 + X_dot*ds; 
-	µ = µ_0 + µ_dot*ds;
-	Y = np.hstack( (X,µ) );
-		
-	#~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~
-
-	G  = np.zeros(Y.shape[0])
-	
-	err_X,err_µ = 1.0,1.0; 
-	iteration   = 0; 
-	exit        = 1.0; 
-
-	while ( (err_X > tol_netwon) or (err_µ > tol_netwon) ):
-		
-		X  = Y[0:-1].copy();
-		µ  = Y[  -1].copy();
-
-		# P*DF(X,µ)_X & P*F(X,µ)_µ
-		DF_X    = lambda dv: PDFX(dv,X,µ);
-		DF_µ    =            PDFµ(X)
-		
-		# F(X,µ) & p(X,µ,s) 
-		G[0:-1] = PFX(X,µ)
-		G[  -1] = δ*np.dot(X_dot,X - X_0)  + (1.-δ)*µ_dot*(µ - µ_0) - ds;
-		
-		# 3) Compute DG_y
-		#~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~
-		DG  = lambda dY: np.vstack( ( DF_X(          dY[0:-1]) 		   + DF_µ*dY[-1], \
-									  δ*np.dot(X_dot,dY[0:-1]) + (1.-δ)*µ_dot*dY[-1] ) );
-		
-		DGy = spla.LinearOperator((Y.shape[0],Y.shape[0]),matvec=DG,dtype='float64');
-
-		b_norm  = np.sqrt( δ*np.dot(G[0:-1],G[0:-1]) + (1.-δ)*(G[-1]**2) );
-		dY,exit = spla.lgmres(DGy,G, tol = tol_gmres*b_norm, maxiter=250, inner_m = Krylov_Space_Size);
-		Y 		= Y - dY;
-
-		# 4) ~~~~~~~~~~~~~~~~~ Compute error ~~~~~~~~~~~~~~~~~
-		err_X = np.linalg.norm(dY[0:-1],2)/np.linalg.norm(X,2);
-		err_µ = abs(dY[-1])/abs(µ);
-		
-		print('Psuedo-Arc Iteration = %d, Error X = %e, Error µ = %e'%(iteration,err_X,err_µ),"\n") 
-		iteration+=1;
-
-		# 5)  ~~~~~~~~~~~~~~~~~  ds control  ~~~~~~~~~~~~~~~~~ 
-		if (iteration > 10) or (exit != 0):
-			
-			iteration=0;
-			ds*=0.5;
-
-			X = X_0 + X_dot*ds; 
-			µ = µ_0 + µ_dot*ds;	
-			Y = np.hstack( (X,µ) );
-
-			if ds < 1e-06:
-				print("\n Warning small step-size terminating solve \n")	
-				return _,_,_,_,_,False;
-
-		elif (iteration < 5) and (exit == 0):
-
-			ds*=2.;
-
-	# Compute diagnoistics	
-	KE = Kinetic_Enegery(Y[0:N], R,D,N_fm,nr, symmetric)
-	NuT= Nusselt(Y[N:2*N]  ,d,R,D,N_fm,nr);
-	NuS= Nusselt(Y[2*N:3*N],d,R,D,N_fm,nr);		
-
-	# Compute Y_dot=(X_dot,µ_dot)
-	G[0:-1]=0.;
-	G[  -1]=1.;
-	Y_dot,exit = spla.lgmres(DGy,G, tol = tol_gmres*b_norm, maxiter=250, inner_m = Krylov_Space_Size);
-	
-	if (exit != 0):
-		return 0.*Y_dot,Y,sign,ds, KE,NuT,NuS, True;
-	else:	
-		Y_dot = Y_dot/np.sqrt( δ*np.dot(Y_dot[0:-1],Y_dot[0:-1]) + (1. - δ)*(Y_dot[-1]**2) );
-
-		return    Y_dot,Y,sign,ds, KE,NuT,NuS, True;
-'''
-
 class result():
 	"""
 	class for result of continuation
@@ -915,25 +696,235 @@ def _NewtonC(		 Y  ,sign,ds, **kwargs_f):
 
 	"""
 
-	Iteration = 0;
-	while (Iteration < 10):
+	# Iteration = 0;
+	# while (Iteration < 2):
 	
+	# Shallow copy as mutable
+	X  = Y[0:-1].copy();
+	Ra = Y[  -1].copy() + sign*ds;
+
+	kwargs_f["Ra"] = Ra
+	X_new,Norm,KE,NuT,NuS,exitcode = _Newton(X,**kwargs_f, tol_newton=1e-08);
+
+	if exitcode == True:
+		ds*=2;
+		Y_new = np.hstack( (X_new,Ra) )
+		return Y_new,sign,ds,	Norm,KE,NuT,NuS,	exitcode;
+	else:
+		ds*=0.5;
+		return Y    ,sign,ds,	Norm,KE,NuT,NuS,	exitcode;
+	
+def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=10**4,	tol_newton = 1e-08,tol_gmres = 1e-04,Krylov_Space_Size = 150):
+
+	"""
+	Given a starting point and a control parameter compute a new steady-state using Newton iteration
+
+	Inputs: ??
+
+	defaults
+	tol_newton - (float) newton iteration tolerance to terminate iterations
+	tol_gmres  - (float) GMRES x =A^-1 b solver algorithim parameter
+	Krylov_Space_Size - (int) number of Krylov vectors to use when forming the subspace
+
+	Returns: ??
+	"""
+
+	import scipy.sparse.linalg as spla # Used for Gmres Netwon Sovler
+
+	from Matrix_Operators import NLIN_DFX as DFX
+	from Matrix_Operators import NLIN_FX as FX
+	from Matrix_Operators import DT0_theta,A2_SINE
+	from Matrix_Operators import A4_BSub_TSTEP, NAB2_BSub_TSTEP
+
+	D,R,	Rsq,DT0,gr_k,N_fm,nr,	args_Nab2,args_A4,args_FX = Build_Matrix_Operators_TimeStep(N_fm,N_r,d);
+
+	N  = N_fm*nr; 
+	dv = np.random.randn(3*N);
+	δ  = 1./(3.*N);
+	
+	if symmetric == True:
+		X_SYM  = Eq_SYM(dv,R);
+	else:
+		X_SYM  = np.ones(X.shape);
+	
+	def PFX(Xn,Ra):
+		
+		ψ = Xn[0:N];
+		T = Xn[N:2*N];
+		S = Xn[2*N:3*N];
+
+		# Linear
+		NX    = -1.*dt*FX(Xn, *args_FX, symmetric)[0]; # 36% FIX
+		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric);
+		Ω     = A2_SINE(ψ,     D,R,N_fm,nr, symmetric);
+		
+		# 1) Vorticity - Ω
+		NX[0:N]     += Ω + dt*Pr*gr_k.dot(Ra*T - Ra_s*S);
+		ψ_new        =   A4_BSub_TSTEP(NX[0:N],     *args_A4  , Pr*dt, symmetric) - ψ;
+
+		# 2) Temperature - T
+		NX[N:2*N]   += Rsq.dot(T) - dt*ψ_T0;
+		T_new        = NAB2_BSub_TSTEP(NX[N:2*N],   *args_Nab2,    dt, symmetric) - T;
+
+		# 3) Solute - S
+		NX[2*N:3*N] += Rsq.dot(S) - dt*ψ_T0;
+		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2,Tau*dt, symmetric) - S;
+
+		return np.hstack((ψ_new,T_new,S_new));
+
+	def PDFX(dv,Xn,Ra):
+
+		δψ = dv[0:N];
+		δT = dv[N:2*N];
+		δS = dv[2*N:3*N];
+
+		# Linear
+		NX     = -1.*dt*DFX(dv,Xn, *args_FX,     symmetric); # 36% FIX
+		δψ_T0  = DT0_theta(δψ,   	DT0,N_fm,nr, symmetric);
+		δΩ     = A2_SINE(δψ,     	D,R,N_fm,nr, symmetric); 
+
+		# 1) Vorticity - ∆Ω
+		NX[0:N]     += δΩ + dt*Pr*gr_k.dot(Ra*δT - Ra_s*δS);
+		ψ_new        =   A4_BSub_TSTEP(NX[0:N],     *args_A4,   Pr*dt, symmetric) - δψ;
+
+		# 2) Temperature - ∆T
+		NX[N:2*N]   += Rsq.dot(δT) - dt*δψ_T0;
+		T_new        = NAB2_BSub_TSTEP(NX[N:2*N],   *args_Nab2,    dt, symmetric) - δT;
+
+		# 3) Solute - ∆S
+		NX[2*N:3*N] += Rsq.dot(δS) - dt*δψ_T0;
+		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2,Tau*dt, symmetric) - δS;
+
+		return np.hstack((ψ_new,T_new,S_new));
+
+	def PDFµ(Xn):
+		
+		#ψ = Xn[0:N];
+		T = Xn[N:2*N];
+		#S = Xn[2*N:3*N];
+
+		# DF(X,µ)_µ
+		dfµ       = 0.*Xn;
+		fµ		  = dt*Pr*gr_k.dot(T)	
+		dfµ[0:N]  = A4_BSub_TSTEP( fµ , *args_A4, Pr*dt, symmetric);
+	
+		return dfµ;
+
+	def Predict(Y_dot,Y,sign,ds):
+
 		# Shallow copy as mutable
-		X  = Y[0:-1].copy();
-		Ra = Y[  -1].copy() + sign*ds;
+		X_0  = X_SYM*Y[0:-1].copy();
+		µ_0  = Y[  -1].copy();
 
-		kwargs_f["Ra"] = Ra
-		X_new,Norm,KE,NuT,NuS,exitcode = _Newton(X,**kwargs_f);
+		if np.linalg.norm(Y_dot,2) == 0:
+			
+			# P*DF(X,µ)_µ	
+			dfµ  = (-1.)*PDFµ(X_0)
 
-		if exitcode == True:
-			ds*=1.5;
-			Y_new = np.hstack( (X_new,Ra) )
-			return Y_new,sign,ds,	Norm,KE,NuT,NuS,	exitcode;
+			# P*DF(X,µ)_X
+			DF_X = lambda dv: PDFX(dv,X_0,µ_0);
+			dfx  = spla.LinearOperator((3*N,3*N),matvec=DF_X,dtype='float64');
+
+			# a) Solve pre-conditioned P*DF_X(X_0)*ξ = (-1)*P*DF_µ(X); 
+			b_norm 	= np.linalg.norm(dfµ,2);
+			ξ,exit  = spla.lgmres(dfx,dfµ,	maxiter=250, inner_m = Krylov_Space_Size, atol = tol_gmres*b_norm);
+
+			if (exit != 0): raise ValueError("\n LGMRES couldn't converge when predicting ξ \n")
+			
+			# b) Compute x_dot, µ_dot 
+			µ_dot = sign/np.sqrt( 1.0 + δ*(np.linalg.norm(ξ,2)-1.0) );
+			X_dot = µ_dot*ξ; 
 		else:
-			ds*=0.5;
-			Iteration+=1;		
 
-	return Y,sign,ds,	Norm,KE,NuT,NuS,	exitcode;
+			# Shallow copy as mutable
+			X_dot = Y_0_dot[0:-1].copy(); 
+			µ_dot = Y_0_dot[  -1].copy();
+
+		# Make prediction	
+		X = X_0 + X_dot*ds; 
+		µ = µ_0 + µ_dot*ds;
+		
+		#print('Continuation ds,mu_dot = %e,%e'%(ds,µ_dot),'\n')
+
+		return np.hstack( (X,µ) ), X_0, µ_0, X_dot, µ_dot;
+	
+	Y, X_0, µ_0, X_dot, µ_dot = Predict(Y_0_dot,Y_0,sign,ds) 
+	
+	G 			= 0.*Y;
+	err_X,err_µ = 1.0,1.0; 
+	iteration   = 0; 
+	exit        = 1.0; 
+
+	while ( (err_X > tol_newton) or (err_µ > tol_newton) ):
+		
+		X  = X_SYM*Y[0:-1].copy(); 
+		µ  = 	   Y[  -1].copy();
+		
+		# P*DF(X,µ)_X & P*F(X,µ)_µ
+		DF_X    = lambda dv: PDFX(dv,X,µ);
+		DF_µ    =            PDFµ(X)
+		
+		# F(X,µ) & p(X,µ,s) 
+		G[0:-1] = PFX(X,µ)
+		G[  -1] = δ*np.dot(X_dot,X - X_0)  + (1.-δ)*µ_dot*(µ - µ_0) - ds;
+		
+		# 3) Compute DG_y
+		#~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~
+		DG  = lambda dY: np.hstack( ( DF_X(          dY[0:-1]) 		   + DF_µ*dY[-1], \
+									  δ*np.dot(X_dot,dY[0:-1]) + (1.-δ)*µ_dot*dY[-1] ) );
+		
+		DGy = spla.LinearOperator((Y.shape[0],Y.shape[0]),matvec=DG,dtype='float64');
+
+		b_norm  = np.sqrt( δ*np.dot(G[0:-1],G[0:-1]) + (1.-δ)*(G[-1]**2) );
+		dY,exit = spla.lgmres(DGy,G, maxiter=250, inner_m = Krylov_Space_Size, atol = tol_gmres*b_norm);
+		Y 		= Y - dY;
+		
+		if (exit != 0): raise ValueError("\n LGMRES couldn't converge when predicting dY \n")
+
+		# 4) ~~~~~~~~~~~~~~~~~ Compute error ~~~~~~~~~~~~~~~~~
+		err_X = np.linalg.norm(dY[0:-1],2)/np.linalg.norm(X,2);
+		err_µ = abs(dY[-1])/abs(µ);
+		
+		print('Psuedo-Arc Iteration = %d, Error X = %e, Error µ = %e'%(iteration,err_X,err_µ),"\n") 
+		iteration+=1;
+
+		# 5)  ~~~~~~~~~~~~~~~~~  ds control  ~~~~~~~~~~~~~~~~~ 
+		if (iteration > 8):
+			
+			print('Reducing the step-size ds_old=%e -> ds_new=%e \n'%(ds,.5*ds));
+
+			iteration=0;
+			ds*=0.5;
+
+			X = X_0 + X_dot*ds; 
+			µ = µ_0 + µ_dot*ds;	
+			Y = np.hstack( (X,µ) );
+
+			if ds < 1e-06: ValueError("\n step-size ds has become too small terminating \n")	
+
+	if (iteration < 4):
+		print('Increasing the step-size ds_old=%e -> ds_new=%e \n'%(ds,2*ds));
+		ds*=2;
+
+	# Compute diagnoistics
+	X    = Y[0:-1].copy()
+	Norm = np.linalg.norm(X,2);
+	KE   = Kinetic_Energy(X,    R,D,N_fm,nr);
+	NuT  = Nusselt(X[N:2*N]  ,d,R,D,N_fm,nr);
+	NuS  = Nusselt(X[2*N:3*N],d,R,D,N_fm,nr);	
+
+	# Compute Y_dot=(X_dot,µ_dot)
+	G[0:-1]=0.
+	G[  -1]=1.
+	Y_dot,exit = spla.lgmres(DGy,G, maxiter=250, inner_m = Krylov_Space_Size, atol = tol_gmres*b_norm);
+	
+	if (exit != 0):
+		return 0.*Y_dot,Y,sign,ds, Norm,KE,NuT,NuS, True;
+	else:	
+		Y_dot = Y_dot/np.sqrt( δ*np.dot(Y_dot[0:-1],Y_dot[0:-1]) + (1. - δ)*(Y_dot[-1]**2) );
+
+		return    Y_dot,Y,sign,ds, Norm,KE,NuT,NuS, True;
+
 
 def _Continuation(filename,N_steps,	Y,**kwargs):
 
@@ -942,77 +933,55 @@ def _Continuation(filename,N_steps,	Y,**kwargs):
 	"""
 
 	Y     = Y.copy()
-	Y_dot = np.zeros( Y.shape[0] );
+	Y_dot = 0.*Y;
 
 	# Default parameters	
-	ds    =.01;	
+	ds    =5;	
 	sign  =-1.;
-	ds_min=0.005;
+	ds_min=0.5;
 	ds_max=10.0;
 
-	# file saving
 	Result = result()
-	# try:
-	# 	## Appending onto the old file
-	# 	with h5py.File(filename, 'r') as f:
-	# 		ff=f["Bifurcation"]
-	# 		for key in ff.keys():
-				
-	# 			if isinstance(ff[key][()], np.ndarray):
-	# 				setattr(Result, key, ff[key][()].tolist());
-	# 			else:
-	# 				setattr(Result, key, ff[key][()] 		 );	
-	# 	f.close()
-
-	# 	N_steps+=Result.Iterations;
-	# 	Y[0:-1] = Result.X_DATA[ -1];
-	# 	Y[  -1] = Result.Ra_DATA[-1];
-
-	# except:
-	# 	pass;	
 	
-	# Main-Loop	
 	while (Result.Iterations < N_steps):
 
-		Y_new,sign,ds, Norm,KE,NuT,NuS, exitcode  = _NewtonC(Y,sign,ds, **kwargs);
-
-		# 1) Netwon Solve
 		if ds > ds_min:
 
-			Y_new,sign,ds, Norm,KE,NuT,NuS, exitcode  = _NewtonC(Y,sign,ds, **kwargs);	
+			OUT      = _NewtonC(Y,sign,ds, **kwargs);	
+			exitcode = OUT[-1]
 
-			# if exitcode == False:
-			# 	Y_dot_new, Y_new,sign,ds,	KE,NuT,NuS,	exitcode = _ContinC(Y_dot,Y,sign,ds_min,*args_f);
-			# 	if exitcode == False:
-			# 		raise ValueError("Neither Netwon nor Psuedo-Arc length converged terminating .... \n")
+			if exitcode == False:
+				print('Switching to arc-length \n')
+				Y_dot_new, Y_new,sign,ds,	Norm, KE,NuT,NuS,	exitcode = _ContinC(Y_dot,Y,sign,ds,**kwargs);
+			else:
+				Y_new,sign,ds, Norm,KE,NuT,NuS = OUT[0],OUT[1],OUT[2], OUT[3],OUT[4],OUT[5],OUT[6]
 
 			if (ds > ds_max):
 				ds = ds_max;	
 
-		# # 2) Psuedo Solve		
-		# elif ds <= ds_min:
+		elif ds <= ds_min:
 
-		# 	Y_dot_new, Y_new,sign,ds,	KE,NuT,NuS,	exitcode = _ContinC(Y_dot,Y,sign,ds,*args_f);
+			Y_dot_new, Y_new,sign,ds,	Norm, KE,NuT,NuS,	exitcode = _ContinC(Y_dot,Y,sign,ds,**kwargs);
+			
 
-		# 	# Saddle detection
-		# 	if (Y_dot_new[-1]*Y_dot[-1]) < 0:
-		# 		Result.Y_FOLD.append(Y_new);
+			# Saddle detection
+			if (Y_dot_new[-1]*Y_dot[-1]) < 0:
+				Result.Y_FOLD.append(Y_new);
 
-		# 	# Determine sign for Netwon Step
-		# 	if (Y_new[-1] > Y[-1]):
-		# 		sign = 1.0;
-		# 	else:
-		# 		sign = -1.;	
+			# Determine sign for Netwon Step
+			if (Y_new[-1] > Y[-1]):
+				sign = 1.0;
+			else:
+				sign = -1.;	
 
-		
 		# 3) Update solution
-		Y 	  = Y_new.copy(); 	
-		#try:
-		#	Y_dot = Y_dot_new.copy();
-		#except:
-		Y_dot =0.*Y;
+		Y = Y_new.copy(); 	
+		try:
+			Y_dot = Y_dot_new.copy();
+		except:
+			Y_dot =0.*Y;
 
-		# 4) Append & Save data for bifurcation diag
+		# 4) Append & Save data
 		Result.Ra.append( Y[-1]);
 		Result.Ra_dot.append(Y_dot[-1]);
 		
@@ -1045,6 +1014,7 @@ def _Continuation(filename,N_steps,	Y,**kwargs):
 				Bifurcation.create_dataset(item[0], data = item[1])
 
 			f.close()
+
 
 	return None;	
 
@@ -1090,13 +1060,13 @@ def Continuation(open_filename,save_filename='ContinuationTest_0.h5',frame=-1):
 
 		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
 		from Matrix_Operators import INTERP_RADIAL,INTERP_THETAS
-		#fac_R =2; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
-		fac_T =2; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
+		#N_r_n  = 32; X = INTERP_RADIAL(N_r_n,N_r,X,d);
+		N_fm_n = 128; X = INTERP_THETAS(N_fm_n,N_fm,X);
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	N_steps= 200;
+	N_steps= 500;
 	Y      = np.hstack( (X,Ra) );
-	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm,"N_r":N_r}
+	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r}
 
 	save_filename = uniquify(save_filename)
 	
@@ -1126,9 +1096,9 @@ def _plot_bif(filename):
 	ax2.semilogy(obj.Ra,obj.NuS,'k-')
 	ax2.set_title(r'$Nu_S-1$',fontsize=25)
 	
-	for f in (ax0, ax1, ax2):
-		f.set_xlabel(r'$Ra$',fontsize=25)
-		f.set_xlim([obj.Ra[0],obj.Ra[-1]])
+	# for f in (ax0, ax1, ax2):
+	# 	f.set_xlabel(r'$Ra$',fontsize=25)
+	# 	f.set_xlim([obj.Ra[0],obj.Ra[-1]])
 	
 	plt.tight_layout()
 	plt.savefig("Bifurcation_Series.pdf",format='pdf', dpi=1200)
@@ -1177,9 +1147,20 @@ if __name__ == "__main__":
 	# %%
 	print("Initialising the code for running...")
 	#Time_Step()#file,file,frame);
-
-
+	
 	#%%
+	Continuation(open_filename='ContinuationTest_1.h5',frame=-1)
+
+	# %%
+	#_plot_bif(filename='ContinuationTest_2.h5')
+	Plot_full_bif(folder='/home/pmannix/SpectralDoubleDiffusiveConvection/Branch_l10')
+
+	# %%
+	from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
+	Cartesian_Plot(filename='ContinuationTest_2.h5',frame=-1,Include_Base_State=False)
+	Energy(filename='ContinuationTest_2.h5',frame=-1)
+
+##	# %%
 	Newton(open_filename='EigVec.npy',frame=-1);
 
 	# %% 
@@ -1188,17 +1169,4 @@ if __name__ == "__main__":
 	from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
 	Cartesian_Plot(filename='NewtonSolve_0.h5',frame=-1,Include_Base_State=False)
 	Energy(filename='NewtonSolve_0.h5',frame=-1)
-	
-	#%%
-	Continuation(open_filename='ContinuationTest_1.h5',frame=-1)
-
-	# %%
-	Plot_full_bif(folder='/home/pmannix/SpectralDoubleDiffusiveConvection/Branch_l10')
-
-	# %%
-	from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
-	Cartesian_Plot(filename='ContinuationTest_3.h5',frame=-1,Include_Base_State=False)
-	Energy(filename='ContinuationTest_3.h5',frame=-1)
-
-##	
 # %%

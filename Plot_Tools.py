@@ -436,22 +436,42 @@ def Energy(filename,frame=-1):
 	f.close()
 	
 	from Matrix_Operators import X_to_Vecs
-	ψ,T,S = X_to_Vecs(X,N_fm,N_r - 1)
+	ψ_hat,T_hat,S_hat = X_to_Vecs(X,N_fm,N_r - 1)
 
-	E_ψ = [ np.linalg.norm(ψ[:,k],2) for k in range(N_fm)]
-	E_T = [ np.linalg.norm(T[:,k],2) for k in range(N_fm)]
-	E_S = [ np.linalg.norm(S[:,k],2) for k in range(N_fm)]
+
+	fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2,figsize=(12, 6))
+
+	E_ψ = [ np.linalg.norm(ψ_hat[:,k],2) for k in range(N_fm)]
+	E_T = [ np.linalg.norm(T_hat[:,k],2) for k in range(N_fm)]
+	E_S = [ np.linalg.norm(S_hat[:,k],2) for k in range(N_fm)]
 	k   =   np.arange(0,N_fm,1) # sinusoids modes
 
-	plt.figure(figsize=(8, 6))
+	ax0.semilogy(k,E_ψ, 'k.',label=r'$\psi^2_k')
+	ax0.semilogy(k,E_T, 'r.',label=r'$T^2_k$')
+	ax0.semilogy(k,E_S, 'b.',label=r'$S^2_k$')
 
-	plt.semilogy(k,E_ψ, 'k.',label=r'$\hat{\psi} \sim \sin(k \theta)$')
-	plt.semilogy(k,E_T, 'r.',label=r'$\hat{T}$')
-	plt.semilogy(k,E_S, 'b.',label=r'$\hat{S}$')
+	ax0.set_xlabel(r'Fourier-mode $k$', fontsize=26);
+	ax0.set_ylabel(r'$||X_k||$', fontsize=26)
+	ax0.set_xlim([0,N_fm])
 
-	plt.xlabel(r'Fourier-mode $k$', fontsize=26);
-	plt.ylabel(r'$||X_k||$', fontsize=26)
-	plt.xlim([0,N_fm])
+	from Transforms import DCT,IDST,IDCT,grid
+
+	θ     = grid(2*N_fm)
+	ψ,T,S = IDST(ψ_hat,n=2*N_fm),IDCT(T_hat,n=2*N_fm),IDCT(S_hat,n=2*N_fm) 
+
+	Tn_ψ = DCT( np.hstack( ([0.], np.trapz(ψ**2,x=θ,axis=-1), [0.]) )	)
+	Tn_T = DCT( np.hstack( ([0.], np.trapz(T**2,x=θ,axis=-1), [0.]) )	)
+	Tn_S = DCT( np.hstack( ([0.], np.trapz(S**2,x=θ,axis=-1), [0.]) )	)
+	n    =   np.arange(0,N_r+1,1) # Chebyshev modes
+
+	ax1.semilogy(n,Tn_ψ, 'k.',label=r'$\psi^2_n$')
+	ax1.semilogy(n,Tn_T, 'r.',label=r'$T^2_n$')
+	ax1.semilogy(n,Tn_S, 'b.',label=r'$S^2_n$')
+
+	ax1.set_xlabel(r'Chebyshev-mode $n$', fontsize=26);
+	ax1.set_ylabel(r'$||X_n||$', fontsize=26)
+	ax1.set_xlim([0,N_r+1])
+	
 	plt.grid()
 	plt.legend()
 	plt.tight_layout()
@@ -676,7 +696,7 @@ if __name__ == "__main__":
 	#Plot_Time_Step(filename,logscale=True);
 	
 	## %%
-	Uradial_plot(filename,frame)
+	#Uradial_plot(filename,frame)
 	Energy(filename, frame)
-	Cartesian_Plot(filename, frame, Include_Base_State=False);
+	#Cartesian_Plot(filename, frame, Include_Base_State=False);
 # %%
