@@ -129,7 +129,7 @@ def IDCT(f_hat,n=None,axis=-1):
     return f;
 
 # Tests
-def Test_Cosine_Transform(k,N):
+def test_Cosine_Transform(k,N):
 
     f_hat_in    = np.zeros(N)
     f_hat_in[k] = 1
@@ -161,7 +161,7 @@ def Test_Cosine_Transform(k,N):
 
     return None;
 
-def Test_Sine_Transform(k,N):
+def test_Sine_Transform(k,N):
 
     g_hat_in    = np.zeros(N)
     g_hat_in[k] = 1
@@ -196,7 +196,7 @@ def Test_Sine_Transform(k,N):
     return None;
 
 # Test dealiasing
-def Test_Cosine_Transform_deal(k,N):
+def test_Cosine_Transform_deal(k,N):
 
     f_hat_in    = np.zeros(N)
     f_hat_in[k] = 2.1
@@ -226,7 +226,7 @@ def Test_Cosine_Transform_deal(k,N):
 
     return None;
 
-def Test_Sine_Transform_deal(k,N):
+def test_Sine_Transform_deal(k,N):
 
     g_hat_in    = np.zeros(N)
     g_hat_in[k] = 3.3
@@ -261,7 +261,7 @@ def Test_Sine_Transform_deal(k,N):
     return None;
 
 # Test Nonlinear
-def Test_Sine_Transform_NL(N):
+def test_Sine_Transform_NL(N):
 
     g_hat_in    = np.zeros(N)
     x           = grid(N)
@@ -314,7 +314,7 @@ def Test_Sine_Transform_NL(N):
 
     return None;
 
-def Test_Cosine_Transform_NL(N):
+def test_Cosine_Transform_NL(N):
 
     x         = grid(N)
     f_hat_in  = np.zeros(N)
@@ -379,14 +379,14 @@ if __name__ == "__main__":
     # 1D Data
     N = 2**8;
 
-    Test_Cosine_Transform_NL(N)
-    Test_Sine_Transform_NL(N)
+    test_Cosine_Transform_NL(N)
+    test_Sine_Transform_NL(N)
 
     for k in range(3):
-        Test_Cosine_Transform(k,N);
-        Test_Sine_Transform(k+1,N);
+        test_Cosine_Transform(k,N);
+        test_Sine_Transform(k+1,N);
 
     #1D Data + Aliasing
     for k in range(3):
-        Test_Cosine_Transform_deal(k,N);
-        Test_Sine_Transform_deal(k+1,N);
+        test_Cosine_Transform_deal(k,N);
+        test_Sine_Transform_deal(k+1,N);

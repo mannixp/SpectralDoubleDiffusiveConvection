@@ -314,21 +314,21 @@ def Neutral(Ra_c_hopf,Ra_c_steady,l,d_org):
 def Full_Eig_Vec(f,l,N_fm,nr,symmetric=False):
 
 	from Transforms import grid,DCT,DST
-	from Matrix_Operators import Vecs_To_NX
+	from Matrix_Operators import Vecs_to_X
 	from scipy.special import eval_legendre, eval_gegenbauer
 
 	θ  = grid(N_fm)
 	Gl = -(np.sin(θ)**2)*eval_gegenbauer(l-1,1.5,np.cos(θ));
-	Pl = eval_legendre(  l,    np.cos(θ));
+	Pl = eval_legendre(l,np.cos(θ))
 
-	Gl_hat = DST(Gl)
-	Pl_hat = DCT(Pl)
+	Gl_hat = np.zeros(N_fm); Gl_hat[0:l+1] = DST(Gl,n=N_fm)[0:l+1] 
+	Pl_hat = np.zeros(N_fm); Pl_hat[0:l+1] = DCT(Pl,n=N_fm)[0:l+1] 
 
-	ψn_hat = np.outer(f[0*nr:1*nr],Gl_hat)
-	Tn_hat = np.outer(f[1*nr:2*nr],Pl_hat)
-	Cn_hat = np.outer(f[2*nr:3*nr],Pl_hat)
-	
-	return Vecs_To_NX(ψn_hat,Tn_hat,Cn_hat, N_fm,nr, symmetric)
+	PSI = np.outer(f[0*nr:1*nr],Gl_hat)	
+	T   = np.outer(f[1*nr:2*nr],Pl_hat)
+	C   = np.outer(f[2*nr:3*nr],Pl_hat)
+
+	return Vecs_to_X(PSI,T,C, N_fm,nr, symmetric = False)
 
 def main_program():
 
@@ -372,12 +372,9 @@ def main_program():
 	print('#~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~# \n')
 
 	filename = 'EigVec.npy'
-	N_fm = 50;
-	X    = Full_Eig_Vec(Eig_vec,l,N_fm,nr=Nr-1,symmetric=False)
+	N_fm = 64;
+	X    = Full_Eig_Vec(Eig_vec[:,0],l,N_fm,nr=Nr-1,symmetric=False)
 	np.save(filename,X)
-
-	from Plot_Tools import Cartesian_Plot
-	Cartesian_Plot(filename,frame=-1,Include_Base_State=False)
 
 	return None;
 
@@ -387,15 +384,6 @@ if __name__ == "__main__":
 
 	# %%
 	%matplotlib inline
-
-	#%%
-	def func(a,*args): # Accepting a variable number of arguments -> turns it into a tuple
-		print(a)
-		print(*args) # printing them unpacked
-		return None;
-
-	args = (2,3)
-	func(1,*args) # Passing it in unpacked
 
 	# %%
 	main_program();

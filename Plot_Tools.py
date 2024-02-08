@@ -435,33 +435,23 @@ def Energy(filename,frame=-1):
 	N_r  = f['Parameters']["N_r"][()];
 	f.close()
 	
-	nr = N_r - 1;
-	N  = N_fm*nr;
+	from Matrix_Operators import X_to_Vecs
+	ψ,T,S = X_to_Vecs(X,N_fm,N_r - 1)
 
-	E_PSI = np.zeros(N_fm);
-	E_T   = np.zeros(N_fm);
-	E_S   = np.zeros(N_fm);
-
-	for k in range(N_fm):
-		E_PSI[k] = np.linalg.norm(X[(0+k)*nr:(1+k)*nr],2);
-		E_T[k]   = np.linalg.norm(X[(1+k)*nr:(2+k)*nr],2);
-		E_S[k]   = np.linalg.norm(X[(2+k)*nr:(3+k)*nr],2);	
-
-	LLc = np.arange(0,N_fm  ,1)[:]; # Cosine modes
-	LLs = np.arange(1,N_fm+1,1)[:]; #   Sine modes
+	E_ψ = [ np.linalg.norm(ψ[:,k],2) for k in range(N_fm)]
+	E_T = [ np.linalg.norm(T[:,k],2) for k in range(N_fm)]
+	E_S = [ np.linalg.norm(S[:,k],2) for k in range(N_fm)]
+	k   =   np.arange(0,N_fm,1) # sinusoids modes
 
 	plt.figure(figsize=(8, 6))
 
-	plt.semilogy(LLs[:],E_PSI[:], 'k.',label=r'$\hat{\psi} \sim \sin(k \theta)$')
-	plt.semilogy(LLc[:],  E_T[:], 'r.',label=r'$\hat{T}$')
-	plt.semilogy(LLc[:],  E_S[:], 'b.',label=r'$\hat{S}$')
+	plt.semilogy(k,E_ψ, 'k.',label=r'$\hat{\psi} \sim \sin(k \theta)$')
+	plt.semilogy(k,E_T, 'r.',label=r'$\hat{T}$')
+	plt.semilogy(k,E_S, 'b.',label=r'$\hat{S}$')
 
-	plt.xlabel(r'Fourier-mode $k$', fontsize=26); #plt.xticks(np.arange(0,N_Modes,10))
+	plt.xlabel(r'Fourier-mode $k$', fontsize=26);
 	plt.ylabel(r'$||X_k||$', fontsize=26)
 	plt.xlim([0,N_fm])
-	#max_E = np.max( [np.max(E_PSI[:]), np.max(E_T[:]), np.max(E_S[:])] )
-	#min_E = np.max( [np.min( [np.min(E_PSI[:]), np.min(E_T[:]), np.min(E_S[:])] ),1e-16] )
-	#plt.ylim([min_E,max_E])
 	plt.grid()
 	plt.legend()
 	plt.tight_layout()
@@ -536,36 +526,27 @@ def Plot_Time_Step(filename,logscale=True):
 
 	return None;
 
-def Spectral_To_Gridpoints(X, R,xx,N_fm,d): # Fix this code to extend to the boundaries
+def Spectral_To_Gridpoints(X, R,xx,N_fm,d): 
 
 	from Main import Base_State_Coeffs
 	from Transforms import IDCT, IDST
 	from scipy.interpolate import interp1d
+	from Matrix_Operators import X_to_Vecs
 
-	Nr       = len(R); 
+
 	A_T, B_T = Base_State_Coeffs(d)
 	t_0      = np.asarray([ (-A_T/r + B_T) for r in R ]);
 	TR_0 = np.interp(xx,R,t_0)
-	T_0  = np.outer(t_0,np.ones(N_fm));
-	
-	# A) Computational grid
-	nr = len(R[1:-1]) 
-	N  = nr*N_fm
+	T_0  = np.outer(TR_0,np.ones(N_fm));
 	
 	# 1) Transform vector to sq grid
-	ψ = np.zeros((Nr,N_fm)) 
-	T = np.zeros((Nr,N_fm)) 
-	S = np.zeros((Nr,N_fm))
-	for k in range(N_fm):	
-		ψ[1:-1,k] = X[(0+k)*nr:(1+k)*nr]
-		T[1:-1,k] = X[(1+k)*nr:(2+k)*nr]
-		S[1:-1,k] = X[(2+k)*nr:(3+k)*nr]
+	nr = len(R[1:-1]) 
+	ψ_hat,T_hat,S_hat = X_to_Vecs(X,N_fm,nr)
 
-	
 	# 2) Take the idct, idst of each radial level set
-	ψ = IDST(ψ)
-	T = IDCT(T)
-	S = IDCT(S)
+	ψ = np.zeros((len(R),N_fm)); ψ[1:-1,:] = IDST(ψ_hat)
+	T = np.zeros((len(R),N_fm)); T[1:-1,:] = IDCT(T_hat)
+	S = np.zeros((len(R),N_fm)); S[1:-1,:] = IDCT(S_hat)
 
 	# B) Visualisation grid
 	fψ = interp1d(R, ψ, axis=0)
@@ -597,9 +578,7 @@ def Cartesian_Plot(filename,frame,Include_Base_State=True):
 
 	from Matrix_Operators import cheb_radial
 
-	_,R = cheb_radial(N_r,d); 
-	nr  = N_r -1;
-
+	R = cheb_radial(N_r,d)[1] 
 	Theta_grid = np.linspace(0,np.pi,N_fm);  
 	r_grid     = np.linspace(R[-1],R[0],50);
 
@@ -693,10 +672,11 @@ if __name__ == "__main__":
 	#%matplotlib inline
 	
 	# %%
-	filename ='New_Time_Sim.h5'; frame = -1;
-	Plot_Time_Step(filename,logscale=True);
+	filename ='NewtonSolve_0.h5'; frame = -1;
+	#Plot_Time_Step(filename,logscale=True);
 	
-	# %%
+	## %%
 	Uradial_plot(filename,frame)
 	Energy(filename, frame)
-	Cartesian_Plot(filename, frame);
+	Cartesian_Plot(filename, frame, Include_Base_State=False);
+# %%

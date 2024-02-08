@@ -205,7 +205,6 @@ def Build_Matrix_Operators(N_fm,N_r,d):
 	return D,R,	Rsq,DT0,gr_K;
 
 def Build_Matrix_Operators_TimeStep(N_fm,N_r,d):
-
 	""""
 	Build the non-control parameter dependent matrices to
 	perform time-stepping
@@ -257,7 +256,7 @@ def Build_Matrix_Operators_TimeStep(N_fm,N_r,d):
 	return D,R,	Rsq,DT0,gr_K, N_fm,nr, args_Nab2,args_A4,args_FXS;
 
 
-def _Time_Step(X,Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, save_filename, start_time = 0., Total_time = 1., dt=1e-04, symmetric = True, linear=False, Verbose=False):
+def _Time_Step(X,Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, save_filename = 'TimeStep_0.h5', start_time = 0., Total_time = 1., dt=1e-04, symmetric = True, linear=False, Verbose=False):
 
 	from Matrix_Operators import NLIN_FX as FX
 	from Matrix_Operators import DT0_theta,A2_SINE
@@ -366,7 +365,7 @@ def _Time_Step(X,Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, save_filename, start_time = 0., Tot
 
 	return X_new;
 
-def Time_Step(open_filename='TimeStep_0.h5',save_filename = None,frame=-1):
+def Time_Step(open_filename='TimeStep_0.h5',save_filename = 'TimeStep_0.h5',frame=-1):
 
 	"""
 	Given an initial condition and full parameter specification time-step the system
@@ -421,8 +420,9 @@ def Time_Step(open_filename='TimeStep_0.h5',save_filename = None,frame=-1):
 		fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	#kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm,"N_r":N_r}
-	#X_new  = _Time_Step(X,**kwargs, save_filename,start_time, Total_time, dt=1e-03, symmetric=True,linear=True,Verbose=True);
+	filename = uniquify(save_filename)
+	kwargs  = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm,"N_r":N_r}
+	X_new   = _Time_Step(X,**kwargs, save_filename = filename ,dt=1e-03, symmetric=True,linear=True,Verbose=True);
 
 	return None;
 
@@ -605,7 +605,7 @@ def Newton(open_filename='NewtonSolve_0.h5',save_filename = None,frame=-1):
 		Pr     = 1.
 		d 	   = 0.353
 
-		N_fm   = 50; #300
+		N_fm   = 64; #300
 		N_r    = 20; #30
 
 		symmetric = True
@@ -1178,18 +1178,19 @@ if __name__ == "__main__":
 	print("Initialising the code for running...")
 	#Time_Step()#file,file,frame);
 
+
+	#%%
+	Newton(open_filename='EigVec.npy',frame=-1);
+
 	# %% 
 	print_h5py('NewtonSolve_0.h5')
 
 	from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
 	Cartesian_Plot(filename='NewtonSolve_0.h5',frame=-1,Include_Base_State=False)
 	Energy(filename='NewtonSolve_0.h5',frame=-1)
-
-	#%%
-	Newton(open_filename='NewtonSolve_0.h5',frame=-1);
 	
 	#%%
-	Continuation(open_filename='ContinuationTest_2.h5',frame=-1)
+	Continuation(open_filename='ContinuationTest_1.h5',frame=-1)
 
 	# %%
 	Plot_full_bif(folder='/home/pmannix/SpectralDoubleDiffusiveConvection/Branch_l10')

@@ -518,7 +518,7 @@ def A2_SINE_R2(g, N_fm,nr,D,R, symmetric = False):
 	return f;
 
 @njit(fastmath=True)
-def Vecs_To_NX(PSI,T,C, N_fm,nr, symmetric = False):
+def Vecs_to_X(PSI,T,C, N_fm,nr, symmetric = False):
 
 	# 5) Reshape ; 3 x Nr x N_fm -> 3*nr*N_fm ; Fill into NX
 	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
@@ -549,7 +549,6 @@ def Vecs_To_NX(PSI,T,C, N_fm,nr, symmetric = False):
 	elif symmetric == False:	
 		
 		# O(N_fm) Correct
-
 		for ii in range(N_fm): 
 			
 			# a) psi parts
@@ -565,6 +564,57 @@ def Vecs_To_NX(PSI,T,C, N_fm,nr, symmetric = False):
 			NX[ind_C:ind_C+nr] = C[:,ii];
 
 	return NX;	
+
+@njit(fastmath=True)
+def X_to_Vecs(X,       N_fm,nr, symmetric = False):
+
+	# 5) Reshape ; 3 x Nr x N_fm -> 3*nr*N_fm ; Fill into NX
+	# *~~~~~~~~~~~~~~~~ * ~~~~~~~~~~~~~~~~~~ * ~~~~~~~~~
+	N   = N_fm*nr;
+	PSI = np.zeros((nr,N_fm));
+	T   = np.zeros((nr,N_fm));
+	C   = np.zeros((nr,N_fm));
+	
+	if symmetric == True:
+		
+		# O(N_fm/2) Correct
+
+		for ii in range(1,N_fm,2): 
+			
+			#print("Row ii=%i, Sin(k_s*x) = %i"%(ii,ii+1))
+			# a) psi parts
+			ind_p = ii*nr;
+			PSI[:,ii] = X[ind_p:ind_p+nr];
+		
+		for ii in range(0,N_fm,2): 	
+			
+			#print("Row ii=%i, Cos(k_c*x) = %i"%(ii,ii))
+			# b) T parts
+			ind_T = N + ii*nr; 
+			T[:,ii] = X[ind_T:ind_T+nr];
+			
+			# c) C parts
+			ind_C = 2*N + ii*nr;
+			C[:,ii] = X[ind_C:ind_C+nr];
+	
+	elif symmetric == False:	
+		
+		# O(N_fm) Correct
+		for ii in range(N_fm): 
+			
+			# a) psi parts
+			ind_p = ii*nr;
+			PSI[:,ii] = X[ind_p:ind_p+nr]
+			
+			# b) T parts
+			ind_T = N + ii*nr; 
+			T[:,ii] = X[ind_T:ind_T+nr]
+			
+			# c) C parts
+			ind_C = 2*N + ii*nr;
+			C[:,ii] = X[ind_C:ind_C+nr]
+			
+	return PSI,T,C;
 
 @njit(fastmath=True)
 def Derivatives(X_hat,JPSI,OMEGA, Dr, N_fm,nr, symmetric = False):
@@ -667,7 +717,6 @@ def Derivatives(X_hat,JPSI,OMEGA, Dr, N_fm,nr, symmetric = False):
 			DC_hat[:,ii] = Dr.dot(C);# Cosine
 			kC_hat[:,ii] = -k_c*C;   # Cosine -> Sine
 
-	
 	# Convert Sine to sinusoids
 	# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -765,7 +814,7 @@ def NLIN_FX(X_hat,D,R,N_fm,nr, symmetric = False):
 	# Convert from sinusoids back into my code's convention
 	J_PSI___hat[:,0:-1] = J_PSI___hat[:,1:]; J_PSI___hat[:,-1] = 0.0;
 
-	return Vecs_To_NX(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric), Kinetic_Energy(JT_psi,Dpsi, R,N_fm);
+	return Vecs_to_X(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric), Kinetic_Energy(JT_psi,Dpsi, R,N_fm);
 
 def NLIN_DFX(dv_hat,X_hat,D,R,N_fm,nr, symmetric = False):
 
@@ -858,7 +907,7 @@ def NLIN_DFX(dv_hat,X_hat,D,R,N_fm,nr, symmetric = False):
 	# Convert from sinusoids back into my code's convention
 	J_PSI___hat[:,0:-1] = J_PSI___hat[:,1:]; J_PSI___hat[:,-1] = 0.0;
 
-	return Vecs_To_NX(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric);
+	return Vecs_to_X(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric);
 
 def INTERP_RADIAL(N_n,N_o,X_o,d):
 
@@ -1044,7 +1093,7 @@ def Interpolate(N_fm_new,N_r_new,	X,N_fm,N_r,d):
 			T_hat[:,k] = X[(1+k)*nr:(2+k)*nr]
 			S_hat[:,k] = X[(2+k)*nr:(3+k)*nr]
 
-	X_new = Vecs_To_NX(ψ_hat,T_hat,S_hat, N_fm_new,N_r_new-1)
+	X_new = Vecs_to_X(ψ_hat,T_hat,S_hat, N_fm_new,N_r_new-1)
 
 	return X_new,N_fm_new,N_r_new;
 
