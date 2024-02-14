@@ -1,6 +1,6 @@
 import numpy as np
 from numba      import njit
-from Transforms import IDCT,DCT,IDST,DST,grid
+from Transforms import IDCT,DCT,IDST,DST
 
 import warnings
 warnings.simplefilter('ignore', np.RankWarning)
@@ -728,31 +728,6 @@ def Derivatives(X_hat,JPSI,OMEGA, Dr, N_fm,nr, symmetric = False):
 
 	return JT_psi_hat,kDpsi_hat,komega_hat,DT_hat,DC_hat,omega_hat,Dpsi_hat,kT_hat,kC_hat;
 
-def Kinetic_Energy(Jψ,dr_ψ, R,N_fm):
-
-	"""
-	Compute the volume integrated kinetic energy
-
-	KE = (1/2)*(1/V) int_r1^r2 int_0^π KE(r,θ) r^2 sin(θ) dr dθ
-
-	where
-
-	V = int_r1^r2 int_0^π KE(r,θ) r^2 sin(θ) dr dθ = (2/3)*(r2^3 - r1^3)
-	"""
-	
-	IR2   = np.diag(1./(R[1:-1]**2));
-	IR2   = np.ascontiguousarray(IR2);
-
-	θ     = grid((3*N_fm)//2)
-	
-	KE_rθ = (IR2@Jψ)**2  +  dr_ψ**2; # Extended to (3/2)*N_fm, even function
-	
-	KE_θ  = np.trapz(KE_rθ         ,x=R[1:-1],axis=0 )
-	KE    = np.trapz(KE_θ*np.sin(θ),x=θ      ,axis=-1)	
-	V     = (2./3.)*(R[-1]**3 - R[0]**3);
-
-	return (.5/V)*KE;
-
 def NLIN_FX(X_hat,D,R,N_fm,nr, symmetric = False):
 
 	"""
@@ -814,7 +789,7 @@ def NLIN_FX(X_hat,D,R,N_fm,nr, symmetric = False):
 	# Convert from sinusoids back into my code's convention
 	J_PSI___hat[:,0:-1] = J_PSI___hat[:,1:]; J_PSI___hat[:,-1] = 0.0;
 
-	return Vecs_to_X(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric), Kinetic_Energy(JT_psi,Dpsi, R,N_fm);
+	return Vecs_to_X(J_PSI___hat,J_PSI_T_hat,J_PSI_C_hat,	N_fm,nr, symmetric);
 
 def NLIN_DFX(dv_hat,X_hat,D,R,N_fm,nr, symmetric = False):
 

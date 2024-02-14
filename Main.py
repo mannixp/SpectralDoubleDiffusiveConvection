@@ -95,42 +95,58 @@ def Kinetic_Energy(X_hat, R,D,N_fm,nr):
 	where
 
 	V = int_r1^r2 int_0^π KE(r,θ) r^2 sin(θ) dr dθ = (2/3)*(r2^3 - r1^3)
+	
+	and
+
+	KE = |u_r|^2 + |u_θ|^2
+	
+	where
+
+	u_r = 1/(r^2 sin θ) ∂(ψsinθ)/∂θ = (1/r^2) J_θ(ψ) ~ cosine
+
+	u_θ =  -(1/r) ∂ψ/∂r 			=  -(1/r) D_r(ψ) ~ sine
+
+	when substituted gives
+
+	KE(r,θ) r^2 sin(θ) = [ (J_θ(ψ)/r)^2 + (D_r(ψ))^2 ]*sin(θ)
+
 	"""
+
 	from Matrix_Operators import J_theta_RT
 	from Transforms import IDCT,IDST,grid
 
-	N   = N_fm*nr;
-	Dr  = np.ascontiguousarray(D[1:-1,1:-1]);
+	N  = N_fm*nr;
+	Dr = D[1:-1,1:-1];
+	IR = np.diag(1./R[1:-1]);
 
-	JPSI = J_theta_RT(X_hat[0:N], nr,N_fm)#.reshape((nr,N_fm)); # ~ Cosine
+	ψ_hat=X_hat[0:N]
+	JPSI =J_theta_RT(ψ_hat, nr,N_fm)
 
-	sp = (nr, N_fm);
-	JT_psi_hat = np.zeros(sp); 	
-	Dpsi_hat   = np.zeros(sp); 
-
-	# O(nr^2*N_fm)
-	for ii in range(N_fm):
-
-		ind_p = ii*nr; 
-		psi   = X_hat[ind_p:ind_p+nr];
-
-		Dpsi_hat[:,ii]    = Dr.dot(psi); # Sine					
-		JT_psi_hat[:,ii]  = JPSI[ind_p:ind_p+nr];  # Cosine
+	Jψ_hat = np.zeros((nr, N_fm)); 	
+	Dψ_hat = np.zeros((nr, N_fm)); 
+	for k in range(N_fm):
+		ψ_k          = ψ_hat[k*nr:(1+k)*nr];
+		Dψ_hat[:,k]  = Dr@ψ_k                 # ~ sine
+		Jψ_hat[:,k]  = IR@JPSI[k*nr:(1+k)*nr] # ~ cosine
 	
 	# Convert Sine to sinusoids
-	Dpsi_hat[:,1:] = Dpsi_hat[:,0:-1];  Dpsi_hat[:,0] = 0.0;
+	Dψ_hat[:,1:] = Dψ_hat[:,0:-1]; Dψ_hat[:,0] = 0.0;
 
-	Jψ    = IDCT(JT_psi_hat,n = (3*N_fm)//2) 
-	dr_ψ  = IDST(Dpsi_hat  ,n = (3*N_fm)//2)
+	θ   = grid(3*N_fm)
+	Jψ  = IDCT(Jψ_hat,n = 3*N_fm) 
+	Dψ  = IDST(Dψ_hat,n = 3*N_fm)
 
-	IR2   = np.diag(1./(R[1:-1]**2));
-	IR2   = np.ascontiguousarray(IR2);
-
-	θ     = grid((3*N_fm)//2)
+	KE_rθ = Jψ**2  +  Dψ**2;
 	
-	KE_rθ = (IR2@Jψ)**2  +  dr_ψ**2;
-	KE_θ  = np.trapz(KE_rθ         ,x=R[1:-1],axis=0 )
-	KE    = np.trapz(KE_θ*np.sin(θ),x=θ      ,axis=-1)
+	# sin_θ = np.outer(np.ones(nr),np.sin(θ))
+	# KE_r  = np.trapz(KE_rθ*sin_θ,x=θ      ,axis=1)
+	# KE    = np.trapz(KE_r       ,x=R[1:-1],axis=0);
+	# f  = 0*R; f[1:-1] = KE_r[:];
+	# KE = np.linalg.solve(D[0:-1,0:-1],f[0:-1])[0]; print('KE spectral = ',KE)
+
+	KE_θ = np.trapz(KE_rθ         ,x=R[1:-1],axis= 0)
+	KE   = np.trapz(KE_θ*np.sin(θ),x=θ      ,axis=-1)
+
 	V     = (2./3.)*(R[-1]**3 - R[0]**3);
 
 	return (.5/V)*KE;
@@ -288,17 +304,14 @@ def _Time_Step(X,Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, save_filename = 'TimeStep_0.h5', st
 
 	def Step_Python(Xn,linear):
 
-		NX= np.zeros(3*N);
-
 		ψ = Xn[0:N];
 		T = Xn[N:2*N];
 		S = Xn[2*N:3*N];
 
 		if linear == False:
-			OUT 	=  FX(Xn, *args_FX, symmetric); # 36% FIX
-			NX[:],KE= -1.*dt*OUT[0],OUT[1];
+			NX =  -1.*dt*FX(Xn, *args_FX, symmetric); # 36% FIX
 		else:
-			KE = Kinetic_Energy(Xn, R,D,N_fm,nr);
+			NX = np.zeros(3*N);
 		
 		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric);
 		Ω     = A2_SINE(ψ,     D,R,N_fm,nr, symmetric); 
@@ -327,7 +340,7 @@ def _Time_Step(X,Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, save_filename = 'TimeStep_0.h5', st
 		END_time = time.time();
 		
 		Norm.append( np.linalg.norm(X_new,2) );
-		KE.append(  abs(kinetic) ); #
+		KE.append(  Kinetic_Energy(X_new,    R,D,N_fm,nr) );
 		NuT.append( Nusselt(X_new[N:2*N]  ,d,R,D,N_fm,nr) );
 		NuS.append( Nusselt(X_new[2*N:3*N],d,R,D,N_fm,nr) );
 		Time.append(start_time + dt*iteration);
@@ -477,7 +490,7 @@ def _Newton(X,	Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=10**4,	tol_newton
 		S = Xn[2*N:3*N];
 
 		# Linear
-		NX    = -1.*dt*FX(Xn, *args_FX, symmetric)[0]; # 36% FIX
+		NX    = -1.*dt*FX(Xn, *args_FX, symmetric); # 36% FIX
 		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric);
 		Ω     = A2_SINE(ψ,     D,R,N_fm,nr, symmetric); 
 
@@ -754,7 +767,7 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, d
 		S = Xn[2*N:3*N];
 
 		# Linear
-		NX    = -1.*dt*FX(Xn, *args_FX, symmetric)[0]; # 36% FIX
+		NX    = -1.*dt*FX(Xn, *args_FX,     symmetric); # 36% FIX
 		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric);
 		Ω     = A2_SINE(ψ,     D,R,N_fm,nr, symmetric);
 		
