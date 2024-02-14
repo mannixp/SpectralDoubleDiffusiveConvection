@@ -40,7 +40,7 @@ def test_Linear():
     X = np.random.rand(3*N);
     X = 1e-03*(X/np.linalg.norm(X,2))
 
-    Time_steps = [5e-3,2.5e-03,1.25e-03]#,6.125e-04]
+    Time_steps = [5e-3,2.5e-03,1.25e-03,6.125e-04]
     Slopes     = [];
     for dt in Time_steps:
         filename = 'Linear_Test_dt'+str(dt)+'.h5'
