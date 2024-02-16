@@ -637,21 +637,12 @@ def Cartesian_Plot(filename,frame,Include_Base_State=True):
 
 	return None;
 
-def Uradial_plot(filename,frame):
 
+def Ur(X,N_fm,N_r,d):
 
 	from Matrix_Operators import J_theta_RT
 	from Matrix_Operators import cheb_radial
 	from Transforms import IDCT, grid
-
-	f    = h5py.File(filename, 'r');
-	
-	X    = f['Checkpoints/X_DATA'][frame,:];
-	N_fm = f['Parameters']["N_fm"][()];
-	N_r  = f['Parameters']["N_r"][()];
-	d    = f['Parameters']["d"][()];
-
-	f.close()
 
 	D,R = cheb_radial(N_r,d); 
 	nr = N_r -1;
@@ -675,6 +666,21 @@ def Uradial_plot(filename,frame):
 		f[1:-1] = u_r[:,k]
 		U[k]    = np.linalg.solve(D[0:-1,0:-1],f[0:-1])[0];
 
+	return θ,U;
+
+def Uradial_plot(filename,frame):
+
+	f    = h5py.File(filename, 'r');
+	
+	X    = f['Checkpoints/X_DATA'][frame,:];
+	N_fm = f['Parameters']["N_fm"][()];
+	N_r  = f['Parameters']["N_r"][()];
+	d    = f['Parameters']["d"][()];
+
+	f.close()
+
+	θ,U = Ur(X,N_fm,N_r,d)
+
 	plt.figure(figsize=(8, 6))
 	plt.plot(θ,U,'k-');
 	plt.xlim([0,np.pi]);
@@ -684,6 +690,155 @@ def Uradial_plot(filename,frame):
 
 	return None;
 
+# Bifurcation plots
+from Main import result
+
+def Plot_full_bif(folder,ylim = None,xlim = None):
+
+	import glob
+
+	fig = plt.figure()
+	plt.ylabel(r'$\mathcal{E}$',fontsize=25)
+	plt.xlabel(r'$Ra$',fontsize=25)
+
+	def add_to_fig(obj):
+		
+		idx = np.where(obj.Ra_dot[:-1] * obj.Ra_dot[1:] < 0 )[0] +1
+
+		plt.semilogy(obj.Ra,obj.KE ,'k-')
+		plt.semilogy(obj.Ra[idx],obj.KE[idx],'ro')
+
+		return None;
+
+	for filename in glob.glob(folder + '/*.h5'):
+		
+		print(filename)
+		
+		obj = result();
+		with h5py.File(filename, 'r') as f:
+			ff=f["Bifurcation"]
+			for key in ff.keys():
+				setattr(obj, key, ff[key][()])
+
+		add_to_fig(obj)
+
+	if xlim != None:
+		plt.xlim(xlim)
+	if ylim != None:	
+		plt.ylim(ylim)
+	
+	plt.tight_layout()
+	plt.savefig("Bifurcation_Series.pdf",format='pdf', dpi=200)
+	plt.show()   
+
+	return None;	
+
+# Evolution of Ur
+def Fold_Points_Ur(folder):
+
+	import glob
+
+	fig = plt.figure()
+	bottom = 0.;
+	height = 0.2
+
+	def add_to_fig(bottom,obj,N_fm,N_r,d):
+		
+		for Yi in  obj.Y_FOLD:
+
+			θ,U = Ur(Yi[0:-1],N_fm,N_r,d);
+			U   = U/np.trapz(U**2,θ);
+			
+			
+			ax = fig.add_axes([0,bottom,1.,height])
+			ax.plot(θ,U,'k-',linewidth=2,label='saddle = %d'%((bottom//height)))
+			ax.set_xticks([]);
+			ax.set_yticks([]);
+			ax.set_xlim([0,np.pi])
+			ax.axis('off')
+			ax.legend()
+			bottom +=height
+
+		return bottom;
+
+	for filename in glob.glob(folder + '/*.h5'):
+		
+		print(filename)
+		
+		obj = result();
+		with h5py.File(filename, 'r') as f:
+			ff=f["Bifurcation"]
+			for key in ff.keys():
+				setattr(obj, key, ff[key][()])
+
+			N_fm = f['Parameters']["N_fm"][()];
+			N_r  = f['Parameters']["N_r"][()];
+			d    = f['Parameters']["d"][()];
+
+		bottom = add_to_fig(bottom,obj,N_fm,N_r,d)
+
+	plt.tight_layout()
+	plt.savefig("RadialVelocity_Series.pdf",format='pdf', dpi=200)
+	plt.show()   
+
+	return None;	
+
+# Evolution of psi
+def Fold_Points_Psi(folder):
+
+	import glob
+	from Matrix_Operators import cheb_radial
+
+	fig = plt.figure()
+	bottom = 0.;
+	height = 0.2
+
+	def add_to_fig(bottom,obj,N_fm,N_r,d):
+		
+		for Yi in  obj.Y_FOLD:
+
+			R = cheb_radial(N_r,d)[1] 
+			Theta_grid = np.linspace(0,np.pi,N_fm);  
+			r_grid     = np.linspace(R[-1],R[0],50);
+
+			PSI = Spectral_To_Gridpoints(Yi[0:-1], R,r_grid,N_fm,d)[0]
+			PSI = PSI/np.linalg.norm(PSI,2)
+
+			ax = fig.add_axes([0,bottom,1.,height])			
+			ax.contour( Theta_grid,r_grid,PSI,RES, colors = 'k', linewidths=0.5);
+			ax.contourf(Theta_grid,r_grid,PSI,RES, cmap="RdBu_r")
+			ax.set_xticks([]);
+			ax.set_yticks([]);
+			#ax.set_xlim([0,np.pi])
+			#ax.annotate('saddle = %d'%(2 - (bottom//height)),(0.5,0.0),fontsize=25)
+			ax.axis('off')
+			bottom +=height
+
+		return bottom;
+
+	for filename in glob.glob(folder + '/*.h5'):
+		
+		print(filename)
+		
+		obj = result();
+		with h5py.File(filename, 'r') as f:
+			ff=f["Bifurcation"]
+			for key in ff.keys():
+				setattr(obj, key, ff[key][()])
+
+			N_fm = f['Parameters']["N_fm"][()];
+			N_r  = f['Parameters']["N_r"][()];
+			d    = f['Parameters']["d"][()];
+
+		bottom = add_to_fig(bottom,obj,N_fm,N_r,d)
+
+	plt.tight_layout()
+	plt.savefig("Psi_Series.pdf",format='pdf', dpi=200)
+	plt.show()   
+
+	return None;	
+
+
 # Execute main
 if __name__ == "__main__":
 
@@ -691,6 +846,12 @@ if __name__ == "__main__":
 	print("Initialising the code for plotting ...")
 	#%matplotlib inline
 	
+	Plot_full_bif(folder='/home/pmannix/SpectralDoubleDiffusiveConvection/Branch_l10_Plus',ylim=[1e-04,1.0])
+	Fold_Points_Ur(folder='/home/pmannix/SpectralDoubleDiffusiveConvection/Branch_l10_Plus')
+	Fold_Points_Psi(folder='/home/pmannix/SpectralDoubleDiffusiveConvection/Branch_l10_Plus')
+
+
+
 	# %%
 	filename ='NewtonSolve_0.h5'; frame = -1;
 	#Plot_Time_Step(filename,logscale=True);
