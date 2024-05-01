@@ -428,13 +428,18 @@ def Energy(filename,frame=-1):
 	None
 	"""
 
-	f = h5py.File(filename, 'r');
-	
-	X    = f['Checkpoints/X_DATA'][frame,:];
-	N_fm = f['Parameters']["N_fm"][()];
-	N_r  = f['Parameters']["N_r"][()];
-	f.close()
-	
+	if filename.endswith('.h5'):
+		f    = h5py.File(filename, 'r');
+		X    = f['Checkpoints/X_DATA'][frame,:];
+		N_fm = f['Parameters']["N_fm"][()];
+		N_r  = f['Parameters']["N_r"][()];
+		f.close()
+
+	if filename.endswith('.npy'):
+		X = np.load(filename);
+		N_fm = 64
+		N_r = 20
+
 	from Matrix_Operators import X_to_Vecs
 	ψ_hat,T_hat,S_hat = X_to_Vecs(X,N_fm,N_r - 1)
 
@@ -591,7 +596,7 @@ def Cartesian_Plot(filename,frame,Include_Base_State=True):
 	if filename.endswith('.npy'):
 
 		X = np.load(filename);
-		N_fm = 50
+		N_fm = 64
 		N_r = 20
 		d = 0.353;
 	
@@ -733,38 +738,42 @@ def Plot_full_bif(folder,ylim = None,xlim = None):
 
 	return None;	
 
+
+spacing = 0.01
+
 # Evolution of Ur
 def Fold_Points_Ur(folder):
 
 	import glob
 
-	fig = plt.figure()
+	fig = plt.figure(figsize=(12,8))
 	bottom = 0.;
-	height = 0.2
+	height = 1./16.
 
 	def add_to_fig(bottom,obj,N_fm,N_r,d):
-		
+
+		sub_count=0		
 		for Yi in  obj.Y_FOLD:
 
 			θ,U = Ur(Yi[0:-1],N_fm,N_r,d);
 			U   = U/np.trapz(U**2,θ);
-			
 			
 			ax = fig.add_axes([0,bottom,1.,height])
 			ax.plot(θ,U,'k-',linewidth=2,label='saddle = %d'%((bottom//height)))
 			ax.set_xticks([]);
 			ax.set_yticks([]);
 			ax.set_xlim([0,np.pi])
-			ax.axis('off')
+			#ax.axis('off')
 			ax.legend()
 			bottom +=height
+			sub_count+=1
 
-		return bottom;
+		return bottom,sub_count;
 
+	count=0
 	for filename in glob.glob(folder + '/*.h5'):
 		
 		print(filename)
-		
 		obj = result();
 		with h5py.File(filename, 'r') as f:
 			ff=f["Bifurcation"]
@@ -775,11 +784,14 @@ def Fold_Points_Ur(folder):
 			N_r  = f['Parameters']["N_r"][()];
 			d    = f['Parameters']["d"][()];
 
-		bottom = add_to_fig(bottom,obj,N_fm,N_r,d)
+		bottom,sub_count = add_to_fig(bottom + spacing,obj,N_fm,N_r,d)
+		count+=sub_count
 
-	plt.tight_layout()
-	plt.savefig("RadialVelocity_Series.pdf",format='pdf', dpi=200)
-	plt.show()   
+	print('count',count,'\n')
+	#plt.tight_layout()
+	plt.savefig("RadialVelocity_Series.png",format='png',dpi=200)
+	plt.show()
+	plt.close()
 
 	return None;	
 
@@ -791,7 +803,7 @@ def Fold_Points_Psi(folder):
 
 	fig = plt.figure()
 	bottom = 0.;
-	height = 0.2
+	height = 1./16.
 
 	def add_to_fig(bottom,obj,N_fm,N_r,d):
 		
@@ -830,11 +842,12 @@ def Fold_Points_Psi(folder):
 			N_r  = f['Parameters']["N_r"][()];
 			d    = f['Parameters']["d"][()];
 
-		bottom = add_to_fig(bottom,obj,N_fm,N_r,d)
+		bottom = add_to_fig(bottom + spacing,obj,N_fm,N_r,d)
 
-	plt.tight_layout()
-	plt.savefig("Psi_Series.pdf",format='pdf', dpi=200)
+	#plt.tight_layout()
+	plt.savefig("Psi_Series.png",format='png', dpi=200)
 	plt.show()   
+	plt.close()
 
 	return None;	
 
@@ -846,18 +859,20 @@ if __name__ == "__main__":
 	print("Initialising the code for plotting ...")
 	#%matplotlib inline
 	
-	Plot_full_bif(folder='/home/pmannix/SpectralDoubleDiffusiveConvection/Branch_l10_Plus',ylim=[1e-04,1.0])
-	Fold_Points_Ur(folder='/home/pmannix/SpectralDoubleDiffusiveConvection/Branch_l10_Plus')
-	Fold_Points_Psi(folder='/home/pmannix/SpectralDoubleDiffusiveConvection/Branch_l10_Plus')
+	dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/'
+	folder=dir + 'Branches_d0.335/Branch_l10_Plus_d0.335'
+	Plot_full_bif(folder,ylim=[1e-04,10.0])
+	#Fold_Points_Ur(folder)
+	#Fold_Points_Psi(folder)
 
 
 
 	# %%
-	filename ='NewtonSolve_0.h5'; frame = -1;
+	#filename ='NewtonSolve_0.h5'; frame = -1;
 	#Plot_Time_Step(filename,logscale=True);
 	
 	## %%
 	#Uradial_plot(filename,frame)
-	Energy(filename, frame)
+	#Energy(filename, frame)
 	#Cartesian_Plot(filename, frame, Include_Base_State=False);
 # %%

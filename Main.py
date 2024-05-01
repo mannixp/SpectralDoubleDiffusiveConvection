@@ -7,14 +7,14 @@ warnings.simplefilter('ignore', np.RankWarning)
 
 # File handling methods
 def uniquify(path):
-    filename, extension = os.path.splitext(path)
-    counter = 0
+	filename, extension = os.path.splitext(path)
 
-    while os.path.exists(path):
-        path = filename.split('_')[0] + "_" +str(counter) + extension
-        counter += 1
+	counter = int(filename.split('_')[1])
+	while os.path.exists(path):
+		path = filename.split('_')[0] + "_" +str(counter) + extension
+		counter += 1
 
-    return path
+	return path
 
 def print_h5py(filename):
 
@@ -440,7 +440,7 @@ def Time_Step(open_filename='TimeStep_0.h5',save_filename = 'TimeStep_0.h5',fram
 	return None;
 
 
-def _Newton(X,	Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=10**4,	tol_newton = 1e-10,tol_gmres = 1e-04,Krylov_Space_Size = 150):
+def _Newton(X,	Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, 				 symmetric = True, dt=10**4,	tol_newton = 1e-08,tol_gmres = 1e-04,Krylov_Space_Size = 150):
 	
 	"""
 	Given a starting point and a control parameter compute a new steady-state using Newton iteration
@@ -533,7 +533,7 @@ def _Newton(X,	Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=10**4,	tol_newton
 
 		return np.hstack((ψ_new,T_new,S_new));	
 
-	while (error > tol_newton) and (iteration < 10):
+	while (error > tol_newton) and (iteration < 5):
 		
 		X = X_SYM*X;	
 		
@@ -551,10 +551,10 @@ def _Newton(X,	Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=10**4,	tol_newton
 		print('Newton Iteration = %d, Error = %e'%(iteration,error),"\n")
 		iteration+=1
 
-	if (iteration == 10) or (exit != 0):
+	if (iteration == 5) or (exit != 0):
 
 		print('Newton iteration could not converge');
-		return _,	_,_,_,_, False;
+		return None,None,None,None,None, False;
 	
 	else:	
 		
@@ -566,7 +566,7 @@ def _Newton(X,	Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=10**4,	tol_newton
 
 		return X,	Norm,KE,NuT,NuS, True;
 
-def Newton(open_filename='NewtonSolve_0.h5',save_filename = None,frame=-1):
+def Newton(open_filename='NewtonSolve_0.h5',save_filename = 'NewtonSolve_0.h5',frame=-1):
 
 	"""
 	Given an initial condition and full parameter specification solve 
@@ -612,31 +612,30 @@ def Newton(open_filename='NewtonSolve_0.h5',save_filename = None,frame=-1):
 	if open_filename.endswith('.npy'):
 		X  = np.load(open_filename);
 
-		Ra     = 9853.50008503 - 1e-02
+		Ra     = 9820.755289085666 - 1e-02#l =10
 		Ra_s   = 500.
 		Tau    = 1./15.;
 		Pr     = 1.
-		d 	   = 0.353
+		d 	   = 0.335
 
 		N_fm   = 64; #300
 		N_r    = 20; #30
 
-		symmetric = True
 		st_time   = 0.
 
-		#X /= 0.01*np.linalg.norm(X,2)
+		#X *= 1e-07*np.linalg.norm(X,2)
 
 	#~~~~~~~~~~#~~~~~~~~~~#
 	# Run Code
 	#~~~~~~~~~~#~~~~~~~~~~#
 	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm,"N_r":N_r}
-	X_new,Norm,KE,NuT,NuS,_ = _Newton(X,**kwargs,symmetric = True,tol_newton = 1e-8)
+	X_new,Norm,KE,NuT,NuS,_ = _Newton(X,**kwargs,symmetric = True,tol_newton = 1e-6,tol_gmres = 1e-04,Krylov_Space_Size = 150)
 
 	
 	#~~~~~~~~~~#~~~~~~~~~~#
 	# Save data
 	#~~~~~~~~~~#~~~~~~~~~~# 
-	if save_filename == None:
+	if (save_filename == None) and open_filename.endswith('.h5'):
 		filename = uniquify(open_filename)
 	else:
 		filename = uniquify(save_filename)
@@ -659,8 +658,9 @@ def Newton(open_filename='NewtonSolve_0.h5',save_filename = None,frame=-1):
 	
 	f.close();
 
-	from Plot_Tools import Cartesian_Plot
-	Cartesian_Plot(filename,frame=-1)
+	from Plot_Tools import Cartesian_Plot, Energy
+	Cartesian_Plot(filename,frame=-1,Include_Base_State=False)
+	Energy(filename,frame=-1)
 
 	return None;
 
@@ -727,7 +727,7 @@ def _NewtonC(		 Y  ,sign,ds, **kwargs_f):
 		ds*=0.5;
 		return Y    ,sign,ds,	Norm,KE,NuT,NuS,	exitcode;
 	
-def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=10**4,	tol_newton = 1e-08,tol_gmres = 1e-04,Krylov_Space_Size = 150):
+def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=10**4,	tol_newton = 1e-08,tol_gmres = 1e-05,Krylov_Space_Size = 150):
 
 	"""
 	Given a starting point and a control parameter compute a new steady-state using Newton iteration
@@ -847,12 +847,13 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, d
 			# b) Compute x_dot, µ_dot 
 			µ_dot = sign/np.sqrt( 1.0 + δ*(np.linalg.norm(ξ,2)-1.0) );
 			X_dot = µ_dot*ξ; 
+			print('||ξ|| =',np.linalg.norm(ξ,2))
 		else:
 
 			# Shallow copy as mutable
 			X_dot = Y_0_dot[0:-1].copy(); 
 			µ_dot = Y_0_dot[  -1].copy();
-
+		
 		# Make prediction	
 		X = X_0 + X_dot*ds; 
 		µ = µ_0 + µ_dot*ds;
@@ -870,6 +871,20 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, d
 
 	while ( (err_X > tol_newton) or (err_µ > tol_newton) ):
 		
+		# )  ~~~~~~~~~~~~~~~~~  ds control  ~~~~~~~~~~~~~~~~~ 
+		if (iteration >= 5):
+			
+			print('Reducing the step-size ds_old=%e -> ds_new=%e \n'%(ds,.5*ds));
+
+			iteration=0;
+			ds*=0.5;
+
+			if ds < 1e-08: ValueError("\n step-size ds has become too small terminating \n")
+
+			X = X_0 + X_dot*ds; 
+			µ = µ_0 + µ_dot*ds;	
+			Y = np.hstack( (X,µ) );
+	
 		X  = X_SYM*Y[0:-1].copy(); 
 		µ  = 	   Y[  -1].copy();
 		
@@ -901,21 +916,8 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, d
 		print('Psuedo-Arc Iteration = %d, Error X = %e, Error µ = %e'%(iteration,err_X,err_µ),"\n") 
 		iteration+=1;
 
-		# 5)  ~~~~~~~~~~~~~~~~~  ds control  ~~~~~~~~~~~~~~~~~ 
-		if (iteration > 8):
-			
-			print('Reducing the step-size ds_old=%e -> ds_new=%e \n'%(ds,.5*ds));
 
-			iteration=0;
-			ds*=0.5;
-
-			X = X_0 + X_dot*ds; 
-			µ = µ_0 + µ_dot*ds;	
-			Y = np.hstack( (X,µ) );
-
-			if ds < 1e-06: ValueError("\n step-size ds has become too small terminating \n")	
-
-	if (iteration < 4):
+	if (iteration <= 3):
 		print('Increasing the step-size ds_old=%e -> ds_new=%e \n'%(ds,2*ds));
 		ds*=2;
 
@@ -938,8 +940,7 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, d
 
 		return    Y_dot,Y,sign,ds, Norm,KE,NuT,NuS, True;
 
-
-def _Continuation(filename,N_steps,	Y,**kwargs):
+def _Continuation(filename,N_steps,	sign,Y,**kwargs):
 
 	"""
 
@@ -949,10 +950,9 @@ def _Continuation(filename,N_steps,	Y,**kwargs):
 	Y_dot = 0.*Y;
 
 	# Default parameters	
-	ds    =5;	
-	sign  =-1.;
-	ds_min=0.5;
-	ds_max=10.0;
+	ds    =1e-04; # The starting step size	
+	ds_min=1.0; #Threshold to switching between Newton & Psuedo
+	ds_max=10.0; # Max Newton step
 
 	Result = result()
 	
@@ -1003,10 +1003,6 @@ def _Continuation(filename,N_steps,	Y,**kwargs):
 		Result.NuT.append( NuT );
 		Result.NuS.append( NuS );         
 		
-		print(Result,flush=True);
-
-		Result.Iterations+=1
-
 		if Result.Iterations%5==0:
 
 			Result.X_DATA.append( Y[0:-1]);
@@ -1028,10 +1024,12 @@ def _Continuation(filename,N_steps,	Y,**kwargs):
 
 			f.close()
 
+		print(Result,flush=True);
+		Result.Iterations+=1
 
 	return None;	
 
-def Continuation(open_filename,save_filename='ContinuationTest_0.h5',frame=-1):
+def Continuation(open_filename,frame=-1):
 
 	"""
 	Given an initial condition and full parameter specification perform branch continuation
@@ -1052,12 +1050,15 @@ def Continuation(open_filename,save_filename='ContinuationTest_0.h5',frame=-1):
 		f = h5py.File(open_filename, 'r+')
 
 		# Problem Params
-		X      = f['Checkpoints/X_DATA'][frame];
+		X  = f['Bifurcation/X_DATA'][frame];
+		Ra = f['Bifurcation/Ra_DATA'][frame];
 		
-		try:
-			Ra = f['Checkpoints/Ra_DATA'][frame];
-		except:
-			Ra = f['Parameters']["Ra"][()];
+		# Fix these they should be the same
+		# try:
+		# 	Ra = f['Bifurcation/Ra_DATA'][frame];
+		# except:
+		# 	Ra = f['Parameters']["Ra"][()];
+
 
 		Ra_s   = f['Parameters']["Ra_s"][()];
 		Tau    = f['Parameters']["Tau"][()];
@@ -1073,113 +1074,130 @@ def Continuation(open_filename,save_filename='ContinuationTest_0.h5',frame=-1):
 
 		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
 		from Matrix_Operators import INTERP_RADIAL,INTERP_THETAS
-		#N_r_n  = 32; X = INTERP_RADIAL(N_r_n,N_r,X,d);
-		N_fm_n = 128; X = INTERP_THETAS(N_fm_n,N_fm,X);
+		N_r_n  = 25; X = INTERP_RADIAL(N_r_n,N_r,X,d);
+		N_fm_n = 192; X= INTERP_THETAS(N_fm_n,N_fm,X);
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	N_steps= 500;
+	sign   = 1;
+	N_steps= 1000;
 	Y      = np.hstack( (X,Ra) );
-	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r}
+	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r_n}
 
-	save_filename = uniquify(save_filename)
+	save_filename = uniquify(open_filename)
 	
-	_Continuation(save_filename,N_steps,Y,**kwargs)
+	_Continuation(save_filename,N_steps,sign,Y,**kwargs)
 
 	_plot_bif(save_filename)
 
 	return None;
 
 
-def _plot_bif(filename):
+def trim(filename,point):
+
+	# (1) Create a new file with trimmed
+	def uniquify_trim(path):
+		filename, extension = os.path.splitext(path)
+		counter = 0
+
+		while os.path.exists(path):
+			path = filename + "_trimmed_" +str(counter) + extension
+			counter += 1
+		return path
+
+	f_new = h5py.File(uniquify_trim(filename), 'w');
+
+	# (2) Pass the old data into an object
+	Result = result();
+	f_old  = h5py.File(filename, 'r')
+
+	for key,val in f_old["Bifurcation"].items():
+		if   key == "Iterations":
+			setattr(Result, key, val[()] + 5*point)
+		elif key == "X_DATA" or key == "Ra_DATA":
+			setattr(Result, key, val[()][ :point])
+		else:
+			setattr(Result, key, val[()][ :5*point])
+
+		
+	# (3) Write it to the trimmed file
+	Checkpoints = f_new.create_group("Checkpoints");
+	Checkpoints['X_DATA']  = Result.X_DATA[ :point];
+	Checkpoints['Ra_DATA'] = Result.Ra_DATA[:point];
+
+	Bifurcation = f_new.create_group("Bifurcation");	
+	for item in vars(Result).items():
+		Bifurcation.create_dataset(item[0], data = item[1])
+
+	Parameters = f_new.create_group("Parameters");
+	for key,val in f_old["Parameters"].items():
+		Parameters[key] = val[()];
+
+	f_new.close()
+	f_old.close()
+	
+	return None;
+
+def _plot_bif(filename,point = -1):
 
 	obj = result();
 	with h5py.File(filename, 'r') as f:
 		ff=f["Bifurcation"]
 		for key in ff.keys():
 			setattr(obj, key, ff[key][()])
+		
+		# find the closest Ra_data points
+		N_fm = f['Parameters']["N_fm"][()];
+		N_r  = f['Parameters']["N_r"][()];
+		d    = f['Parameters']["d"][()];
 
-	fig, (ax0, ax1, ax2) = plt.subplots(nrows=1, ncols=3,figsize=(12, 6))
+	# Locate the saddle nodes
+	idx = np.where(obj.Ra_dot[:-1] * obj.Ra_dot[1:] < 0 )[0] +1
 
-	ax0.semilogy(obj.Ra,obj.KE,'k-')
-	ax0.set_title(r'Kinetic Energy',fontsize=25)
-
-	ax1.semilogy(obj.Ra,obj.NuT,'k-')
-	ax1.set_title(r'$Nu_T-1$',fontsize=25)
-
-	ax2.semilogy(obj.Ra,obj.NuS,'k-')
-	ax2.set_title(r'$Nu_S-1$',fontsize=25)
+	fig = plt.figure()
+	plt.semilogy(obj.Ra,obj.KE,'k-')
+	plt.semilogy(obj.Ra[idx],obj.KE[idx],'ro')
 	
-	# for f in (ax0, ax1, ax2):
-	# 	f.set_xlabel(r'$Ra$',fontsize=25)
-	# 	f.set_xlim([obj.Ra[0],obj.Ra[-1]])
+	D,R = cheb_radial(N_r,d); 
+	KE = Kinetic_Energy(obj.X_DATA[point], R,D,N_fm,N_r-1)
+	plt.semilogy(obj.Ra[point*5],obj.KE[point*5],'y*')
+	plt.semilogy(obj.Ra_DATA[point], KE ,'bs')
+
+	plt.title(r'Kinetic Energy',fontsize=25)
+	plt.ylabel(r'$\mathcal{E}$',fontsize=25)
+	plt.xlabel(r'$Ra$',fontsize=25)
 	
 	plt.tight_layout()
-	plt.savefig("Bifurcation_Series.pdf",format='pdf', dpi=1200)
+	plt.savefig("Bifurcation_Series.eps",format='eps', dpi=200)
 	plt.show()        
 
 	return None;
 
-def Plot_full_bif(folder):
-
-	import glob
-
-	fig, (ax0, ax1, ax2) = plt.subplots(nrows=1, ncols=3,figsize=(12, 6))
-	ax0.set_title(r'Kinetic Energy',fontsize=25)
-	ax1.set_title(r'$Nu_T-1$',fontsize=25)
-	ax2.set_title(r'$Nu_S-1$',fontsize=25)
-	for f in (ax0, ax1, ax2):
-		f.set_xlabel(r'$Ra$',fontsize=25)
-
-	def add_to_fig(obj):
-		ax0.semilogy(obj.Ra,obj.KE ,'k-')
-		ax1.semilogy(obj.Ra,obj.NuT,'k-')
-		ax2.semilogy(obj.Ra,obj.NuS,'k-')
-		return None;
-
-	for filename in glob.glob(folder + '/*'):
-		
-		print(filename)
-		
-		obj = result();
-		with h5py.File(filename, 'r') as f:
-			ff=f["Bifurcation"]
-			for key in ff.keys():
-				setattr(obj, key, ff[key][()])
-
-		add_to_fig(obj)
-
-	plt.tight_layout()
-	plt.savefig("Bifurcation_Series.pdf",format='pdf', dpi=1200)
-	plt.show()   
-
-	return None;	
-
 # Execute main
 if __name__ == "__main__":
-	
+
 	# %%
 	print("Initialising the code for running...")
 	#Time_Step()#file,file,frame);
-	
-	#%%
-	Continuation(open_filename='ContinuationTest_1.h5',frame=-1)
 
 	# %%
-	#_plot_bif(filename='ContinuationTest_2.h5')
-	Plot_full_bif(folder='/home/pmannix/SpectralDoubleDiffusiveConvection/Branch_l10')
+	Continuation(open_filename='ContinuationTest_8.h5',frame=-2)
 
 	# %%
-	from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
-	Cartesian_Plot(filename='ContinuationTest_2.h5',frame=-1,Include_Base_State=False)
-	Energy(filename='ContinuationTest_2.h5',frame=-1)
+	#trim(filename='ContinuationTest_2.h5',point=-10)
+	#_plot_bif(filename='ContinuationTest_9.h5',point = -1)
 
-##	# %%
-	Newton(open_filename='EigVec.npy',frame=-1);
+	# # %%
+	#from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
+	#Cartesian_Plot(filename='ContinuationTest_8.h5',frame=-2,Include_Base_State=False)
+	#Energy(filename='ContinuationTest_8.h5',frame=-14)
 
-	# %% 
-	print_h5py('NewtonSolve_0.h5')
+	# # %%
+	#Newton(open_filename='EigVec.npy',frame=-1);
 
-	from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
-	Cartesian_Plot(filename='NewtonSolve_0.h5',frame=-1,Include_Base_State=False)
-	Energy(filename='NewtonSolve_0.h5',frame=-1)
+	# # %% 
+	# print_h5py('ContinuationTest_2.h5')
+
+	#from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
+	#Cartesian_Plot(filename='ContinuationTest_2.h5',frame=-1,Include_Base_State=False)
+	# Energy(filename='ContinuationTest_2.h5',frame=-1)
 # %%
