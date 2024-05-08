@@ -727,7 +727,7 @@ def _NewtonC(		 Y  ,sign,ds, **kwargs_f):
 		ds*=0.5;
 		return Y    ,sign,ds,	Norm,KE,NuT,NuS,	exitcode;
 	
-def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=10**4,	tol_newton = 1e-08,tol_gmres = 1e-05,Krylov_Space_Size = 150):
+def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=10**4,	tol_newton = 1e-08,tol_gmres = 1e-04,Krylov_Space_Size = 150):
 
 	"""
 	Given a starting point and a control parameter compute a new steady-state using Newton iteration
@@ -879,7 +879,8 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, d
 			iteration=0;
 			ds*=0.5;
 
-			if ds < 1e-08: ValueError("\n step-size ds has become too small terminating \n")
+			if ds < 1e-08: 
+				ValueError("\n step-size ds has become too small terminating \n")
 
 			X = X_0 + X_dot*ds; 
 			µ = µ_0 + µ_dot*ds;	
@@ -1074,8 +1075,8 @@ def Continuation(open_filename,frame=-1):
 
 		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
 		from Matrix_Operators import INTERP_RADIAL,INTERP_THETAS
-		N_r_n  = 25; X = INTERP_RADIAL(N_r_n,N_r,X,d);
-		N_fm_n = 192; X= INTERP_THETAS(N_fm_n,N_fm,X);
+		N_r_n  = 20; X = INTERP_RADIAL(N_r_n,N_r,X,d);
+		N_fm_n = 128; X= INTERP_THETAS(N_fm_n,N_fm,X);
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	sign   = 1;
@@ -1180,16 +1181,16 @@ if __name__ == "__main__":
 	#Time_Step()#file,file,frame);
 
 	# %%
-	Continuation(open_filename='ContinuationTest_8.h5',frame=-2)
+	#Continuation(open_filename='ContinuationTest_20.h5',frame=-53)
 
 	# %%
-	#trim(filename='ContinuationTest_2.h5',point=-10)
-	#_plot_bif(filename='ContinuationTest_9.h5',point = -1)
+	trim(filename='ContinuationTest_20.h5',point=-53)
+	#_plot_bif(filename='ContinuationTest_20.h5',point=-53)
 
-	# # %%
-	#from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
-	#Cartesian_Plot(filename='ContinuationTest_8.h5',frame=-2,Include_Base_State=False)
-	#Energy(filename='ContinuationTest_8.h5',frame=-14)
+	# %%
+	# from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
+	# Cartesian_Plot(filename='ContinuationTest_18.h5',frame=-1,Include_Base_State=False)
+	# Energy(filename='ContinuationTest_18.h5',frame=-1)
 
 	# # %%
 	#Newton(open_filename='EigVec.npy',frame=-1);

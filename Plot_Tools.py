@@ -480,7 +480,7 @@ def Energy(filename,frame=-1):
 	plt.grid()
 	plt.legend()
 	plt.tight_layout()
-	plt.savefig("Energy_Spectra.pdf",format='pdf', dpi=200)
+	plt.savefig("Energy_Spectra.png",format='png', dpi=200)
 	plt.show()
 
 	return None;
@@ -546,7 +546,7 @@ def Plot_Time_Step(filename,logscale=True):
 	
 	
 	plt.tight_layout()
-	plt.savefig("Time_Series.pdf",format='pdf', dpi=1200)
+	plt.savefig("Time_Series.png",format='png', dpi=200)
 	plt.show()
 
 	return None;
@@ -637,7 +637,7 @@ def Cartesian_Plot(filename,frame,Include_Base_State=True):
 
 	plt.subplots_adjust(hspace=0.25)
 	plt.tight_layout()
-	plt.savefig("X_Frame.pdf",format='pdf', dpi=200)
+	plt.savefig("X_Frame.png",format='png', dpi=200)
 	plt.show()
 
 	return None;
@@ -733,7 +733,7 @@ def Plot_full_bif(folder,ylim = None,xlim = None):
 		plt.ylim(ylim)
 	
 	plt.tight_layout()
-	plt.savefig("Bifurcation_Series.pdf",format='pdf', dpi=200)
+	plt.savefig("Bifurcation_Series.png",format='png', dpi=200)
 	plt.show()   
 
 	return None;	
@@ -748,7 +748,7 @@ def Fold_Points_Ur(folder):
 
 	fig = plt.figure(figsize=(12,8))
 	bottom = 0.;
-	height = 1./16.
+	height = 1./(22)
 
 	def add_to_fig(bottom,obj,N_fm,N_r,d):
 
@@ -803,7 +803,7 @@ def Fold_Points_Psi(folder):
 
 	fig = plt.figure()
 	bottom = 0.;
-	height = 1./16.
+	height = 1./(22)
 
 	def add_to_fig(bottom,obj,N_fm,N_r,d):
 		
