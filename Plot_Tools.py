@@ -401,10 +401,12 @@ def Plot_Package_SPLIT(R,theta,psi,C,d): # Returns Array accepted by contourf - 
 				
 	#return omega, ksi, psi			
 
-RES = 25; #Number of contour levels to use in plots
 
-# Could potentially change this to be better integrated
-def Energy(filename,frame):
+# All checked below here
+	
+RES = 25; 
+
+def Energy(filename,frame=-1):
 
 	"""
 
@@ -426,52 +428,60 @@ def Energy(filename,frame):
 	None
 	"""
 
-	f = h5py.File(filename, 'r');
+	if filename.endswith('.h5'):
+		f    = h5py.File(filename, 'r');
+		X    = f['Checkpoints/X_DATA'][frame,:];
+		N_fm = f['Parameters']["N_fm"][()];
+		N_r  = f['Parameters']["N_r"][()];
+		f.close()
+
+	if filename.endswith('.npy'):
+		X = np.load(filename);
+		N_fm = 64
+		N_r = 20
+
+	from Matrix_Operators import X_to_Vecs
+	ψ_hat,T_hat,S_hat = X_to_Vecs(X,N_fm,N_r - 1)
+
+
+	fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2,figsize=(12, 6))
+
+	E_ψ = [ np.linalg.norm(ψ_hat[:,k],2) for k in range(N_fm)]
+	E_T = [ np.linalg.norm(T_hat[:,k],2) for k in range(N_fm)]
+	E_S = [ np.linalg.norm(S_hat[:,k],2) for k in range(N_fm)]
+	k   =   np.arange(0,N_fm,1) # sinusoids modes
+
+	ax0.semilogy(k,E_ψ, 'k.',label=r'$\psi^2_k')
+	ax0.semilogy(k,E_T, 'r.',label=r'$T^2_k$')
+	ax0.semilogy(k,E_S, 'b.',label=r'$S^2_k$')
+
+	ax0.set_xlabel(r'Fourier-mode $k$', fontsize=26);
+	ax0.set_ylabel(r'$||X_k||$', fontsize=26)
+	ax0.set_xlim([0,N_fm])
+
+	from Transforms import DCT,IDST,IDCT,grid
+
+	θ     = grid(2*N_fm)
+	ψ,T,S = IDST(ψ_hat,n=2*N_fm),IDCT(T_hat,n=2*N_fm),IDCT(S_hat,n=2*N_fm) 
+
+	Tn_ψ = DCT( np.hstack( ([0.], np.trapz(ψ**2,x=θ,axis=-1), [0.]) )	)
+	Tn_T = DCT( np.hstack( ([0.], np.trapz(T**2,x=θ,axis=-1), [0.]) )	)
+	Tn_S = DCT( np.hstack( ([0.], np.trapz(S**2,x=θ,axis=-1), [0.]) )	)
+	n    =   np.arange(0,N_r+1,1) # Chebyshev modes
+
+	ax1.semilogy(n,Tn_ψ, 'k.',label=r'$\psi^2_n$')
+	ax1.semilogy(n,Tn_T, 'r.',label=r'$T^2_n$')
+	ax1.semilogy(n,Tn_S, 'b.',label=r'$S^2_n$')
+
+	ax1.set_xlabel(r'Chebyshev-mode $n$', fontsize=26);
+	ax1.set_ylabel(r'$||X_n||$', fontsize=26)
+	ax1.set_xlim([0,N_r+1])
 	
-	X    = f['Checkpoints/X_DATA'][frame,:];
-	print(X.shape);
-	#sys.exit()
-	N_fm = f['Parameters']["N_fm"][()];
-	
-	f.close()
-	
-	plt.figure(figsize=(8, 6))
-
-	nr = int(X.shape[0]/(3*N_fm))
-	N  = N_fm*nr;
-
-	print("nr=",nr);
-	print("N_fm=",N_fm)
-
-	PSI = X[0:N]; 
-	T   = X[N:2*N]; 
-	S   = X[2*N:3*N];
-
-	E_PSI = np.zeros(N_fm);
-	E_T   = np.zeros(N_fm);
-	E_S   = np.zeros(N_fm);
-
-	for k in range(N_fm):
-		ind = k*nr;
-		E_PSI[k] = np.linalg.norm(PSI[ind:ind+nr],2);
-		E_T[k]   = np.linalg.norm(  T[ind:ind+nr],2);
-		E_S[k]   = np.linalg.norm(  S[ind:ind+nr],2);	
-
-	LLc = np.arange(0,N_fm  ,1)[:]; # Cosine modes
-	LLs = np.arange(1,N_fm+1,1)[:]; #   Sine modes
-
-	plt.semilogy(LLc[:],E_PSI[:], 'k.',label=r'$\hat{\psi} \sim \sin(k \theta)$')
-	plt.semilogy(LLc[:],  E_T[:], 'r.',label=r'$\hat{T}$')
-	plt.semilogy(LLc[:],  E_S[:], 'b.',label=r'$\hat{S}$')
-
-	plt.xlabel(r'Fourier-mode $k$', fontsize=26); #plt.xticks(np.arange(0,N_Modes,10))
-	plt.ylabel(r'$||X_k||$', fontsize=26)
-	plt.xlim([-2,N_fm+2])
 	plt.grid()
 	plt.legend()
 	plt.tight_layout()
-	plt.savefig("Energy_Spectra.pdf",format='pdf', dpi=1200)
-	#plt.show()
+	plt.savefig("Energy_Spectra.png",format='png', dpi=200)
+	plt.show()
 
 	return None;
 
@@ -493,20 +503,14 @@ def Plot_Time_Step(filename,logscale=True):
 
 	f = h5py.File(filename, 'r');
 
-	print(list(f.keys()))
-
-	st_pt = 10
+	st_pt = 0
 	Time  = f['Scalar_Data/Time'][()][st_pt:-1]
 	KE    = f['Scalar_Data/KE'][()][st_pt:-1]
 	NuT   = f['Scalar_Data/Nu_T'][()][st_pt:-1]
-	#NuT   = NuT + np.ones(len(NuT))
 	NuS   = f['Scalar_Data/Nu_S'][()][st_pt:-1]
-	#NuS   = NuS + np.ones(len(NuS))
 	f.close()
 
-	#print(len(NuS))	
-
-	fig, (ax0, ax1, ax2) = plt.subplots(nrows=1, ncols=3,figsize=(12, 6)) #  sharex=True,
+	fig, (ax0, ax1, ax2) = plt.subplots(nrows=1, ncols=3,figsize=(12, 6))
 
 	# 1) Plot time-evolution
 	if logscale == True:
@@ -524,113 +528,82 @@ def Plot_Time_Step(filename,logscale=True):
 	ax0.set_xlabel(r'Time $T$',fontsize=25)
 	ax0.set_title(r'$\mathcal{E}$',fontsize=25)
 
-	ax0.set_xlim([Time[0],Time[-1]])
+	#ax0.set_xlim([Time[0],Time[-1]])
 
 	if logscale == True:
 		ax1.semilogy(Time,NuT,'k-')
-		##ax1.semilogy(Time,NuT,'bo',markersize=0.3)
 	else:
 		ax1.plot(Time,NuT,'k-')
-		#ax1.plot(Time,NuT,'bo',markersize=0.3)
 	ax1.set_xlabel(r'Time $T$',fontsize=25)
 	ax1.set_title(r'$Nu_T-1$',fontsize=25)
 
 	if logscale == True:
 		ax2.semilogy(Time,NuS,'k-')
-		##ax2.semilogy(Time,NuS,'bo',markersize=0.3)
 	else:
 		ax2.plot(Time,NuS,'k-')
-		#ax2.plot(Time,NuS,'bo',markersize=0.3)
 	ax2.set_xlabel(r'Time $T$',fontsize=25)
 	ax2.set_title(r'$Nu_S-1$',fontsize=25)
 	
 	
 	plt.tight_layout()
-	plt.savefig("Time_Series.pdf",format='pdf', dpi=1200)
-	#plt.show()
-
+	plt.savefig("Time_Series.png",format='png', dpi=200)
+	plt.show()
 
 	return None;
 
-def Spectral_To_Gridpoints(X, R,xx,N_fm,d): # Fix this code to extend to the boundaries
+def Spectral_To_Gridpoints(X, R,xx,N_fm,d): 
 
-	from scipy.fft import idct,idst
-		
-	Nr  = len(R); 
-	t_0 = np.zeros(len(R)); 
-	
-	# Base State
-	R_1 = 1./d; 
-	R_2 = (1.+ d)/d;
-	A_T = (R_1*R_2)/(R_1- R_2); 
-	B_T = R_1/(R_1- R_2);
-	
-	for ii in range(Nr):
-		t_0[ii] = (-A_T/R[ii] + B_T)
-	TR_0 = np.polyval(np.polyfit(R,t_0,Nr),xx)
+	from Main import Base_State_Coeffs
+	from Transforms import IDCT, IDST
+	from scipy.interpolate import interp1d
+	from Matrix_Operators import X_to_Vecs
+
+
+	A_T, B_T = Base_State_Coeffs(d)
+	t_0      = np.asarray([ (-A_T/r + B_T) for r in R ]);
+	TR_0 = np.interp(xx,R,t_0)
 	T_0  = np.outer(TR_0,np.ones(N_fm));
 	
-	# A) Computational grid
-	nr = len(R[1:-1])
-	s = (nr,N_fm); 
-	N = nr*N_fm
-	
-	Vort = np.zeros(s); 
-	Temp = np.zeros(s); 
-	Conc = np.zeros(s)
-	
 	# 1) Transform vector to sq grid
-	for ii in range(N_fm):	
-		ind = ii*nr
-		Vort[:,ii] = X[ind:ind+nr];
-			
-		ind = N + ii*nr
-		Temp[:,ii] = X[ind:ind+nr]
+	nr = len(R[1:-1]) 
+	ψ_hat,T_hat,S_hat = X_to_Vecs(X,N_fm,nr)
 
-		ind = 2*N + ii*nr
-		Conc[:,ii] = X[ind:ind+nr]
-	
 	# 2) Take the idct, idst of each radial level set
-	Vort = idst(Vort/N_fm,type=2,axis=-1,overwrite_x=True)
-	Temp = idct(Temp/N_fm,type=2,axis=-1,overwrite_x=True)
-	Conc = idct(Conc/N_fm,type=2,axis=-1,overwrite_x=True)
+	ψ = np.zeros((len(R),N_fm)); ψ[1:-1,:] = IDST(ψ_hat)
+	T = np.zeros((len(R),N_fm)); T[1:-1,:] = IDCT(T_hat)
+	S = np.zeros((len(R),N_fm)); S[1:-1,:] = IDCT(S_hat)
 
 	# B) Visualisation grid
-	s = (len(xx),N_fm);
-	PSI, T, C = np.zeros(s), np.zeros(s), np.zeros(s); 	
+	fψ = interp1d(R, ψ, axis=0)
+	fT = interp1d(R, T, axis=0)
+	fS = interp1d(R, S, axis=0)
 	
-	# 3) Polyfti
-	for ii in range(N_fm):
-		
-		ind = ii*nr
-		
-		psi       = np.hstack((0,Vort[:,ii],0));
-		PSI[:,ii] = np.polyval(np.polyfit(R,psi,Nr),xx)
-		
-		t       = np.hstack((0,Temp[:,ii],0))
-		T[:,ii] = np.polyval(np.polyfit(R,t,Nr),xx)
-		
-		c       = np.hstack((0,Conc[:,ii],0))
-		C[:,ii] = np.polyval(np.polyfit(R,c,Nr),xx)
-		
-	return PSI, T, C,T_0;
+	return fψ(xx), fT(xx), fS(xx), T_0;
 
 def Cartesian_Plot(filename,frame,Include_Base_State=True):
 
-	f    = h5py.File(filename, 'r');
-	
-	X    = f['Checkpoints/X_DATA'][frame,:];
-	N_fm = f['Parameters']["N_fm"][()];
-	N_r  = f['Parameters']["N_r"][()];
-	d    = f['Parameters']["d"][()];
 
-	f.close()
+	if filename.endswith('.h5'):
+		f    = h5py.File(filename, 'r');
+		
+		X    = f['Checkpoints/X_DATA'][frame,:];
+		N_fm = f['Parameters']["N_fm"][()];
+		N_r  = f['Parameters']["N_r"][()];
+		d    = f['Parameters']["d"][()];
+
+		f.close()
+
+	if filename.endswith('.npy'):
+
+		X = np.load(filename);
+		N_fm = 64
+		N_r = 20
+		d = 0.353;
+	
 
 	from Matrix_Operators import cheb_radial
 
-	_,R = cheb_radial(N_r,d); 
-	nr  = len(R[1:-1]);
-
+	R = cheb_radial(N_r,d)[1] 
 	Theta_grid = np.linspace(0,np.pi,N_fm);  
 	r_grid     = np.linspace(R[-1],R[0],50);
 
@@ -664,32 +637,21 @@ def Cartesian_Plot(filename,frame,Include_Base_State=True):
 
 	plt.subplots_adjust(hspace=0.25)
 	plt.tight_layout()
-	plt.savefig("X_Frame.pdf",format='pdf', dpi=1200)
-	#plt.show()
+	plt.savefig("X_Frame.png",format='png', dpi=200)
+	plt.show()
 
 	return None;
 
-def Uradial_plot(filename,frame):
 
+def Ur(X,N_fm,N_r,d):
 
 	from Matrix_Operators import J_theta_RT
 	from Matrix_Operators import cheb_radial
-	from scipy.fft import idct
-
-
-	f    = h5py.File(filename, 'r');
-	
-	X    = f['Checkpoints/X_DATA'][frame,:];
-	N_fm = f['Parameters']["N_fm"][()];
-	N_r  = f['Parameters']["N_r"][()];
-	d    = f['Parameters']["d"][()];
-
-	f.close()
+	from Transforms import IDCT, grid
 
 	D,R = cheb_radial(N_r,d); 
-	nr  = len(R[1:-1]);
-	N = N_fm*nr
-
+	nr = N_r -1;
+	N  = N_fm*nr
 
 	IR  	= np.diag(1./R[1:-1]);
 	IR2 	= IR@IR;
@@ -700,58 +662,217 @@ def Uradial_plot(filename,frame):
 		ind_p = ii*nr; 
 		u_r_hat[:,ii]  = IR2.dot(Jψ_hat[ind_p:ind_p+nr]);
 
-	u_r = idct( u_r_hat,type=2,axis=-1,norm='ortho',overwrite_x=True);
-
-	θ = np.zeros(N_fm);
-	for n in range(N_fm):
-		θ[n] = np.pi*( (2*n+1.0)/(2.0*N_fm) );
-
-	U = np.zeros(N_fm)	
-	for i in range(N_fm):
+	θ   = grid(N_fm);
+	u_r = IDCT( u_r_hat);
+	
+	U = 0.*θ;
+	for k in range(N_fm):
 		f = np.zeros(len(R));
-		f[1:-1] = u_r[:,i]
-		U[i] = np.linalg.solve(D[0:-1,0:-1],f[0:-1])[0];
+		f[1:-1] = u_r[:,k]
+		U[k]    = np.linalg.solve(D[0:-1,0:-1],f[0:-1])[0];
+
+	return θ,U;
+
+def Uradial_plot(filename,frame):
+
+	f    = h5py.File(filename, 'r');
+	
+	X    = f['Checkpoints/X_DATA'][frame,:];
+	N_fm = f['Parameters']["N_fm"][()];
+	N_r  = f['Parameters']["N_r"][()];
+	d    = f['Parameters']["d"][()];
+
+	f.close()
+
+	θ,U = Ur(X,N_fm,N_r,d)
 
 	plt.figure(figsize=(8, 6))
 	plt.plot(θ,U,'k-');
 	plt.xlim([0,np.pi]);
 	plt.xlabel(r"$\theta$",fontsize=22);
 	plt.ylabel(r"$\bar{u}_r(\theta)$",fontsize=22);		
-	#plt.show();
+	plt.show();
 
 	return None;
+
+# Bifurcation plots
+from Main import result
+
+def Plot_full_bif(folder,ylim = None,xlim = None):
+
+	import glob
+
+	fig = plt.figure()
+	plt.ylabel(r'$\mathcal{E}$',fontsize=25)
+	plt.xlabel(r'$Ra$',fontsize=25)
+
+	def add_to_fig(obj):
+		
+		idx = np.where(obj.Ra_dot[:-1] * obj.Ra_dot[1:] < 0 )[0] +1
+
+		plt.semilogy(obj.Ra,obj.KE ,'k-')
+		plt.semilogy(obj.Ra[idx],obj.KE[idx],'ro')
+
+		return None;
+
+	for filename in glob.glob(folder + '/*.h5'):
+		
+		print(filename)
+		
+		obj = result();
+		with h5py.File(filename, 'r') as f:
+			ff=f["Bifurcation"]
+			for key in ff.keys():
+				setattr(obj, key, ff[key][()])
+
+		add_to_fig(obj)
+
+	if xlim != None:
+		plt.xlim(xlim)
+	if ylim != None:	
+		plt.ylim(ylim)
+	
+	plt.tight_layout()
+	plt.savefig("Bifurcation_Series.png",format='png', dpi=200)
+	plt.show()   
+
+	return None;	
+
+
+spacing = 0.01
+
+# Evolution of Ur
+def Fold_Points_Ur(folder):
+
+	import glob
+
+	fig = plt.figure(figsize=(12,8))
+	bottom = 0.;
+	height = 1./(22)
+
+	def add_to_fig(bottom,obj,N_fm,N_r,d):
+
+		sub_count=0		
+		for Yi in  obj.Y_FOLD:
+
+			θ,U = Ur(Yi[0:-1],N_fm,N_r,d);
+			U   = U/np.trapz(U**2,θ);
+			
+			ax = fig.add_axes([0,bottom,1.,height])
+			ax.plot(θ,U,'k-',linewidth=2,label='saddle = %d'%((bottom//height)))
+			ax.set_xticks([]);
+			ax.set_yticks([]);
+			ax.set_xlim([0,np.pi])
+			#ax.axis('off')
+			ax.legend()
+			bottom +=height
+			sub_count+=1
+
+		return bottom,sub_count;
+
+	count=0
+	for filename in glob.glob(folder + '/*.h5'):
+		
+		print(filename)
+		obj = result();
+		with h5py.File(filename, 'r') as f:
+			ff=f["Bifurcation"]
+			for key in ff.keys():
+				setattr(obj, key, ff[key][()])
+
+			N_fm = f['Parameters']["N_fm"][()];
+			N_r  = f['Parameters']["N_r"][()];
+			d    = f['Parameters']["d"][()];
+
+		bottom,sub_count = add_to_fig(bottom + spacing,obj,N_fm,N_r,d)
+		count+=sub_count
+
+	print('count',count,'\n')
+	#plt.tight_layout()
+	plt.savefig("RadialVelocity_Series.png",format='png',dpi=200)
+	plt.show()
+	plt.close()
+
+	return None;	
+
+# Evolution of psi
+def Fold_Points_Psi(folder):
+
+	import glob
+	from Matrix_Operators import cheb_radial
+
+	fig = plt.figure()
+	bottom = 0.;
+	height = 1./(22)
+
+	def add_to_fig(bottom,obj,N_fm,N_r,d):
+		
+		for Yi in  obj.Y_FOLD:
+
+			R = cheb_radial(N_r,d)[1] 
+			Theta_grid = np.linspace(0,np.pi,N_fm);  
+			r_grid     = np.linspace(R[-1],R[0],50);
+
+			PSI = Spectral_To_Gridpoints(Yi[0:-1], R,r_grid,N_fm,d)[0]
+			PSI = PSI/np.linalg.norm(PSI,2)
+
+			ax = fig.add_axes([0,bottom,1.,height])			
+			ax.contour( Theta_grid,r_grid,PSI,RES, colors = 'k', linewidths=0.5);
+			ax.contourf(Theta_grid,r_grid,PSI,RES, cmap="RdBu_r")
+			ax.set_xticks([]);
+			ax.set_yticks([]);
+			#ax.set_xlim([0,np.pi])
+			#ax.annotate('saddle = %d'%(2 - (bottom//height)),(0.5,0.0),fontsize=25)
+			ax.axis('off')
+			bottom +=height
+
+		return bottom;
+
+	for filename in glob.glob(folder + '/*.h5'):
+		
+		print(filename)
+		
+		obj = result();
+		with h5py.File(filename, 'r') as f:
+			ff=f["Bifurcation"]
+			for key in ff.keys():
+				setattr(obj, key, ff[key][()])
+
+			N_fm = f['Parameters']["N_fm"][()];
+			N_r  = f['Parameters']["N_r"][()];
+			d    = f['Parameters']["d"][()];
+
+		bottom = add_to_fig(bottom + spacing,obj,N_fm,N_r,d)
+
+	#plt.tight_layout()
+	plt.savefig("Psi_Series.png",format='png', dpi=200)
+	plt.show()   
+	plt.close()
+
+	return None;	
+
 
 # Execute main
 if __name__ == "__main__":
 
 	# %% 
 	print("Initialising the code for plotting ...")
-	%matplotlib inline
+	#%matplotlib inline
+	
+	dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/'
+	folder=dir + 'Branches_d0.335/Branch_l10_Plus_d0.335'
+	Plot_full_bif(folder,ylim=[1e-04,10.0])
+	#Fold_Points_Ur(folder)
+	#Fold_Points_Psi(folder)
+
+
+
 	# %%
-	filename ='Time_Integration_Data_SYM.h5'; frame = -1;
-	Plot_Time_Step(filename,True);
-	#sys.exit()
-
-	#Plot_Time_Step(filename,False);
-
-	#filename ='Newton_Iteration_Data.h5'; frame = 0;
-	# %%
-	Uradial_plot(filename,frame)
-	Energy(filename, frame)
-	Cartesian_Plot(filename, frame);
-
-	# %% 
-	print("Initialising the code for plotting ...")
-	%matplotlib inline
-	# %%
-	filename ='Time_Integration_Data_SYM.h5'; frame = -1;
-	Plot_Time_Step(filename);
-	#sys.exit()
-
-	#Plot_Time_Step(filename,False);
-
-	#filename ='Newton_Iteration_Data.h5'; frame = 0;
-	# %%
-	Uradial_plot(filename,frame)
-	Energy(filename, frame)
-	Cartesian_Plot(filename, frame);# %%
+	#filename ='NewtonSolve_0.h5'; frame = -1;
+	#Plot_Time_Step(filename,logscale=True);
+	
+	## %%
+	#Uradial_plot(filename,frame)
+	#Energy(filename, frame)
+	#Cartesian_Plot(filename, frame, Include_Base_State=False);
+# %%
