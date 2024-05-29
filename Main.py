@@ -612,24 +612,30 @@ def Newton(open_filename='NewtonSolve_0.h5',save_filename = 'NewtonSolve_0.h5',f
 	if open_filename.endswith('.npy'):
 		X  = np.load(open_filename);
 
-		Ra     = 9820.755289085666 - 1e-02#l =10
+		# l11
+		# Ra     = 9781.73540499408 - 1e-05
+		# d 	   = 0.3161 
+
+		# l10
+		Ra	   = 9851.537357677651 - 1e-03
+		d	   = 0.3521
+
 		Ra_s   = 500.
 		Tau    = 1./15.;
 		Pr     = 1.
-		d 	   = 0.335
-
+		
 		N_fm   = 64; #300
 		N_r    = 20; #30
 
-		st_time   = 0.
+		st_time= 0.
 
-		#X *= 1e-07*np.linalg.norm(X,2)
+		#X *= -1#1e-07*np.linalg.norm(X,2)
 
 	#~~~~~~~~~~#~~~~~~~~~~#
 	# Run Code
 	#~~~~~~~~~~#~~~~~~~~~~#
 	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm,"N_r":N_r}
-	X_new,Norm,KE,NuT,NuS,_ = _Newton(X,**kwargs,symmetric = True,tol_newton = 1e-6,tol_gmres = 1e-04,Krylov_Space_Size = 150)
+	X_new,Norm,KE,NuT,NuS,_ = _Newton(X,**kwargs,symmetric = True,tol_newton = 1e-8,tol_gmres = 1e-04,Krylov_Space_Size = 150)
 
 	
 	#~~~~~~~~~~#~~~~~~~~~~#
@@ -727,7 +733,7 @@ def _NewtonC(		 Y  ,sign,ds, **kwargs_f):
 		ds*=0.5;
 		return Y    ,sign,ds,	Norm,KE,NuT,NuS,	exitcode;
 	
-def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=10**4,	tol_newton = 1e-08,tol_gmres = 1e-04,Krylov_Space_Size = 150):
+def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=1, tol_newton = 1e-08,tol_gmres = 1e-04,Krylov_Space_Size = 150):
 
 	"""
 	Given a starting point and a control parameter compute a new steady-state using Newton iteration
@@ -737,6 +743,7 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, d
 	defaults
 	tol_newton - (float) newton iteration tolerance to terminate iterations
 	tol_gmres  - (float) GMRES x =A^-1 b solver algorithim parameter
+		#if np.linalg.norm(Y_dot,2) == 0:
 	Krylov_Space_Size - (int) number of Krylov vectors to use when forming the subspace
 
 	Returns: ??
@@ -753,12 +760,13 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, d
 
 	N  = N_fm*nr; 
 	dv = np.random.randn(3*N);
-	δ  = 1./(3.*N);
-	
+	#δ  = 1./(3.*N);
+	δ  = 0.1
+
 	if symmetric == True:
 		X_SYM  = Eq_SYM(dv,R);
 	else:
-		X_SYM  = np.ones(X.shape);
+		X_SYM  = np.ones(Eq_SYM(dv,R).shape);
 	
 	def PFX(Xn,Ra):
 		
@@ -829,30 +837,30 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, d
 		X_0  = X_SYM*Y[0:-1].copy();
 		µ_0  = Y[  -1].copy();
 
-		if np.linalg.norm(Y_dot,2) == 0:
+		#if np.linalg.norm(Y_dot,2) == 0:
 			
-			# P*DF(X,µ)_µ	
-			dfµ  = (-1.)*PDFµ(X_0)
+		# P*DF(X,µ)_µ	
+		dfµ  = (-1.)*PDFµ(X_0)
 
-			# P*DF(X,µ)_X
-			DF_X = lambda dv: PDFX(dv,X_0,µ_0);
-			dfx  = spla.LinearOperator((3*N,3*N),matvec=DF_X,dtype='float64');
+		# P*DF(X,µ)_X
+		DF_X = lambda dv: PDFX(dv,X_0,µ_0);
+		dfx  = spla.LinearOperator((3*N,3*N),matvec=DF_X,dtype='float64');
 
-			# a) Solve pre-conditioned P*DF_X(X_0)*ξ = (-1)*P*DF_µ(X); 
-			b_norm 	= np.linalg.norm(dfµ,2);
-			ξ,exit  = spla.lgmres(dfx,dfµ,	maxiter=250, inner_m = Krylov_Space_Size, atol = tol_gmres*b_norm);
+		# a) Solve pre-conditioned P*DF_X(X_0)*ξ = (-1)*P*DF_µ(X); 
+		b_norm 	= np.linalg.norm(dfµ,2);
+		ξ,exit  = spla.lgmres(dfx,dfµ,	maxiter=250, inner_m = Krylov_Space_Size, atol = tol_newton*b_norm);
 
-			if (exit != 0): raise ValueError("\n LGMRES couldn't converge when predicting ξ \n")
-			
-			# b) Compute x_dot, µ_dot 
-			µ_dot = sign/np.sqrt( 1.0 + δ*(np.linalg.norm(ξ,2)-1.0) );
-			X_dot = µ_dot*ξ; 
-			print('||ξ|| =',np.linalg.norm(ξ,2))
-		else:
+		if (exit != 0): raise ValueError("\n LGMRES couldn't converge when predicting ξ \n")
+		
+		# b) Compute x_dot, µ_dot 
+		µ_dot = sign/np.sqrt( 1.0 + δ*(np.linalg.norm(ξ,2)-1.0) );
+		X_dot = µ_dot*ξ; 
+		print('||ξ|| =',np.linalg.norm(ξ,2))
+		# else:
 
-			# Shallow copy as mutable
-			X_dot = Y_0_dot[0:-1].copy(); 
-			µ_dot = Y_0_dot[  -1].copy();
+		# 	# Shallow copy as mutable
+		# 	X_dot = Y_0_dot[0:-1].copy(); 
+		# 	µ_dot = Y_0_dot[  -1].copy();
 		
 		# Make prediction	
 		X = X_0 + X_dot*ds; 
@@ -869,7 +877,7 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, d
 	iteration   = 0; 
 	exit        = 1.0; 
 
-	while ( (err_X > tol_newton) or (err_µ > tol_newton) ):
+	while ( (err_X > tol_newton) or (err_µ > tol_newton) ) or (iteration < 2) :
 		
 		# )  ~~~~~~~~~~~~~~~~~  ds control  ~~~~~~~~~~~~~~~~~ 
 		if (iteration >= 5):
@@ -879,9 +887,8 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, d
 			iteration=0;
 			ds*=0.5;
 
-			if ds < 1e-08: 
-				ValueError("\n step-size ds has become too small terminating \n")
-
+			if ds < tol_newton: raise ValueError("\n Step-size ds has become too small terminating \n")
+			
 			X = X_0 + X_dot*ds; 
 			µ = µ_0 + µ_dot*ds;	
 			Y = np.hstack( (X,µ) );
@@ -932,7 +939,7 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, d
 	# Compute Y_dot=(X_dot,µ_dot)
 	G[0:-1]=0.
 	G[  -1]=1.
-	Y_dot,exit = spla.lgmres(DGy,G, maxiter=250, inner_m = Krylov_Space_Size, atol = tol_gmres*b_norm);
+	Y_dot,exit = spla.lgmres(DGy,G, maxiter=250, inner_m = Krylov_Space_Size, atol = tol_newton*b_norm);
 	
 	if (exit != 0):
 		return 0.*Y_dot,Y,sign,ds, Norm,KE,NuT,NuS, True;
@@ -1054,6 +1061,9 @@ def Continuation(open_filename,frame=-1):
 		X  = f['Bifurcation/X_DATA'][frame];
 		Ra = f['Bifurcation/Ra_DATA'][frame];
 		
+		# X   = f['Checkpoints/X_DATA'][frame];
+		# Ra  = f['Parameters']["Ra"][()];
+
 		# Fix these they should be the same
 		# try:
 		# 	Ra = f['Bifurcation/Ra_DATA'][frame];
@@ -1075,7 +1085,7 @@ def Continuation(open_filename,frame=-1):
 
 		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
 		from Matrix_Operators import INTERP_RADIAL,INTERP_THETAS
-		N_r_n  = 20; X = INTERP_RADIAL(N_r_n,N_r,X,d);
+		N_r_n  = 25; X = INTERP_RADIAL(N_r_n,N_r,X,d);
 		N_fm_n = 128; X= INTERP_THETAS(N_fm_n,N_fm,X);
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1181,19 +1191,19 @@ if __name__ == "__main__":
 	#Time_Step()#file,file,frame);
 
 	# %%
-	#Continuation(open_filename='ContinuationTest_20.h5',frame=-53)
+	#Continuation(open_filename='Continuationl10PlusTest_6.h5',frame=-3)
 
 	# %%
-	trim(filename='ContinuationTest_20.h5',point=-53)
-	#_plot_bif(filename='ContinuationTest_20.h5',point=-53)
+	#trim(filename='ContinuationTest_20.h5',point=-53)
+	_plot_bif(filename='Continuationl10PlusTest_7.h5',point=-1)
 
 	# %%
 	# from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
-	# Cartesian_Plot(filename='ContinuationTest_18.h5',frame=-1,Include_Base_State=False)
-	# Energy(filename='ContinuationTest_18.h5',frame=-1)
+	# Cartesian_Plot(filename='Continuationl10PlusTest_4.h5',frame=-1,Include_Base_State=False)
+	# Energy(filename='Continuationl10PlusTest_4.h5',frame=-1)
 
 	# # %%
-	#Newton(open_filename='EigVec.npy',frame=-1);
+	#Newton(open_filename='Eigenvectors/EigVec_l10.npy',frame=-1);
 
 	# # %% 
 	# print_h5py('ContinuationTest_2.h5')
