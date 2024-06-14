@@ -2,8 +2,16 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "sans-serif",
+    "font.sans-serif": "Helvetica",
+    'text.latex.preamble': r'\usepackage{amsfonts}'
+})
 
 from Linear_Matrix_Operators import ML_0, Ll_0, cheb_radial
+
+Γ = lambda d,R_1 = 1: (R_1*np.pi)/d
 
 def Eig_Vals(Ra1,l,d,Nvals, Ra_s=500,Pr=1,Tau=1./15., Nr = 30):	
 	
@@ -103,7 +111,7 @@ def Critical_Eigval(Ra1,l,d, Nvals=1):
 
 	Ra_c = scp.newton( Eig_Vals, x0 = Ra1, args = (l,d,Nvals),tol = 1e-05, maxiter = 30).real;
 	
-	print("l = %d, Ra_c = %e \n "%(l,Ra_c) )
+	#print("l = %d, Ra_c = %e \n "%(l,Ra_c) )
 
 	return Ra_c;
 
@@ -131,7 +139,7 @@ def Ra_Stability_Trace(Ra_c,d,Nvals):
 
 	eps = np.linspace(-0.75,0.02,N);
 
-	for l in range(8,12,1):
+	for l in range(8,13,2):
 
 		print('l=',l)
 		EIG = np.zeros((N,Nvals),dtype=np.complex_)
@@ -182,7 +190,7 @@ def Neutral(Ra_c_hopf,Ra_c_steady,l_org,d_org):
 
 	"""
 
-	def Neutrals_Ra_D(Ra_org,l, d_org, k, width=0.04,N_iters = 10):	
+	def Neutrals_Ra_D(Ra_org,l, d_org, k, width=0.05,N_iters = 200):	
 		
 		d_for  = np.linspace(d_org,d_org+width,N_iters);
 		Ra_for = np.zeros(N_iters);
@@ -208,12 +216,12 @@ def Neutral(Ra_c_hopf,Ra_c_steady,l_org,d_org):
 		return Ra_l,d_l
 
 
-	L = np.arange(l_org-2,l_org+2,1);
+	L = np.arange(l_org-2,l_org+4,1);
 
 	# 1 Generate a figure
 	fig, (ax1, ax2) = plt.subplots(nrows=2,figsize=(12,8),dpi=1200);
 
-	ax2.set_title(r'Neutral Curves $\lambda = \pm i \omega$',fontsize=20);
+	ax2.set_title(r'$\lambda = \pm i \omega$',fontsize=20);
 
 	Hopf_bifurcation = 0
 	for l in L:
@@ -221,54 +229,75 @@ def Neutral(Ra_c_hopf,Ra_c_steady,l_org,d_org):
 		Ra_l,d_l = Neutrals_Ra_D(Ra_c_hopf,l,d_org,Hopf_bifurcation)
 
 		if l%2 == 0:
-			ax2.plot(d_l,Ra_l,'k:',linewidth=2.0,label = r'$\ell =%d$'%l)
+			if l == 10:
+				ax2.plot(Γ(d_l),Ra_l,'b:',linewidth=2.0,label = r'$\ell =%d$'%l)
+			else:
+				ax2.plot(Γ(d_l),Ra_l,'k:',linewidth=2.0,label = r'$\ell =%d$'%l)
 		else: 	
-			ax2.plot(d_l,Ra_l,'k-',linewidth=2.0,label = r'$\ell =%d$'%l)
+			if l == 11:
+				ax2.plot(Γ(d_l),Ra_l,'r-',linewidth=2.0,label = r'$\ell =%d$'%l)
+			else:
+				ax2.plot(Γ(d_l),Ra_l,'k-',linewidth=2.0,label = r'$\ell =%d$'%l)
 
-	ax2.set_xlabel(r'$d$',fontsize=25)
+	ax2.set_xlabel(r'$\Gamma$',fontsize=25)
 	ax2.set_ylabel(r'$Ra$',fontsize=25)
 
 	ax2.grid()
-	ax2.legend(loc=2,fontsize=15)
+	ax2.legend(loc=2,fontsize=20)
 
-	ax2.tick_params(axis="x", labelsize=15,length=2,width=2)
-	ax2.tick_params(axis="y", labelsize=15,length=2,width=2)
+	ax2.tick_params(axis="x", labelsize=20,length=2,width=2)
+	ax2.tick_params(axis="y", labelsize=20,length=2,width=2)
 
-	ax1.set_title(r'Neutral Curves $\lambda = 0$',fontsize=20)
+	ax1.set_title(r'$\lambda = 0$', fontsize=20)
 
 	Steady_bifurcation = 1
 	for l in L:
 		
 		Ra_l,d_l = Neutrals_Ra_D(Ra_c_steady,l,d_org,Steady_bifurcation)
 
-		if l%2 == 0:
-			ax1.plot(d_l,Ra_l,'k:',linewidth=2.0,label = r'$\ell =%d$'%l)
-		else: 	
-			ax1.plot(d_l,Ra_l,'k-',linewidth=2.0,label = r'$\ell =%d$'%l)
+		if (l == 8):
+			Ra_8 = Ra_l
+		if (l == 10):
+			Ra_10 = Ra_l
+		elif (l == 12):
+			Ra_12 = Ra_l
 
-	ax1.set_xlabel(r'$d$',fontsize=20)
+		if l%2 == 0:
+			if l == 10:
+				ax1.plot(Γ(d_l),Ra_l,'b:',linewidth=2.0,label = r'$\ell =%d$'%l)
+			else:
+				ax1.plot(Γ(d_l),Ra_l,'k:',linewidth=2.0,label = r'$\ell =%d$'%l)
+		else: 	
+			if l == 11:
+				ax1.plot(Γ(d_l),Ra_l,'r-',linewidth=2.0,label = r'$\ell =%d$'%l)
+			else:
+				ax1.plot(Γ(d_l),Ra_l,'k-',linewidth=2.0,label = r'$\ell =%d$'%l)
+
+	#ax1.set_xlabel(r'$\Gamma$',fontsize=20)
+	#ax1.set_xticks([])
 	ax1.set_ylabel(r'$Ra$',fontsize=25)
 
 	ax1.grid()
-	ax1.legend(loc=2,fontsize=15)
+	ax1.legend(loc=2,fontsize=20)
 
-	ax1.tick_params(axis="x", labelsize=15,length=2,width=2)
-	ax1.tick_params(axis="y", labelsize=15,length=2,width=2)
+	ax1.tick_params(axis="x", labelsize=20,length=2,width=2)
+	ax1.tick_params(axis="y", labelsize=20,length=2,width=2)
 
-	#l=20
-	#ax2.set_ylim([2530,2630])
-	#ax2.set_xlim([0.15,0.17])
+
+	index = np.argmin(abs(Ra_12-Ra_8))
+	d_mid = d_l[index]
+	print('l=8,12 intersection, d_mid = %3.5f, Γ(d_mid) = %3.3f'%(d_mid,Γ(d_mid)),'\n')
+
+	index = np.argmin(abs(Ra_10-Ra_12))
+	d_mid = d_l[index]
+	print('l=10,12 intersection, d_mid = %3.5f, Γ(d_mid) = %3.3f'%(d_mid,Γ(d_mid)),'\n')
 
 	#l=10
-	#ax2.set_ylim([2900,3300])
+	ax2.set_ylim([2800,3200])
 	#ax2.set_xlim([0.325,0.375])
 
-	#l=20
-	#ax1.set_ylim([9460,9560])
-	#ax1.set_xlim([0.15,0.17])
-
 	#l=10
-	#ax1.set_ylim([9800,10200])
+	ax1.set_ylim([9700,10000])
 	#ax1.set_xlim([0.325,0.375])
 
 	plt.tight_layout()
@@ -283,20 +312,23 @@ def Full_Eig_Vec(f,l,N_fm,nr,symmetric=False):
 	from Matrix_Operators import Vecs_to_X
 	from scipy.special import eval_legendre, eval_gegenbauer
 
+	# Divided by sin(θ) due to different definitions of the stream function
 	θ  = grid(N_fm)
-	Gl = -(np.sin(θ)**2)*eval_gegenbauer(l-1,1.5,np.cos(θ));
+	#Gl = -(np.sin(θ)**2)*eval_gegenbauer(l-1,1.5,np.cos(θ))
+	Gl = -np.sin(θ)*eval_gegenbauer(l-1,1.5,np.cos(θ))  
 	Pl = eval_legendre(l,np.cos(θ))
 
-	#Gl_hat = np.zeros(N_fm); Gl_hat[0:l+1] = DST(Gl,n=N_fm)[0:l+1] 
-	#Pl_hat = np.zeros(N_fm); Pl_hat[0:l+1] = DCT(Pl,n=N_fm)[0:l+1] 
 	Gl_hat = DST(Gl,n=N_fm)#[0:l+1] 
 	Pl_hat = DCT(Pl,n=N_fm)#[0:l+1] 
+
+	# Convert from sinusoids back into my code's convention
+	Gl_hat[0:-1] = Gl_hat[1:]; Gl_hat[-1] = 0.0;
 
 	PSI = np.outer(f[0*nr:1*nr],Gl_hat)	
 	T   = np.outer(f[1*nr:2*nr],Pl_hat)
 	C   = np.outer(f[2*nr:3*nr],Pl_hat)
 
-	return Vecs_to_X(PSI,T,C, N_fm,nr, symmetric = False)
+	return Vecs_to_X(PSI,T,C, N_fm,nr, symmetric)
 
 def main_program():
 
@@ -310,30 +342,26 @@ def main_program():
 	# Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=0,Pr=1.,Tau=1., Nr = 30);
 	# print(Eig_val)
 
-	# ~~~~~# L = 20 Gap #~~~~~~~~~# 
-	#d = 0.1625; 
-	# Hopf-bifurcation omega = 7.5; 
-	#l = 20.0; Ra_c_hopf = 2560.4267138; 
-	# Steady-bifurcation
-	#l = 20.0; Ra_c_steady = 9494.5009440;
+	# ~~~~~# L = 11 Gap #~~~~~~~~~#
+	# d = 0.31325; l=11.0; 
+	# Ra_c_steady = 9775.905436191546
+	# #Ra_c_hopf   = 2879.0503253066827
+	# Ra = Critical_Eigval(Ra_c_steady,l,d,Nvals=1); 
+	# print('Ra=',Ra)
 
 	# ~~~~~# L = 10 Gap #~~~~~~~~~#
-	d = 0.335;
-	# Hopf-bifurcation omega = 7.5; 
-	#l = 10.0; Ra_c_hopf   = 2967.37736364 
-	# Steady-bifurcation
-	l = 10.0; Ra_c_steady = 9853.50008503 
+	d = 0.3521; l=10.0; 
+	Ra_c_steady = 9851.537357677651
+	#Ra_c_hopf   = 2965.1798389922933
+	Ra = Critical_Eigval(Ra_c_steady,l,d,Nvals=1); 
+	print('Ra=',Ra)
 
-	#Eig_val = Eig_Vals(Ra_c,l,d,2);
-	#Eig_vec = Eig_Vec( Ra_c,l,d,0);
-
-	#Neutral(Ra_c_hopf,Ra_c_steady,l,d_org=d)
-	l = 10
-	Ra = Critical_Eigval(Ra_c_steady,l,d,Nvals=1) - 4.5e-10
-	print(Ra)
+	# d = 0.3341; # Half of the two avbove
+	# Neutral(Ra_c_hopf,Ra_c_steady,l,d_org=d)
+		
 	Nr = 20;
 	lambda_i = 1
-	Eig_val = Eig_Vals(Ra,l,d,Nvals = 2,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
+	Eig_val = Eig_Vals(Ra,l,d,Nvals = 2 ,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
 	Eig_vec = Eig_Vec( Ra,l,d,k=lambda_i,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
 	
 	print('\n #~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~#')
@@ -341,9 +369,9 @@ def main_program():
 	print('Chose Eigenvector for \lambda_%d = %e'%(lambda_i,Eig_val[lambda_i]) )
 	print('#~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~# \n')
 
-	filename = 'EigVec.npy'
-	N_fm = 64;
-	X    = Full_Eig_Vec(Eig_vec,l,N_fm,nr=Nr-1,symmetric=True)
+	filename = 'EigVec_l10.npy'
+	N_fm = 64
+	X    = Full_Eig_Vec(Eig_vec,l,N_fm,nr=Nr-1,symmetric=False)
 	np.save(filename,X)
 
 	from Plot_Tools import Cartesian_Plot,Energy

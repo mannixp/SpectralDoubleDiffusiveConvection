@@ -378,7 +378,7 @@ def _Time_Step(X,Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, save_filename = 'TimeStep_0.h5', st
 
 	return X_new;
 
-def Time_Step(open_filename='TimeStep_0.h5',save_filename = 'TimeStep_0.h5',frame=-1):
+def Time_Step(open_filename=None,frame=-1, delta_Ra=0):
 
 	"""
 	Given an initial condition and full parameter specification time-step the system
@@ -389,16 +389,18 @@ def Time_Step(open_filename='TimeStep_0.h5',save_filename = 'TimeStep_0.h5',fram
 	Returns:
 
 	"""
-
-	start_time = 0.;
-	Total_time = .5;
-
 	# ~~~~~~~~~~~~~~~ Gap widths l=10~~~~~~~~~~~~~~~
-	Tau = 1/15; Ra_s = 500; Pr=1;
-	d = 0.353;  Ra   = 9853.50008503 - 0.01;
+	# l10
+	#Ra	   = 9851.537357677651 - 1e-03
+	Ra     = 2965.1798389922933 + 100.
+	d	   = 0.3521
 
-	N_fm = 2**7;
-	N_r  = 2**5;
+	Ra_s   = 500.
+	Tau    = 1./15.;
+	Pr     = 1.
+
+	N_fm = 128;
+	N_r  = 25;
 
 	# ~~~~~~~~~ Random Initial Conditions ~~~~~~~~~~~~~~~~
 	N = (N_r - 1)*N_fm;
@@ -406,41 +408,49 @@ def Time_Step(open_filename='TimeStep_0.h5',save_filename = 'TimeStep_0.h5',fram
 	X = 1e-03*(X/np.linalg.norm(X,2))
 	
 	# ~~~~~~~~~ Initial Conditions ~~~~~~~~~~~~~~~~~~
-	if open_filename.endswith('.h5'):
+	try:
+		if open_filename.endswith('.h5'):
 
-		f = h5py.File(open_filename, 'r+')
+			f = h5py.File(open_filename, 'r+')
 
-		# Problem Params
-		X      = f['Checkpoints/X_DATA'][frame];
-		
-		Ra     = f['Parameters']["Ra"][()];
-		Ra_s   = f['Parameters']["Ra_s"][()];
-		Tau    = f['Parameters']["Tau"][()];
-		Pr     = f['Parameters']["Pr"][()];
-		d 	   = f['Parameters']["d"][()]
+			# Problem Params
+			X      = f['Checkpoints/X_DATA'][frame];
+			
+			Ra     = f['Parameters']["Ra"][()];
+			Ra_s   = f['Parameters']["Ra_s"][()];
+			Tau    = f['Parameters']["Tau"][()];
+			Pr     = f['Parameters']["Pr"][()];
+			d 	   = f['Parameters']["d"][()]
 
-		N_fm   = f['Parameters']["N_fm"][()]
-		N_r    = f['Parameters']["N_r"][()]
+			N_fm   = f['Parameters']["N_fm"][()]
+			N_r    = f['Parameters']["N_r"][()]
 
-		st_time= f['Scalar_Data/Time'][()][frame]
-		f.close();    
+			st_time= f['Scalar_Data/Time'][()][frame]
+			f.close();    
 
-		print("\n Loading time-step %e with parameters Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(st_time,Ra,d,N_fm,N_r))    
+			print("\n Loading time-step %e with parameters Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(st_time,Ra,d,N_fm,N_r))    
 
-		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
-		from Matrix_Operators import INTERP_RADIAL, INTERP_THETAS
-		fac_R =1; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
-		fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
-		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
+			from Matrix_Operators import INTERP_RADIAL, INTERP_THETAS
+			fac_R =1; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
+			fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
+			# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	except:
+		pass
 
-	filename = uniquify(save_filename)
+	try:
+		filename = uniquify(open_filename)
+	except:
+		filename = uniquify('TimeStep_0.h5')
+
+	Ra = Ra + delta_Ra;
 	kwargs  = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm,"N_r":N_r}
-	X_new   = _Time_Step(X,**kwargs, save_filename = filename ,dt=1e-03, symmetric=True,linear=True,Verbose=True);
+	X_new   = _Time_Step(X,**kwargs, save_filename = filename,start_time = 0., Total_time=100,dt=1e-03, symmetric=True,linear=False,Verbose=False);
 
-	return None;
+	return filename;
 
 
-def _Newton(X,	Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, 				 symmetric = True, dt=10**4,	tol_newton = 1e-08,tol_gmres = 1e-04,Krylov_Space_Size = 150):
+def _Newton(X, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric=True, dt=10**4,	tol_newton=1e-08, tol_gmres=1e-04, Krylov_Space_Size=150):
 	
 	"""
 	Given a starting point and a control parameter compute a new steady-state using Newton iteration
@@ -733,7 +743,7 @@ def _NewtonC(		 Y  ,sign,ds, **kwargs_f):
 		ds*=0.5;
 		return Y    ,sign,ds,	Norm,KE,NuT,NuS,	exitcode;
 	
-def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, dt=1, tol_newton = 1e-08,tol_gmres = 1e-04,Krylov_Space_Size = 150):
+def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, symmetric=True, dt=10**4, tol_newton=1e-08, tol_gmres=1e-04, Krylov_Space_Size=150):
 
 	"""
 	Given a starting point and a control parameter compute a new steady-state using Newton iteration
@@ -760,8 +770,8 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, d
 
 	N  = N_fm*nr; 
 	dv = np.random.randn(3*N);
-	#δ  = 1./(3.*N);
-	δ  = 0.1
+	δ  = 1./(3.*N);
+	#δ  = 0.01
 
 	if symmetric == True:
 		X_SYM  = Eq_SYM(dv,R);
@@ -837,30 +847,30 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r,symmetric = True, d
 		X_0  = X_SYM*Y[0:-1].copy();
 		µ_0  = Y[  -1].copy();
 
-		#if np.linalg.norm(Y_dot,2) == 0:
+		if (np.linalg.norm(Y_dot,2) == 0) or (dt < 10):
 			
-		# P*DF(X,µ)_µ	
-		dfµ  = (-1.)*PDFµ(X_0)
+			# P*DF(X,µ)_µ	
+			dfµ  = (-1.)*PDFµ(X_0)
 
-		# P*DF(X,µ)_X
-		DF_X = lambda dv: PDFX(dv,X_0,µ_0);
-		dfx  = spla.LinearOperator((3*N,3*N),matvec=DF_X,dtype='float64');
+			# P*DF(X,µ)_X
+			DF_X = lambda dv: PDFX(dv,X_0,µ_0);
+			dfx  = spla.LinearOperator((3*N,3*N),matvec=DF_X,dtype='float64');
 
-		# a) Solve pre-conditioned P*DF_X(X_0)*ξ = (-1)*P*DF_µ(X); 
-		b_norm 	= np.linalg.norm(dfµ,2);
-		ξ,exit  = spla.lgmres(dfx,dfµ,	maxiter=250, inner_m = Krylov_Space_Size, atol = tol_newton*b_norm);
+			# a) Solve pre-conditioned P*DF_X(X_0)*ξ = (-1)*P*DF_µ(X); 
+			b_norm 	= np.linalg.norm(dfµ,2);
+			ξ,exit  = spla.lgmres(dfx,dfµ,	maxiter=250, inner_m = Krylov_Space_Size, atol = tol_newton*b_norm);
 
-		if (exit != 0): raise ValueError("\n LGMRES couldn't converge when predicting ξ \n")
-		
-		# b) Compute x_dot, µ_dot 
-		µ_dot = sign/np.sqrt( 1.0 + δ*(np.linalg.norm(ξ,2)-1.0) );
-		X_dot = µ_dot*ξ; 
-		print('||ξ|| =',np.linalg.norm(ξ,2))
-		# else:
+			if (exit != 0): raise ValueError("\n LGMRES couldn't converge when predicting ξ \n")
+			
+			# b) Compute x_dot, µ_dot 
+			µ_dot = sign/np.sqrt( 1.0 + δ*(np.linalg.norm(ξ,2)-1.0) );
+			X_dot = µ_dot*ξ; 
+			print('||ξ|| =',np.linalg.norm(ξ,2))
+		else:
 
-		# 	# Shallow copy as mutable
-		# 	X_dot = Y_0_dot[0:-1].copy(); 
-		# 	µ_dot = Y_0_dot[  -1].copy();
+			# Shallow copy as mutable
+			X_dot = Y_0_dot[0:-1].copy(); 
+			µ_dot = Y_0_dot[  -1].copy();
 		
 		# Make prediction	
 		X = X_0 + X_dot*ds; 
@@ -1086,13 +1096,13 @@ def Continuation(open_filename,frame=-1):
 		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
 		from Matrix_Operators import INTERP_RADIAL,INTERP_THETAS
 		N_r_n  = 25; X = INTERP_RADIAL(N_r_n,N_r,X,d);
-		N_fm_n = 128; X= INTERP_THETAS(N_fm_n,N_fm,X);
+		N_fm_n = 128 + 64; X= INTERP_THETAS(N_fm_n,N_fm,X);
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	sign   = 1;
 	N_steps= 1000;
 	Y      = np.hstack( (X,Ra) );
-	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r_n}
+	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r_n, "symmetric":True}
 
 	save_filename = uniquify(open_filename)
 	
@@ -1129,7 +1139,6 @@ def trim(filename,point):
 		else:
 			setattr(Result, key, val[()][ :5*point])
 
-		
 	# (3) Write it to the trimmed file
 	Checkpoints = f_new.create_group("Checkpoints");
 	Checkpoints['X_DATA']  = Result.X_DATA[ :point];
@@ -1188,27 +1197,18 @@ if __name__ == "__main__":
 
 	# %%
 	print("Initialising the code for running...")
-	#Time_Step()#file,file,frame);
+	
+	# %%
+	# Newton(open_filename='Eigenvectors/EigVec_l10.npy',frame=-1);
+	#Continuation(open_filename='Continuationl10MinusTest_1.h5',frame=-1)
 
 	# %%
-	#Continuation(open_filename='Continuationl10PlusTest_6.h5',frame=-3)
+	#trim(filename='Continuationl10Large_14.h5',point=-1)
+	#_plot_bif(filename='Continuationl10MinusTest_.h5',point=-1)
 
 	# %%
-	#trim(filename='ContinuationTest_20.h5',point=-53)
-	_plot_bif(filename='Continuationl10PlusTest_7.h5',point=-1)
+	from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
+	#Cartesian_Plot(filename='Continuationl10MinusTest_0.h5',frame=-1,Include_Base_State=False)
+	Energy(filename='Continuationl10MinusTest_0.h5',frame=-1)
 
-	# %%
-	# from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
-	# Cartesian_Plot(filename='Continuationl10PlusTest_4.h5',frame=-1,Include_Base_State=False)
-	# Energy(filename='Continuationl10PlusTest_4.h5',frame=-1)
-
-	# # %%
-	#Newton(open_filename='Eigenvectors/EigVec_l10.npy',frame=-1);
-
-	# # %% 
-	# print_h5py('ContinuationTest_2.h5')
-
-	#from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
-	#Cartesian_Plot(filename='ContinuationTest_2.h5',frame=-1,Include_Base_State=False)
-	# Energy(filename='ContinuationTest_2.h5',frame=-1)
 # %%

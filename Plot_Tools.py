@@ -1,8 +1,16 @@
 import numpy as np
-import matplotlib.pyplot as plt
-import math
-import h5py, sys
+import math, glob
+import h5py, sys, os
+from Main import result
+from Matrix_Operators import cheb_radial
 
+import matplotlib.pyplot as plt
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "sans-serif",
+    "font.sans-serif": "Helvetica",
+    'text.latex.preamble': r'\usepackage{amsfonts}'
+})
 
 def SPEC_TO_GRID(R,xx,N_fm,X,d): # Fix this code to extend to the boundaries
 
@@ -404,7 +412,8 @@ def Plot_Package_SPLIT(R,theta,psi,C,d): # Returns Array accepted by contourf - 
 
 # All checked below here
 	
-RES = 25; 
+RES = 25
+count_s = 2
 
 def Energy(filename,frame=-1):
 
@@ -485,7 +494,7 @@ def Energy(filename,frame=-1):
 
 	return None;
 
-def Plot_Time_Step(filename,logscale=True):
+def Plot_Time_Step(filename, logscale=True, st_pt=0, plotting=False):
 
 
 	""""
@@ -501,55 +510,50 @@ def Plot_Time_Step(filename,logscale=True):
 
 	"""
 
-	f = h5py.File(filename, 'r');
-
-	st_pt = 0
+	f = h5py.File(filename, 'r')
 	Time  = f['Scalar_Data/Time'][()][st_pt:-1]
 	KE    = f['Scalar_Data/KE'][()][st_pt:-1]
 	NuT   = f['Scalar_Data/Nu_T'][()][st_pt:-1]
 	NuS   = f['Scalar_Data/Nu_S'][()][st_pt:-1]
+	Ra    = f['Parameters']["Ra"][()]
+	dt = Time[1] - Time[0]
+	T  = Time[-1] - Time[0]
 	f.close()
 
-	fig, (ax0, ax1, ax2) = plt.subplots(nrows=1, ncols=3,figsize=(12, 6))
+	if plotting:
+		fig, (ax0, ax1, ax2) = plt.subplots(nrows=1, ncols=3,figsize=(12, 6))
 
-	# 1) Plot time-evolution
-	if logscale == True:
-		ax0.semilogy(Time,KE,'k-')
+		# 1) Plot time-evolution
+		if logscale:
+			ax0.semilogy(Time, KE, 'k-')
+		else:
+			ax0.plot(Time,KE,'k-')
+		ax0.set_xlabel(r'Time $T$',fontsize=25)
+		ax0.set_title(r'$\mathcal{E}$',fontsize=25)
 
-		#slope, intercept = np.polyfit(Time,np.log(KE),1)
-		#print("Slope KE m=",slope,"\n");
+		#ax0.set_xlim([Time[0],Time[-1]])
 
-		#slope, intercept = np.polyfit(Time,np.log(NuT),1)
-		#print("Slope ||T||_2 m=",slope,"\n");
+		if logscale:
+			ax1.semilogy(Time,NuT,'k-')
+		else:
+			ax1.plot(Time,NuT,'k-')
+		ax1.set_xlabel(r'Time $T$',fontsize=25)
+		ax1.set_title(r'$Nu_T-1$',fontsize=25)
 
-		##ax0.semilogy(Time,KE,'bo',markersize=0.3)
-	else:
-		ax0.plot(Time,KE,'k-')
-	ax0.set_xlabel(r'Time $T$',fontsize=25)
-	ax0.set_title(r'$\mathcal{E}$',fontsize=25)
+		if logscale == True:
+			ax2.semilogy(Time,NuS,'k-')
+		else:
+			ax2.plot(Time,NuS,'k-')
+		ax2.set_xlabel(r'Time $T$',fontsize=25)
+		ax2.set_title(r'$Nu_S-1$',fontsize=25)
+		
+		
+		plt.tight_layout()
+		plt.savefig("Time_Series.png",format='png', dpi=200)
+		plt.show()
+		plt.close(fig)
 
-	#ax0.set_xlim([Time[0],Time[-1]])
-
-	if logscale == True:
-		ax1.semilogy(Time,NuT,'k-')
-	else:
-		ax1.plot(Time,NuT,'k-')
-	ax1.set_xlabel(r'Time $T$',fontsize=25)
-	ax1.set_title(r'$Nu_T-1$',fontsize=25)
-
-	if logscale == True:
-		ax2.semilogy(Time,NuS,'k-')
-	else:
-		ax2.plot(Time,NuS,'k-')
-	ax2.set_xlabel(r'Time $T$',fontsize=25)
-	ax2.set_title(r'$Nu_S-1$',fontsize=25)
-	
-	
-	plt.tight_layout()
-	plt.savefig("Time_Series.png",format='png', dpi=200)
-	plt.show()
-
-	return None;
+	return np.sum(KE*dt)/T, Ra
 
 def Spectral_To_Gridpoints(X, R,xx,N_fm,d): 
 
@@ -642,7 +646,6 @@ def Cartesian_Plot(filename,frame,Include_Base_State=True):
 
 	return None;
 
-
 def Ur(X,N_fm,N_r,d):
 
 	from Matrix_Operators import J_theta_RT
@@ -695,30 +698,34 @@ def Uradial_plot(filename,frame):
 
 	return None;
 
-# Bifurcation plots
-from Main import result
+def Plot_full_bif(folder, ax=None, line='k-' ,plotting=False):
 
-def Plot_full_bif(folder,ylim = None,xlim = None):
-
-	import glob
-
-	fig = plt.figure()
-	plt.ylabel(r'$\mathcal{E}$',fontsize=25)
-	plt.xlabel(r'$Ra$',fontsize=25)
-
+	if ax is None:
+		fig, ax = plt.subplots(figsize=(8,6),layout='constrained')
+		ax.set_ylabel(r'$\mathcal{E}$',fontsize=25)
+		ax.set_xlabel(r'$Ra$',fontsize=25)
+		ax.tick_params(axis='both', labelsize=20)
+		#plt.xlim(xlim)	
+		ax.set_ylim([1e-04,3])
+	
 	def add_to_fig(obj):
-		
-		idx = np.where(obj.Ra_dot[:-1] * obj.Ra_dot[1:] < 0 )[0] +1
 
-		plt.semilogy(obj.Ra,obj.KE ,'k-')
-		plt.semilogy(obj.Ra[idx],obj.KE[idx],'ro')
+		index = np.where( obj.Ra_dot[:-1]*obj.Ra_dot[1:] < 0)
+		_, idx = np.unique(np.round(obj.Ra[index],3), return_index=True)
+		idx = np.sort(idx)
+		Ra_f = obj.Ra[index][idx]
+		KE_f = obj.KE[index][idx]
+		
+		ax.semilogy(obj.Ra,obj.KE ,line)
+		ax.semilogy(Ra_f,KE_f,'ro')
+		
+		#ax.plot(obj.Ra,obj.KE ,line)
+		#ax.plot(Ra_f,KE_f,'ro')
 
 		return None;
 
 	for filename in glob.glob(folder + '/*.h5'):
-		
-		print(filename)
-		
+				
 		obj = result();
 		with h5py.File(filename, 'r') as f:
 			ff=f["Bifurcation"]
@@ -726,54 +733,54 @@ def Plot_full_bif(folder,ylim = None,xlim = None):
 				setattr(obj, key, ff[key][()])
 
 		add_to_fig(obj)
-
-	if xlim != None:
-		plt.xlim(xlim)
-	if ylim != None:	
-		plt.ylim(ylim)
 	
-	plt.tight_layout()
-	plt.savefig("Bifurcation_Series.png",format='png', dpi=200)
-	plt.show()   
+	if plotting is True:
+		plt.savefig('Bifurcation_Series.png',format='png',dpi=1000)
+		plt.show() 
 
-	return None;	
+	return None
 
-
-spacing = 0.01
-
-# Evolution of Ur
 def Fold_Points_Ur(folder):
 
-	import glob
-
-	fig = plt.figure(figsize=(12,8))
+	fig = plt.figure(figsize=(12,count_s),layout='constrained')
 	bottom = 0.;
-	height = 1./(22)
+	height = 1./count_s
+	count = 0
 
-	def add_to_fig(bottom,obj,N_fm,N_r,d):
+	def add_to_fig(bottom,obj,N_fm,N_r,d, count):
 
-		sub_count=0		
-		for Yi in  obj.Y_FOLD:
+		index = np.where( obj.Ra_dot[:-1]*obj.Ra_dot[1:] < 0)
+		_, idx = np.unique(np.round(obj.Ra[index],3), return_index=True)
+		idx = np.sort(idx)
+		Ra_f = obj.Ra[index][idx]
+		KE_f = obj.KE[index][idx]
+
+		if len(obj.Y_FOLD) > 0:
+			Y_FOLD = obj.Y_FOLD[idx]
+		else:
+			return bottom, count
+		
+		for i,Yi in enumerate(Y_FOLD):
+
+			print('i = %d, (Ra, Ke) = %e,%e \n'%(count, Ra_f[i],KE_f[i]))
 
 			θ,U = Ur(Yi[0:-1],N_fm,N_r,d);
 			U   = U/np.trapz(U**2,θ);
 			
 			ax = fig.add_axes([0,bottom,1.,height])
-			ax.plot(θ,U,'k-',linewidth=2,label='saddle = %d'%((bottom//height)))
+			ax.plot(θ,U,'k-',linewidth=2,label='%d'%count)
 			ax.set_xticks([]);
 			ax.set_yticks([]);
 			ax.set_xlim([0,np.pi])
-			#ax.axis('off')
-			ax.legend()
+			ax.axis('off')
+			ax.annotate(r'%d'%count, xy=(-0.05,0.5), xycoords='axes fraction',fontsize=20)
 			bottom +=height
-			sub_count+=1
+			count += 1
 
-		return bottom,sub_count;
+		return bottom, count
 
-	count=0
 	for filename in glob.glob(folder + '/*.h5'):
 		
-		print(filename)
 		obj = result();
 		with h5py.File(filename, 'r') as f:
 			ff=f["Bifurcation"]
@@ -784,30 +791,37 @@ def Fold_Points_Ur(folder):
 			N_r  = f['Parameters']["N_r"][()];
 			d    = f['Parameters']["d"][()];
 
-		bottom,sub_count = add_to_fig(bottom + spacing,obj,N_fm,N_r,d)
-		count+=sub_count
+		bottom, count = add_to_fig(bottom,obj,N_fm,N_r,d, count)
 
-	print('count',count,'\n')
-	#plt.tight_layout()
 	plt.savefig("RadialVelocity_Series.png",format='png',dpi=200)
 	plt.show()
 	plt.close()
 
 	return None;	
 
-# Evolution of psi
 def Fold_Points_Psi(folder):
 
-	import glob
-	from Matrix_Operators import cheb_radial
-
-	fig = plt.figure()
+	fig = plt.figure(figsize=(12,count_s),layout='constrained')
 	bottom = 0.;
-	height = 1./(22)
+	height = 1./count_s
+	count = 0
 
-	def add_to_fig(bottom,obj,N_fm,N_r,d):
+	def add_to_fig(bottom,obj,N_fm,N_r,d, count):
 		
-		for Yi in  obj.Y_FOLD:
+		index = np.where( obj.Ra_dot[:-1]*obj.Ra_dot[1:] < 0)
+		_, idx = np.unique(np.round(obj.Ra[index],3), return_index=True)
+		idx = np.sort(idx)
+		Ra_f = obj.Ra[index][idx]
+		KE_f = obj.KE[index][idx]
+
+		if len(obj.Y_FOLD) > 0:
+			Y_FOLD = obj.Y_FOLD[idx]
+		else:
+			return bottom, count
+		
+		for i,Yi in enumerate(Y_FOLD):
+
+			print('i = %d, (Ra, Ke) = %e,%e \n'%(count, Ra_f[i],KE_f[i]))
 
 			R = cheb_radial(N_r,d)[1] 
 			Theta_grid = np.linspace(0,np.pi,N_fm);  
@@ -822,16 +836,15 @@ def Fold_Points_Psi(folder):
 			ax.set_xticks([]);
 			ax.set_yticks([]);
 			#ax.set_xlim([0,np.pi])
-			#ax.annotate('saddle = %d'%(2 - (bottom//height)),(0.5,0.0),fontsize=25)
+			ax.annotate(r'%d'%count, xy=(-0.05,0.5), xycoords='axes fraction',fontsize=20)
 			ax.axis('off')
 			bottom +=height
+			count += 1
 
-		return bottom;
+		return bottom, count;
 
 	for filename in glob.glob(folder + '/*.h5'):
-		
-		print(filename)
-		
+				
 		obj = result();
 		with h5py.File(filename, 'r') as f:
 			ff=f["Bifurcation"]
@@ -842,9 +855,8 @@ def Fold_Points_Psi(folder):
 			N_r  = f['Parameters']["N_r"][()];
 			d    = f['Parameters']["d"][()];
 
-		bottom = add_to_fig(bottom + spacing,obj,N_fm,N_r,d)
+		bottom, count = add_to_fig(bottom,obj,N_fm,N_r,d, count)
 
-	#plt.tight_layout()
 	plt.savefig("Psi_Series.png",format='png', dpi=200)
 	plt.show()   
 	plt.close()
@@ -852,27 +864,55 @@ def Fold_Points_Psi(folder):
 	return None;	
 
 
-# Execute main
 if __name__ == "__main__":
 
 	# %% 
 	print("Initialising the code for plotting ...")
 	#%matplotlib inline
 	
-	dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/'
-	folder=dir + 'Branches_d0.335/Branch_l10_Plus_d0.335'
-	Plot_full_bif(folder,ylim=[1e-04,10.0])
+	dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_d0.3521/Branches/'
+	#folder=dir + 'Large/'
+	folder=dir + 'Plus/'
+	#folder=dir + 'Minus/'
+	os.chdir(folder)
+	#Plot_full_bif(folder, plotting=True)
 	#Fold_Points_Ur(folder)
 	#Fold_Points_Psi(folder)
 
-
-
 	# %%
-	#filename ='NewtonSolve_0.h5'; frame = -1;
-	#Plot_Time_Step(filename,logscale=True);
+	fig, ax = plt.subplots(figsize=(8,6),layout='constrained')
+	ax.set_ylabel(r'$\mathcal{E}$',fontsize=25)
+	ax.set_xlabel(r'$Ra$',fontsize=25)
 	
-	## %%
-	#Uradial_plot(filename,frame)
-	#Energy(filename, frame)
-	#Cartesian_Plot(filename, frame, Include_Base_State=False);
+	files = ['Large/','Plus/','Minus/']
+	lines = ['k-','b-','g-']
+	for file,line in zip(files,lines): 
+		Plot_full_bif(dir+file, ax, line)
+
+	folder=dir + 'Periodic/'
+	Ra_list = []
+	ke_list = []
+	for filename in glob.glob(folder + '/*.h5'):
+		ke_avg, Ra = Plot_Time_Step(filename,logscale=True,plotting=False,st_pt=-50000);
+		ke_list.append(ke_avg)
+		Ra_list.append(Ra)
+
+		print(filename)
+		print(Ra,ke_avg)
+
+	Ra_list = np.asarray(Ra_list)
+	ke_list = np.asarray(ke_list)
+	idx = np.argsort(Ra_list)
+	#ax.plot(Ra_list[idx],ke_list[idx],'k:')
+	ax.semilogy(Ra_list[idx],ke_list[idx],'k:')
+	plt.savefig('Bifurcation_Series.png',format='png',dpi=200)
+	plt.show()
+	
+	# %%
+	# filename = 'Continuationl10MinusTest_3.h5'
+	# frame=-1
+	# Uradial_plot(filename,frame)
+	# Energy(filename, frame)
+	# Cartesian_Plot(filename, frame, Include_Base_State=False)
+
 # %%
