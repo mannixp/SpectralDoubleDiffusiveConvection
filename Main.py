@@ -1,11 +1,14 @@
 from numba import njit
 import numpy as np
 import matplotlib.pyplot as plt
-
-import os, time, warnings, h5py
+from Matrix_Operators import cheb_radial
+import os 
+import time
+import warnings
+import h5py
 warnings.simplefilter('ignore', np.RankWarning)
 
-# File handling methods
+
 def uniquify(path):
 	filename, extension = os.path.splitext(path)
 
@@ -15,23 +18,6 @@ def uniquify(path):
 		counter += 1
 
 	return path
-
-def print_h5py(filename):
-
-	f = h5py.File(filename,'r')	
-
-	print('\n')
-	print('#~~~~~~~ Parameters ~~~~~~~~~~~~~~')
-	for key,value in f['Parameters'].items():
-		print(key,'=',value[()])
-	print('#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
-	
-	f.close()
-
-	return None;
-
-# Self-made packages
-from Matrix_Operators import cheb_radial
 
 
 def Base_State_Coeffs(d):
@@ -51,8 +37,9 @@ def Base_State_Coeffs(d):
 
 	return A_T, B_T
 
+
 @njit(fastmath=True)
-def Nusselt(T_hat, d, R,D,N_fm,nr):
+def Nusselt(T_hat, d, R, D, N_fm, nr):
 
 	"""
 	Compute the convective Nusselt number:
@@ -80,7 +67,8 @@ def Nusselt(T_hat, d, R,D,N_fm,nr):
 	
 	return NuM1[0];
 
-def Kinetic_Energy(X_hat, R,D,N_fm,nr):
+
+def Kinetic_Energy(X_hat, R, D, N_fm, nr):
 	"""
 	Compute the volume integrated kinetic energy
 
@@ -145,7 +133,8 @@ def Kinetic_Energy(X_hat, R,D,N_fm,nr):
 
 	return (.5/V)*KE;
 
-def Eq_SYM(X1,R):
+
+def Eq_SYM(X1, R):
 
 	"""
 	Function which produces an array of ones and zeros
@@ -186,7 +175,8 @@ def Eq_SYM(X1,R):
 
 	return X_sym;
 
-def Build_Matrix_Operators(N_fm,N_r,d):
+
+def Build_Matrix_Operators(N_fm, N_r, d, dt):
 
 	"""
 	Builds all the matrix operators that have a radial dependence
@@ -201,93 +191,44 @@ def Build_Matrix_Operators(N_fm,N_r,d):
 	"""
 	
 	from Matrix_Operators import R2, kGR_RT
-	
-	D,R = cheb_radial(N_r,d); 
-	nr  = len(R[1:-1]);
+	from Matrix_Operators import NAB2_TSTEP_MATS, A4_TSTEP_MATS
 
-	Rsq   =       R2(R,N_fm); 
-	gr_K  = kGR_RT(R,N_fm,d); 
+	D, R = cheb_radial(N_r, d) 
+	Rsq = R2(R, N_fm)
+	gr_K = kGR_RT(R, N_fm, d) 
 
 	# For T0_J_Theta, as a vector!!!
-	A_T = Base_State_Coeffs(d)[0];
-	DT0 = A_T/(R[1:-1]**2);
+	A_T = Base_State_Coeffs(d)[0]
+	DT0 = A_T/(R[1:-1]**2)
 
-	return D,R,	Rsq,DT0,gr_K;
+	nr = N_r - 1
+	args_FX = (D, R, N_fm, nr)
+	L_inv_NAB2 = NAB2_TSTEP_MATS(dt, N_fm, nr, D, R)
+	L_inv_A4 = A4_TSTEP_MATS(dt, N_fm, nr, D, R)
 
-def Build_Matrix_Operators_TimeStep(N_fm,N_r,d):
-	""""
-	Build the non-control parameter dependent matrices to
-	perform time-stepping
-
-	Inputs:
-	N_fm - (int) number of latitudinal modes
-	N_r  - (int) number of radial collocation points
-	d 	 - (float) gap width
-
-	"""
-
-	from Matrix_Operators import Nabla2, Nabla4
-
-	D,R,	Rsq,DT0,gr_K = Build_Matrix_Operators(N_fm,N_r,d);
-
-	# NAB2_BSub_TSTEP
-	Nab2 = Nabla2(D,R); Nab2 = np.ascontiguousarray(Nab2);
-	R2   = np.diag(R[1:-1]**2); R2 = np.ascontiguousarray(R2);
-	I    = np.eye(len(R[1:-1])); I = np.ascontiguousarray(I);
-	# ~~~~~~~~~~~~~~~~~~~~~~
-
-	# A4_BSub_TSTEP
-	IR   = np.diag(1.0/R); 
-	IR2	 = IR@IR;
-	D_sq = D@D; 
-	
-	D4   = Nabla4(D,R);
-	D2   = np.matmul(IR2 ,2.0*D_sq - 4.0*(IR@D) + 6.0*IR2 )[1:-1,1:-1];
-	A2   = D_sq[1:-1,1:-1];  
-	IR2  = IR2[1:-1,1:-1];
-	IR4  = IR2@IR2;
-	# ~~~~~~~~~~~~~~~~~~~~~~
-
-	nr   = len(R[1:-1]);
-
-	# Make all arrays C continguous where possible
-
-	D4 = np.ascontiguousarray(D4);
-	IR4= np.ascontiguousarray(IR4);
-	D2 = np.ascontiguousarray(D2);
-	A2 = np.ascontiguousarray(A2);
-	IR2= np.ascontiguousarray(IR2);
-	D  = np.ascontiguousarray(D);
-
-	args_Nab2 = (Nab2,R2,I,N_fm,nr);
-	args_A4	  = (D4  ,IR4,D2,A2,IR2, N_fm,nr);
-	args_FXS  = (D,R,N_fm,nr);
-
-	return D,R,	Rsq,DT0,gr_K, N_fm,nr, args_Nab2,args_A4,args_FXS;
+	return D, R, Rsq, DT0, gr_K, L_inv_A4, L_inv_NAB2, args_FX
 
 
-def _Time_Step(X,Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, save_filename = 'TimeStep_0.h5', start_time = 0., Total_time = 1., dt=1e-04, symmetric = True, linear=False, Verbose=False):
+def _Time_Step(X, Ra, Ra_s, Tau, Pr, d,	N_fm, N_r, save_filename='TimeStep_0.h5', start_time=0, Total_time=1, dt=1e-04, symmetric=True, linear=False, Verbose=False):
 
 	from Matrix_Operators import NLIN_FX as FX
-	from Matrix_Operators import DT0_theta,A2_SINE
-	from Matrix_Operators import A4_BSub_TSTEP, NAB2_BSub_TSTEP
+	from Matrix_Operators import DT0_theta, A2_SINE	
+	from Matrix_Operators import A4_BSub_TSTEP_V2, NAB2_BSub_TSTEP_V2
+	D, R, Rsq, DT0, gr_k, L_inv_A4, L_inv_NAB2, args_FX = Build_Matrix_Operators(N_fm, N_r, d, dt)
 
-	D,R,	Rsq,DT0,gr_k,N_fm,nr,	args_Nab2,args_A4,args_FX = Build_Matrix_Operators_TimeStep(N_fm,N_r,d);
-	
-	Time    = []; 
-	X_DATA  = [];
-	KE  = [];  
-	NuT = []; 
-	NuS = [];
-	Norm = [];
+	Time = []
+	X_DATA = []
+	KE = []  
+	NuT = [] 
+	NuS = []
+	Norm = []
 
-	#~~~~~~~~~~~~~~~~~~~~~~~~~~
-	if symmetric == True:
-		X_SYM  = Eq_SYM(X, R);
-		X 	   = X_SYM*X;
+	if symmetric is True:
+		X_SYM = Eq_SYM(X, R)
 	else:
-		X_SYM  = np.ones(X.shape);
+		X_SYM = 1
 
+	nr = len(R[1:-1])
 	error     = 1.0;
 	iteration = 0;
 	N_iters   = int(Total_time/dt);
@@ -295,34 +236,34 @@ def _Time_Step(X,Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, save_filename = 'TimeStep_0.h5', st
 	N_print   = 10;
 	N         = int(X.shape[0]/3)
 
-	def Step_Python(Xn,linear):
+	def Step_Python(Xn, linear):
 
 		ψ = Xn[0:N]
 		T = Xn[N:2*N]
 		S = Xn[2*N:3*N]
 
-		if linear == False:
-			NX =  -1.*dt*FX(Xn, *args_FX, symmetric); # 36% FIX
+		if linear is False:
+			NX = -dt*FX(Xn, *args_FX, symmetric); # 36% FIX
 		else:
-			NX = np.zeros(3*N);
+			NX = np.zeros(3*N)
 		
 		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric)
 		Ω     = A2_SINE(ψ,     D,R,N_fm,nr, symmetric)
 
 		# 1) Vorticity - Ω
 		# Here we invert the LHS = ( \hat{A}^2 − ∆t Pr \hat{A}^4)
-		NX[0:N]     +=  Ω   + dt*Pr*gr_k.dot(Ra*T - Ra_s*S)
-		ψ_new        =  A4_BSub_TSTEP(NX[0:N],     *args_A4,     Pr*dt, symmetric)
+		NX[0:N]     += Ω   + dt*Pr*gr_k.dot(Ra*T - Ra_s*S)
+		ψ_new        = A4_BSub_TSTEP_V2(NX[0:N],  L_inv_A4, D, R, N_fm, nr, Pr*dt, symmetric)
 
 		# 2) Temperature - T
 		# Here we invert the LHS = r^2( I − ∆t \hat{\nabla}^2)
 		NX[N:2*N]   += Rsq.dot(T) - dt*ψ_T0
-		T_new        = NAB2_BSub_TSTEP(NX[N:2*N],   *args_Nab2,    dt, symmetric)
+		T_new 		 = NAB2_BSub_TSTEP_V2(NX[N:2*N], L_inv_NAB2, N_fm, nr, dt, symmetric)
 
 		# 3) Solute - S
 		NX[2*N:3*N] += Rsq.dot(S) - dt*ψ_T0
-		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2,Tau*dt, symmetric)  
-	
+		S_new		 = NAB2_BSub_TSTEP_V2(NX[2*N:3*N], L_inv_NAB2, N_fm, nr, Tau*dt, symmetric)
+		
 		return np.hstack((ψ_new,T_new,S_new)),KE;
 
 	timer = 0.	
@@ -371,7 +312,8 @@ def _Time_Step(X,Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, save_filename = 'TimeStep_0.h5', st
 
 	return X_new;
 
-def Time_Step(open_filename=None,frame=-1, delta_Ra=0):
+
+def Time_Step(open_filename=None, frame=-1, delta_Ra=0):
 
 	"""
 	Given an initial condition and full parameter specification time-step the system
@@ -481,23 +423,23 @@ def _Newton(X, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric=False, dt=10**4, tol_n
 
 	from Matrix_Operators import NLIN_DFX as DFX
 	from Matrix_Operators import NLIN_FX as FX
-	from Matrix_Operators import DT0_theta,A2_SINE
-	from Matrix_Operators import A4_BSub_TSTEP, NAB2_BSub_TSTEP
+	from Matrix_Operators import DT0_theta, A2_SINE
+	from Matrix_Operators import A4_BSub_TSTEP_V2, NAB2_BSub_TSTEP_V2
+	
+	D, R, Rsq, DT0, gr_k, L_inv_A4, L_inv_NAB2, args_FX = Build_Matrix_Operators(N_fm, N_r, d, dt)
 
-	D,R,	Rsq,DT0,gr_k,N_fm,nr,	args_Nab2,args_A4,args_FX = Build_Matrix_Operators_TimeStep(N_fm,N_r,d);
-	
-	N  = N_fm*nr; 
-	dv = np.random.randn(X.shape[0]);
-	
+	nr = N_r -1
+	N  = N_fm*nr 
+	dv = np.random.randn(X.shape[0])
+
 	error     = 1.0; 
 	iteration = 0; 
 	exit      = 1.0; 
 
-	if symmetric == True:
-		X_SYM  = Eq_SYM(X,R);
-		X 	   = X_SYM*X;
+	if symmetric is True:
+		X_SYM = Eq_SYM(X, R)
 	else:
-		X_SYM  = 1.
+		X_SYM = 1
 
 	def PFX(Xn):
 		
@@ -512,15 +454,15 @@ def _Newton(X, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric=False, dt=10**4, tol_n
 
 		# 1) Vorticity - Ω
 		NX[0:N]     += Ω + dt*Pr*gr_k.dot(Ra*T - Ra_s*S);
-		ψ_new        =   A4_BSub_TSTEP(NX[0:N],     *args_A4,   Pr*dt, symmetric) - ψ;
+		ψ_new        = A4_BSub_TSTEP_V2(NX[0:N],  L_inv_A4, D, R, N_fm, nr, Pr*dt, symmetric) - ψ;
 
 		# 2) Temperature - T
 		NX[N:2*N]   += Rsq.dot(T) - dt*ψ_T0;
-		T_new        = NAB2_BSub_TSTEP(NX[N:2*N],   *args_Nab2,    dt, symmetric) - T;
+		T_new 		 = NAB2_BSub_TSTEP_V2(NX[N:2*N], L_inv_NAB2, N_fm, nr, dt, symmetric) - T;
 
 		# 3) Solute - S
 		NX[2*N:3*N] += Rsq.dot(S) - dt*ψ_T0;
-		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2,Tau*dt, symmetric) - S;
+		S_new		 = NAB2_BSub_TSTEP_V2(NX[2*N:3*N], L_inv_NAB2, N_fm, nr, Tau*dt, symmetric) - S;
 
 		return np.hstack((ψ_new,T_new,S_new));
 
@@ -537,15 +479,15 @@ def _Newton(X, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric=False, dt=10**4, tol_n
 
 		# 1) Vorticity - ∆Ω
 		NX[0:N]     += δΩ + dt*Pr*gr_k.dot(Ra*δT - Ra_s*δS);
-		ψ_new        =   A4_BSub_TSTEP(NX[0:N],     *args_A4,   Pr*dt, symmetric) - δψ;
+		ψ_new        = A4_BSub_TSTEP_V2(NX[0:N],  L_inv_A4, D, R, N_fm, nr, Pr*dt, symmetric) - δψ;
 
 		# 2) Temperature - ∆T
 		NX[N:2*N]   += Rsq.dot(δT) - dt*δψ_T0;
-		T_new        = NAB2_BSub_TSTEP(NX[N:2*N],   *args_Nab2,    dt, symmetric) - δT;
+		T_new 		 = NAB2_BSub_TSTEP_V2(NX[N:2*N], L_inv_NAB2, N_fm, nr, dt, symmetric) - δT;
 
 		# 3) Solute - ∆S
 		NX[2*N:3*N] += Rsq.dot(δS) - dt*δψ_T0;
-		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2,Tau*dt, symmetric) - δS;
+		S_new		 = NAB2_BSub_TSTEP_V2(NX[2*N:3*N], L_inv_NAB2, N_fm, nr, Tau*dt, symmetric) - δS;
 
 		return np.hstack((ψ_new,T_new,S_new));	
 
@@ -582,7 +524,8 @@ def _Newton(X, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric=False, dt=10**4, tol_n
 
 		return X,	Norm,KE,NuT,NuS, True;
 
-def Newton(fac,open_filename='NewtonSolve_0.h5',save_filename = 'NewtonSolve_0.h5',frame=-1):
+
+def Newton(fac, open_filename='NewtonSolve_0.h5', save_filename='NewtonSolve_0.h5', frame=-1):
 
 	"""
 	Given an initial condition and full parameter specification solve 
@@ -704,6 +647,7 @@ def Newton(fac,open_filename='NewtonSolve_0.h5',save_filename = 'NewtonSolve_0.h
 
 	return None;
 
+
 class result():
 	"""
 	class for result of continuation
@@ -743,7 +687,8 @@ class result():
 		);
 		return s
 
-def _NewtonC(		 Y  ,sign,ds, **kwargs_f):
+
+def _NewtonC(Y, sign, ds, **kwargs_f):
 	
 	"""
 
@@ -766,8 +711,9 @@ def _NewtonC(		 Y  ,sign,ds, **kwargs_f):
 	else:
 		ds*=0.5;
 		return Y    ,sign,ds,	Norm,KE,NuT,NuS,	exitcode;
-	
-def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, symmetric=False, dt=10**4, tol_newton=1e-08, tol_gmres=1e-04, Krylov_Space_Size=150):
+
+
+def _ContinC(Y_0_dot, Y_0, sign, ds, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric=False, dt=10**4, tol_newton=1e-08, tol_gmres=1e-04, Krylov_Space_Size=150):
 
 	"""
 	Given a starting point and a control parameter compute a new steady-state using Newton iteration
@@ -788,17 +734,18 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, symmetric=False, d
 	from Matrix_Operators import NLIN_DFX as DFX
 	from Matrix_Operators import NLIN_FX as FX
 	from Matrix_Operators import DT0_theta,A2_SINE
-	from Matrix_Operators import A4_BSub_TSTEP, NAB2_BSub_TSTEP
+	from Matrix_Operators import A4_BSub_TSTEP_V2, NAB2_BSub_TSTEP_V2
+	
+	D, R, Rsq, DT0, gr_k, L_inv_A4, L_inv_NAB2, args_FX = Build_Matrix_Operators(N_fm, N_r, d, dt)
 
-	D,R,	Rsq,DT0,gr_k,N_fm,nr,	args_Nab2,args_A4,args_FX = Build_Matrix_Operators_TimeStep(N_fm,N_r,d);
-
-	N  = N_fm*nr; 
-	dv = np.random.randn(3*N);
-	δ  = 1./(3.*N);
+	nr = N_r - 1
+	N  = N_fm*nr 
+	dv = np.random.randn(3*N)
+	δ  = 1./(3.*N)
 	#δ  = 0.01
 
-	if symmetric == True:
-		X_SYM  = Eq_SYM(dv,R);
+	if symmetric is True:
+		X_SYM  = Eq_SYM(dv,R)
 	else:
 		X_SYM  = 1.
 	
@@ -809,21 +756,21 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, symmetric=False, d
 		S = Xn[2*N:3*N];
 
 		# Linear
-		NX    = -1.*dt*FX(Xn, *args_FX,     symmetric); # 36% FIX
+		NX    = -1.*dt*FX(Xn, *args_FX, symmetric); # 36% FIX
 		ψ_T0  = DT0_theta(ψ,   DT0,N_fm,nr, symmetric);
-		Ω     = A2_SINE(ψ,     D,R,N_fm,nr, symmetric);
-		
+		Ω     = A2_SINE(ψ,     D,R,N_fm,nr, symmetric); 
+
 		# 1) Vorticity - Ω
 		NX[0:N]     += Ω + dt*Pr*gr_k.dot(Ra*T - Ra_s*S);
-		ψ_new        =   A4_BSub_TSTEP(NX[0:N],     *args_A4  , Pr*dt, symmetric) - ψ;
+		ψ_new        = A4_BSub_TSTEP_V2(NX[0:N],  L_inv_A4, D, R, N_fm, nr, Pr*dt, symmetric) - ψ;
 
 		# 2) Temperature - T
 		NX[N:2*N]   += Rsq.dot(T) - dt*ψ_T0;
-		T_new        = NAB2_BSub_TSTEP(NX[N:2*N],   *args_Nab2,    dt, symmetric) - T;
+		T_new 		 = NAB2_BSub_TSTEP_V2(NX[N:2*N], L_inv_NAB2, N_fm, nr, dt, symmetric) - T;
 
 		# 3) Solute - S
 		NX[2*N:3*N] += Rsq.dot(S) - dt*ψ_T0;
-		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2,Tau*dt, symmetric) - S;
+		S_new		 = NAB2_BSub_TSTEP_V2(NX[2*N:3*N], L_inv_NAB2, N_fm, nr, Tau*dt, symmetric) - S;
 
 		return np.hstack((ψ_new,T_new,S_new));
 
@@ -840,28 +787,26 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, symmetric=False, d
 
 		# 1) Vorticity - ∆Ω
 		NX[0:N]     += δΩ + dt*Pr*gr_k.dot(Ra*δT - Ra_s*δS);
-		ψ_new        =   A4_BSub_TSTEP(NX[0:N],     *args_A4,   Pr*dt, symmetric) - δψ;
+		ψ_new        = A4_BSub_TSTEP_V2(NX[0:N],  L_inv_A4, D, R, N_fm, nr, Pr*dt, symmetric) - δψ;
 
 		# 2) Temperature - ∆T
 		NX[N:2*N]   += Rsq.dot(δT) - dt*δψ_T0;
-		T_new        = NAB2_BSub_TSTEP(NX[N:2*N],   *args_Nab2,    dt, symmetric) - δT;
+		T_new 		 = NAB2_BSub_TSTEP_V2(NX[N:2*N], L_inv_NAB2, N_fm, nr, dt, symmetric) - δT;
 
 		# 3) Solute - ∆S
 		NX[2*N:3*N] += Rsq.dot(δS) - dt*δψ_T0;
-		S_new        = NAB2_BSub_TSTEP(NX[2*N:3*N], *args_Nab2,Tau*dt, symmetric) - δS;
+		S_new		 = NAB2_BSub_TSTEP_V2(NX[2*N:3*N], L_inv_NAB2, N_fm, nr, Tau*dt, symmetric) - δS;
 
 		return np.hstack((ψ_new,T_new,S_new));
 
 	def PDFµ(Xn):
 		
-		#ψ = Xn[0:N];
 		T = Xn[N:2*N];
-		#S = Xn[2*N:3*N];
 
 		# DF(X,µ)_µ
 		dfµ       = 0.*Xn;
 		fµ		  = dt*Pr*gr_k.dot(T)	
-		dfµ[0:N]  = A4_BSub_TSTEP( fµ , *args_A4, Pr*dt, symmetric);
+		dfµ[0:N]  = A4_BSub_TSTEP_V2(fµ,  L_inv_A4, D, R, N_fm, nr, Pr*dt, symmetric)
 	
 		return dfµ;
 
@@ -983,7 +928,8 @@ def _ContinC(Y_0_dot,Y_0,sign,ds, Ra,Ra_s,Tau,Pr,d,	N_fm,N_r, symmetric=False, d
 
 		return    Y_dot,Y,sign,ds, Norm,KE,NuT,NuS, True;
 
-def _Continuation(filename,N_steps,	sign,Y,**kwargs):
+
+def _Continuation(filename, N_steps, sign, Y, **kwargs):
 
 	"""
 
@@ -1072,7 +1018,8 @@ def _Continuation(filename,N_steps,	sign,Y,**kwargs):
 
 	return None;	
 
-def Continuation(open_filename,frame=-1):
+
+def Continuation(open_filename, frame=-1):
 
 	"""
 	Given an initial condition and full parameter specification perform branch continuation
@@ -1136,7 +1083,7 @@ def Continuation(open_filename,frame=-1):
 	return None;
 
 
-def trim(filename,point):
+def trim(filename, point):
 
 	# (1) Create a new file with trimmed
 	def uniquify_trim(path):
@@ -1180,7 +1127,8 @@ def trim(filename,point):
 	
 	return None;
 
-def _plot_bif(filename,point = -1):
+
+def _plot_bif(filename, point = -1):
 
 	obj = result();
 	with h5py.File(filename, 'r') as f:
@@ -1214,6 +1162,7 @@ def _plot_bif(filename,point = -1):
 	plt.show()        
 
 	return None;
+
 
 # Execute main
 if __name__ == "__main__":
