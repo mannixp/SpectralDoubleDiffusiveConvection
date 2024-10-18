@@ -413,7 +413,7 @@ def Plot_Package_SPLIT(R,theta,psi,C,d): # Returns Array accepted by contourf - 
 # All checked below here
 	
 RES = 25
-count_s = 2
+count_s = 12
 
 def Energy(filename,frame=-1):
 
@@ -511,7 +511,7 @@ def Plot_Time_Step(filename, logscale=True, st_pt=0, plotting=False):
 	"""
 
 	f = h5py.File(filename, 'r')
-	Time  = f['Scalar_Data/Time'][()][st_pt:-1]
+	Time  = f['Scalar_Data/Time'][()][st_pt:-1]; print(Time)
 	KE    = f['Scalar_Data/KE'][()][st_pt:-1]
 	NuT   = f['Scalar_Data/Nu_T'][()][st_pt:-1]
 	NuS   = f['Scalar_Data/Nu_S'][()][st_pt:-1]
@@ -519,6 +519,8 @@ def Plot_Time_Step(filename, logscale=True, st_pt=0, plotting=False):
 	dt = Time[1] - Time[0]
 	T  = Time[-1] - Time[0]
 	f.close()
+
+	print('Ra = ',Ra)
 
 	if plotting:
 		fig, (ax0, ax1, ax2) = plt.subplots(nrows=1, ncols=3,figsize=(12, 6))
@@ -551,7 +553,7 @@ def Plot_Time_Step(filename, logscale=True, st_pt=0, plotting=False):
 		plt.tight_layout()
 		plt.savefig("Time_Series.png",format='png', dpi=200)
 		plt.show()
-		plt.close(fig)
+		#plt.close(fig)
 
 	return np.sum(KE*dt)/T, Ra
 
@@ -706,7 +708,7 @@ def Plot_full_bif(folder, ax=None, line='k-' ,plotting=False):
 		ax.set_xlabel(r'$Ra$',fontsize=25)
 		ax.tick_params(axis='both', labelsize=20)
 		#plt.xlim(xlim)	
-		ax.set_ylim([1e-04,3])
+		#ax.set_ylim([1e-04,3])
 	
 	def add_to_fig(obj):
 
@@ -725,7 +727,7 @@ def Plot_full_bif(folder, ax=None, line='k-' ,plotting=False):
 		return None;
 
 	for filename in glob.glob(folder + '/*.h5'):
-				
+		
 		obj = result();
 		with h5py.File(filename, 'r') as f:
 			ff=f["Bifurcation"]
@@ -870,43 +872,51 @@ if __name__ == "__main__":
 	print("Initialising the code for plotting ...")
 	#%matplotlib inline
 	
-	dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_d0.3521/Branches/'
-	#folder=dir + 'Large/'
-	folder=dir + 'Plus/'
+	dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_l11_d0.33069/'
+	folder=dir + 'Large/'
+
+	# dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_l11_d0.31325/'
+	# folder=dir + 'Small/'
+
+	# dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_l11_d0.3161/'
+	# folder=dir + 'Small/'
+
+	#folder=dir #+ 'Plus/'
 	#folder=dir + 'Minus/'
 	os.chdir(folder)
-	#Plot_full_bif(folder, plotting=True)
+	print(glob.glob(folder + '/*.h5'))
+	Plot_full_bif(folder, plotting=True)
 	#Fold_Points_Ur(folder)
-	#Fold_Points_Psi(folder)
+	Fold_Points_Psi(folder)
 
 	# %%
-	fig, ax = plt.subplots(figsize=(8,6),layout='constrained')
-	ax.set_ylabel(r'$\mathcal{E}$',fontsize=25)
-	ax.set_xlabel(r'$Ra$',fontsize=25)
+	# fig, ax = plt.subplots(figsize=(8,6),layout='constrained')
+	# ax.set_ylabel(r'$\mathcal{E}$',fontsize=25)
+	# ax.set_xlabel(r'$Ra$',fontsize=25)
 	
-	files = ['Large/','Plus/','Minus/']
-	lines = ['k-','b-','g-']
-	for file,line in zip(files,lines): 
-		Plot_full_bif(dir+file, ax, line)
+	# files = ['Large/','Plus/','Minus/']
+	# lines = ['k-','b-','g-']
+	# for file,line in zip(files,lines): 
+	# 	Plot_full_bif(dir+file, ax, line)
 
-	folder=dir + 'Periodic/'
-	Ra_list = []
-	ke_list = []
-	for filename in glob.glob(folder + '/*.h5'):
-		ke_avg, Ra = Plot_Time_Step(filename,logscale=True,plotting=False,st_pt=-50000);
-		ke_list.append(ke_avg)
-		Ra_list.append(Ra)
+	# folder=dir + 'Periodic/'
+	# Ra_list = []
+	# ke_list = []
+	# for filename in glob.glob(folder + '/*.h5'):
+	# 	ke_avg, Ra = Plot_Time_Step(filename,logscale=True,plotting=False,st_pt=-50000);
+	# 	ke_list.append(ke_avg)
+	# 	Ra_list.append(Ra)
 
-		print(filename)
-		print(Ra,ke_avg)
+	# 	print(filename)
+	# 	print(Ra,ke_avg)
 
-	Ra_list = np.asarray(Ra_list)
-	ke_list = np.asarray(ke_list)
-	idx = np.argsort(Ra_list)
-	#ax.plot(Ra_list[idx],ke_list[idx],'k:')
-	ax.semilogy(Ra_list[idx],ke_list[idx],'k:')
-	plt.savefig('Bifurcation_Series.png',format='png',dpi=200)
-	plt.show()
+	# Ra_list = np.asarray(Ra_list)
+	# ke_list = np.asarray(ke_list)
+	# idx = np.argsort(Ra_list)
+	# #ax.plot(Ra_list[idx],ke_list[idx],'k:')
+	# ax.semilogy(Ra_list[idx],ke_list[idx],'k:')
+	# plt.savefig('Bifurcation_Series.png',format='png',dpi=200)
+	# plt.show()
 	
 	# %%
 	# filename = 'Continuationl10MinusTest_3.h5'

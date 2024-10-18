@@ -167,7 +167,7 @@ def Ra_Stability_Trace(Ra_c,d,Nvals):
 	plt.tight_layout()
 	plt.show()
 
-	return None;
+	return None
 
 def Neutral(Ra_c_hopf,Ra_c_steady,l_org,d_org):
 	
@@ -190,7 +190,11 @@ def Neutral(Ra_c_hopf,Ra_c_steady,l_org,d_org):
 
 	"""
 
-	def Neutrals_Ra_D(Ra_org,l, d_org, k, width=0.05,N_iters = 200):	
+	l_left  =l_org - 1
+	l_right =l_org 
+
+
+	def Neutrals_Ra_D(Ra_org,l, d_org, k, width=0.05,N_iters = 50):	
 		
 		d_for  = np.linspace(d_org,d_org+width,N_iters);
 		Ra_for = np.zeros(N_iters);
@@ -215,13 +219,10 @@ def Neutral(Ra_c_hopf,Ra_c_steady,l_org,d_org):
 
 		return Ra_l,d_l
 
-
 	L = np.arange(l_org-2,l_org+4,1);
 
 	# 1 Generate a figure
-	fig, (ax1, ax2) = plt.subplots(nrows=2,figsize=(12,8),dpi=1200);
-
-	ax2.set_title(r'$\lambda = \pm i \omega$',fontsize=20);
+	fig, (ax1, ax2) = plt.subplots(nrows=2,figsize=(16,8),dpi=200,layout="constrained")
 
 	Hopf_bifurcation = 0
 	for l in L:
@@ -239,72 +240,57 @@ def Neutral(Ra_c_hopf,Ra_c_steady,l_org,d_org):
 			else:
 				ax2.plot(Γ(d_l),Ra_l,'k-',linewidth=2.0,label = r'$\ell =%d$'%l)
 
-	ax2.set_xlabel(r'$\Gamma$',fontsize=25)
-	ax2.set_ylabel(r'$Ra$',fontsize=25)
-
-	ax2.grid()
-	ax2.legend(loc=2,fontsize=20)
-
-	ax2.tick_params(axis="x", labelsize=20,length=2,width=2)
-	ax2.tick_params(axis="y", labelsize=20,length=2,width=2)
-
-	ax1.set_title(r'$\lambda = 0$', fontsize=20)
 
 	Steady_bifurcation = 1
 	for l in L:
 		
 		Ra_l,d_l = Neutrals_Ra_D(Ra_c_steady,l,d_org,Steady_bifurcation)
 
-		if (l == 8):
-			Ra_8 = Ra_l
-		if (l == 10):
-			Ra_10 = Ra_l
-		elif (l == 12):
-			Ra_12 = Ra_l
+		if (l == l_left):
+			Ra_left = Ra_l
+		elif (l == l_right):
+			Ra_right = Ra_l
 
 		if l%2 == 0:
-			if l == 10:
+			if l == l_org:
 				ax1.plot(Γ(d_l),Ra_l,'b:',linewidth=2.0,label = r'$\ell =%d$'%l)
 			else:
 				ax1.plot(Γ(d_l),Ra_l,'k:',linewidth=2.0,label = r'$\ell =%d$'%l)
 		else: 	
-			if l == 11:
+			if l == l_org+1:
 				ax1.plot(Γ(d_l),Ra_l,'r-',linewidth=2.0,label = r'$\ell =%d$'%l)
 			else:
 				ax1.plot(Γ(d_l),Ra_l,'k-',linewidth=2.0,label = r'$\ell =%d$'%l)
 
+	
+	
+	index = np.argmin(abs(Ra_left-Ra_right))
+	d_mid = d_l[index]
+	print('l=%d,%d intersection, d_mid = %3.5f, Γ(d_mid) = %3.3f'%(l_left,l_right,d_mid,Γ(d_mid)),'\n')
+
+	ax2.set_title(r'$\lambda = \pm i \omega$',fontsize=25);
+	ax2.set_xlabel(r'$\Gamma$',fontsize=30)
+	ax2.set_ylabel(r'$Ra$',fontsize=30)
+
+	ax2.grid()
+	ax2.legend(loc=2,fontsize=20)
+	ax2.tick_params(axis="both", labelsize=25,length=2,width=2)
+
+	ax1.set_title(r'$\lambda = 0$', fontsize=25)
 	#ax1.set_xlabel(r'$\Gamma$',fontsize=20)
-	#ax1.set_xticks([])
-	ax1.set_ylabel(r'$Ra$',fontsize=25)
+	ax1.set_ylabel(r'$Ra$',fontsize=30)
 
 	ax1.grid()
 	ax1.legend(loc=2,fontsize=20)
+	ax1.tick_params(axis="both", labelsize=25,length=2,width=2)
 
-	ax1.tick_params(axis="x", labelsize=20,length=2,width=2)
-	ax1.tick_params(axis="y", labelsize=20,length=2,width=2)
-
-
-	index = np.argmin(abs(Ra_12-Ra_8))
-	d_mid = d_l[index]
-	print('l=8,12 intersection, d_mid = %3.5f, Γ(d_mid) = %3.3f'%(d_mid,Γ(d_mid)),'\n')
-
-	index = np.argmin(abs(Ra_10-Ra_12))
-	d_mid = d_l[index]
-	print('l=10,12 intersection, d_mid = %3.5f, Γ(d_mid) = %3.3f'%(d_mid,Γ(d_mid)),'\n')
-
-	#l=10
 	ax2.set_ylim([2800,3200])
-	#ax2.set_xlim([0.325,0.375])
-
-	#l=10
 	ax1.set_ylim([9700,10000])
-	#ax1.set_xlim([0.325,0.375])
 
-	plt.tight_layout()
 	plt.savefig("NeutralCurves_TauI15_Pr1_Ras500.png", format='png', dpi=200)
-	plt.show();
+	plt.show()
 
-	return None;
+	return None
 
 def Full_Eig_Vec(f,l,N_fm,nr,symmetric=False):
 
@@ -345,22 +331,25 @@ def main_program():
 	# ~~~~~# L = 11 Gap #~~~~~~~~~#
 	# d = 0.31325; l=11.0; 
 	# Ra_c_steady = 9775.905436191546
-	# #Ra_c_hopf   = 2879.0503253066827
-	# Ra = Critical_Eigval(Ra_c_steady,l,d,Nvals=1); 
-	# print('Ra=',Ra)
+	# Ra_c_hopf   = 2879.0503253066827
 
 	# ~~~~~# L = 10 Gap #~~~~~~~~~#
 	d = 0.3521; l=10.0; 
-	Ra_c_steady = 9851.537357677651
-	#Ra_c_hopf   = 2965.1798389922933
-	Ra = Critical_Eigval(Ra_c_steady,l,d,Nvals=1); 
-	print('Ra=',Ra)
+	Ra_c_steady = 9851.537357677651; Nvals=1
+	Ra_c_hopf   = 2965.1798389922933; Nvals=0
+	
+	d =  0.36737
+	Ra = Critical_Eigval(Ra_c_steady,l,d,Nvals=1)
+	#Ra = Critical_Eigval(Ra_c_hopf,l,d,Nvals=0)
 
-	# d = 0.3341; # Half of the two avbove
-	# Neutral(Ra_c_hopf,Ra_c_steady,l,d_org=d)
-		
-	Nr = 20;
-	lambda_i = 1
+	print('Ra = ',Ra)
+	#d = 0.3341; # Half of the two avbove
+	#Neutral(Ra_c_hopf,Ra_c_steady,l,d_org=d)
+
+	# Compute the eigenvector
+	Nr = 20
+	lambda_i = 1 # For steady-bifurcation
+	#lambda_i = 0 # For Hopf-bifurcation
 	Eig_val = Eig_Vals(Ra,l,d,Nvals = 2 ,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
 	Eig_vec = Eig_Vec( Ra,l,d,k=lambda_i,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
 	
@@ -381,11 +370,227 @@ def main_program():
 	return None;
 
 
+
+def multiple_formatter(denominator=4, number=np.pi, latex='\pi'):
+    def gcd(a, b):
+        while b:
+            a, b = b, a%b
+        return a
+    def _multiple_formatter(x, pos):
+        den = denominator
+        num = int(np.rint(den*x/number))
+        com = gcd(num,den)
+        (num,den) = (int(num/com),int(den/com))
+        if den==1:
+            if num==0:
+                return r'$0$'
+            if num==1:
+                return r'$%s$'%latex
+            elif num==-1:
+                return r'$-%s$'%latex
+            else:
+                return r'$%s%s$'%(num,latex)
+        else:
+            if num==1:
+                return r'$\frac{%s}{%s}$'%(latex,den)
+            elif num==-1:
+                return r'$\frac{-%s}{%s}$'%(latex,den)
+            else:
+                return r'$\frac{%s%s}{%s}$'%(num,latex,den)
+    return _multiple_formatter
+
+class Multiple:
+
+	def __init__(self, denominator=4, number=np.pi, latex='\pi'):
+		self.denominator = denominator
+		self.number = number
+		self.latex = latex
+	
+	def locator(self):
+		return plt.MultipleLocator(self.number / self.denominator)
+	
+	def formatter(self):
+		return plt.FuncFormatter(multiple_formatter(self.denominator, self.number, self.latex))
+
+
+def velocity_field(X_hat, D, R,xx, N_fm):
+	"""
+	Compute the velocity vector 
+
+	u_r = 1/(r^2 sin θ) ∂(ψsinθ)/∂θ = (1/r^2) J_θ(ψ) ~ cosine
+
+	u_θ =  -(1/r) ∂ψ/∂r 			=  -(1/r) D_r(ψ) ~ sine
+
+	"""
+
+	from Matrix_Operators import J_theta_RT
+	from Transforms import IDCT,IDST,grid
+	from scipy.interpolate import interp1d
+
+	nr = len(R[1:-1])
+	N  = N_fm*nr;
+	Dr = D[1:-1,1:-1];
+	IR = np.diag(1./R[1:-1]);
+	IR2 = np.diag(1./R[1:-1]**2);
+
+	ψ_hat=X_hat[0:N]
+	JPSI =J_theta_RT(ψ_hat, nr,N_fm)
+
+	Jψ_hat = np.zeros((nr, N_fm)) 	
+	Dψ_hat = np.zeros((nr, N_fm))
+	for k in range(N_fm):
+		ψ_k          = ψ_hat[k*nr:(1+k)*nr];
+		Dψ_hat[:,k]  = Dr@ψ_k                 # ~ sine
+		Jψ_hat[:,k]  = JPSI[k*nr:(1+k)*nr] # ~ cosine
+	
+	# Convert Sine to sinusoids
+	Dψ_hat[:,1:] = Dψ_hat[:,0:-1]; Dψ_hat[:,0] = 0.0;
+
+	# A) Assign velocity
+	u_r = np.zeros((len(R),N_fm)); u_r[1:-1,:] = IDCT(IR2@Jψ_hat,n = N_fm) 
+	u_θ = np.zeros((len(R),N_fm)); u_θ[1:-1,:] = IDST(-IR@Dψ_hat,n = N_fm)
+
+	# B) Visualisation grid
+	fu_r = interp1d(R, u_r, axis=0)
+	fu_θ = interp1d(R, u_θ, axis=0)
+	
+	return fu_r(xx), fu_θ(xx)
+
+def figure_1():
+
+	# ~~~~~# L = 11 Gap #~~~~~~~~~#
+	l = 11 
+	d = 0.31325 
+	Ra_c_steady = 9775.905436191546
+	Ra_c_hopf = 2879.0503253066827
+
+	# ~~~~~# L = 10 Gap #~~~~~~~~~#
+	l = 10 
+	d += 0.3521 
+	Ra_c_steady += 9851.537357677651
+	Ra_c_hopf += 2965.1798389922933
+	
+	# Create figure 1
+	Neutral(Ra_c_hopf/2,Ra_c_steady/2,l,d_org=d/2)
+
+	return None
+
+def figure_2():
+	
+	Nr = 20
+	N_fm = 64
+	RES = 20
+
+	from Matrix_Operators import cheb_radial
+	from Plot_Tools import Spectral_To_Gridpoints
+
+	# ~~~~~# L = 10 Gap #~~~~~~~~~#
+	d = 0.3521
+	l = 10 
+	Ra_c_steady = 9851.537357677651
+	Ra_c_hopf   = 2965.1798389922933
+	
+	lambda_i = 1 # For steady-bifurcation
+	Eig_val = Eig_Vals(Ra_c_steady,l,d,Nvals = 2 ,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
+	Eig_vec = Eig_Vec( Ra_c_steady,l,d,k=lambda_i,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
+	
+	print('\n #~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~#')
+	print('Eigen Values = ',Eig_val)
+	print('Chose Eigenvector for \lambda_%d = %e'%(lambda_i,Eig_val[lambda_i]) )
+	print('#~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~# \n')
+
+	X = Full_Eig_Vec(Eig_vec,l,N_fm,nr=Nr-1,symmetric=False)
+
+	D,R = cheb_radial(Nr, d) 
+	Theta_grid = np.linspace(0,np.pi,N_fm) 
+	r_grid     = np.linspace(R[0],R[-1],50)
+	
+	PSI, T, S, T_0 = Spectral_To_Gridpoints(X,R,r_grid,N_fm,d)
+	
+	# 1) Fix \theta labels to be [0,pi]
+	fig, ax = plt.subplots(nrows=3, ncols=2, figsize=(24,8), dpi=200, layout='constrained')
+
+	x_0 = np.linspace(0,np.pi,N_fm) 
+	x_1 = np.linspace(R[0],R[-1],50)
+	U = velocity_field(X,D,R,x_1,N_fm)
+	ax[0,0].streamplot(x_0, x_1, U[1], U[0], density=.75,arrowsize=2)
+
+	ax[1,0].contour( Theta_grid,r_grid,T,  RES, colors = 'k', linewidths=0.5,);
+	ax[1,0].contourf(Theta_grid,r_grid,T,  RES, cmap="RdBu_r")
+		
+	ax[2,0].contour( Theta_grid,r_grid,S,  RES, colors = 'k',linewidths=0.5);
+	ax[2,0].contourf(Theta_grid,r_grid,S,  RES, cmap="RdBu_r")
+	
+	# ~~~~~# L = 11 Gap #~~~~~~~~~#
+	d = 0.31325 
+	l = 11 
+	Ra_c_steady = 9775.905436191546
+	Ra_c_hopf   = 2879.0503253066827
+
+	lambda_i = 1 # For steady-bifurcation
+	Eig_val = Eig_Vals(Ra_c_steady,l,d,Nvals = 2 ,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
+	Eig_vec = Eig_Vec( Ra_c_steady,l,d,k=lambda_i,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
+	
+	print('\n #~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~#')
+	print('Eigen Values = ',Eig_val)
+	print('Chose Eigenvector for \lambda_%d = %e'%(lambda_i,Eig_val[lambda_i]) )
+	print('#~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~# \n')
+
+	X = Full_Eig_Vec(Eig_vec,l,N_fm,nr=Nr-1,symmetric=False)
+
+	D, R = cheb_radial(Nr, d)
+	Theta_grid = np.linspace(0,np.pi,N_fm) 
+	r_grid     = np.linspace(R[0],R[-1],50)
+
+	PSI, T, S, T_0 = Spectral_To_Gridpoints(X,R,r_grid,N_fm,d)
+
+	x_0 = np.linspace(0,np.pi,N_fm) 
+	x_1 = np.linspace(R[0],R[-1],50)
+	U = velocity_field(X,D,R,x_1,N_fm)
+	ax[0,1].streamplot(x_0, x_1, U[1], U[0], density=.75,arrowsize=2)
+
+	ax[1,1].contour( Theta_grid,r_grid,T,  RES, colors = 'k', linewidths=0.5,);
+	ax[1,1].contourf(Theta_grid,r_grid,T,  RES, cmap="RdBu_r")
+
+	ax[2,1].contour( Theta_grid,r_grid,S,  RES, colors = 'k',linewidths=0.5);
+	ax[2,1].contourf(Theta_grid,r_grid,S,  RES, cmap="RdBu_r")
+
+	for i in range(2):
+		ax[0,i].set_title(r'$(u_r,u_{\theta})$',fontsize=30)
+		ax[1,i].set_title(r'$\Theta$',fontsize=30)
+		ax[2,i].set_title(r'$\Sigma$',fontsize=30)
+		ax[2,i].set_xlabel(r'$\theta$',fontsize=30)
+
+		for j in range(3):
+
+			if i == 0:
+				ax[j,i].set_ylabel(r'$r$',fontsize=30)
+
+
+			ax[j,i].tick_params(axis="y", labelsize=25,length=2,width=2)
+
+			if j == 2:
+				ax[j,i].xaxis.set_major_locator(plt.MultipleLocator(np.pi / 4))
+				ax[j,i].xaxis.set_major_formatter(plt.FuncFormatter(multiple_formatter()))
+				ax[j,i].tick_params(axis="x", labelsize=25,length=2,width=2)
+			else:
+				ax[j,i].set_xticks([])
+
+	plt.savefig("Eig_Vec.png",format='png', dpi=200)
+	plt.show()
+
+	return None
+
+
 # Execute main
 if __name__ == "__main__":
 
 	# %%
 	%matplotlib inline
+
+	# %%
+	#figure_1()
+	#figure_2()
 
 	# %%
 	main_program();

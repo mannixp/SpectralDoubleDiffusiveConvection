@@ -1,5 +1,6 @@
 import numpy as np
 from numba      import njit
+from numba.typed import List
 from Transforms import IDCT,DCT,IDST,DST
 
 import warnings
@@ -928,6 +929,7 @@ def INTERP_RADIAL(N_n,N_o,X_o,d):
 
 def INTERP_THETAS(N_fm_n,N_fm_o,X_o):
 
+	print('Interpolated in theta from %d to %d'%(N_fm_o,N_fm_n),'\n')
 	if N_fm_n == N_fm_o:
 		return X_o;
 
@@ -994,135 +996,26 @@ def INTERP_THETAS(N_fm_n,N_fm_o,X_o):
 
 	return XX;
 
-#~~~~~~~ Validated up to here ~~~~~~~~~~
-# This doesn't work
-def Interpolate(N_fm_new,N_r_new,	X,N_fm,N_r,d):
-
-	"""
-	
-	"""
-
-	if (N_fm_new == N_fm) and (N_r == N_r_new):
-		return X,N_fm,N_r;
-	else:
-		nr=N_r-1
-		ψ_hat = np.zeros((nr,N_fm)) 
-		T_hat = np.zeros((nr,N_fm)) 
-		S_hat = np.zeros((nr,N_fm))
-		for k in range(N_fm):	
-			ψ_hat[:,k] = X[(0+k)*nr:(1+k)*nr]
-			T_hat[:,k] = X[(1+k)*nr:(2+k)*nr]
-			S_hat[:,k] = X[(2+k)*nr:(3+k)*nr]
-	
-	# 1) Interpolate in r
-	if N_r != N_r_new:
-		
-		# Use Chebyshev grid here
-		# print('Interpolated in r from %d to %d'%(N_r,N_r_new),'\n')
-
-		# R =cheb_radial(N_r,d)[1]
-		# nr=N_r - 1;
-
-		# R_new =cheb_radial(N_r_new,d)[1]
-		# nr_new=N_r_new - 1;
-
-		# ψ_hat = np.zeros((nr_new,N_fm)) 
-		# T_hat = np.zeros((nr_new,N_fm)) 
-		# S_hat = np.zeros((nr_new,N_fm))
-		# for k in range(N_fm-1):
-			
-		# 	ψ_k = np.hstack( ([0.], X[(0+k)*nr:(1+k)*nr] ,[0.])   )
-		# 	ψ_hat[:,k] = np.interp(R_new,R,ψ_k)[1:-1]
-			
-		# 	T_k = np.hstack( ([0.], X[(1+k)*nr:(2+k)*nr] ,[0.])   )
-		# 	T_hat[:,k] = np.interp(R_new,R,T_k)[1:-1]
-			
-		# 	S_k = np.hstack( ([0.], X[(2+k)*nr:(3+k)*nr] ,[0.])   )
-		# 	S_hat[:,k] = np.interp(R_new,R,S_k)[1:-1]
-
-		# 	# print('k=',k)
-		# 	# import matplotlib.pyplot as plt
-		# 	# #plt.plot(R,T_k,'ko',label='r old')
-		# 	# plt.plot(R,ψ_k,'k-',label='r old')
-		# 	# plt.plot(R_new[1:-1],ψ_hat[:,k],'rs',label='new')
-		# 	# #plt.plot(R_new[1:-1],T_hat[:,k],'r-',label='new')
-		# 	# plt.legend()
-		# 	# plt.show()
-		raise NotImplementedError
-
-	# 2) Interpolate in θ
-	if N_fm_new != N_fm:
-
-		print('Interpolated in θ from %d to %d'%(N_fm,N_fm_new),'\n')
-
-		# ψ_hat = DST(IDST(ψ_hat,n = N_fm_new))
-		# T_hat = DCT(IDCT(T_hat,n = N_fm_new))
-		# S_hat = DCT(IDCT(S_hat,n = N_fm_new))
-
-		nr=N_r-1
-		ψ_hat = np.zeros((nr,N_fm_new)) 
-		T_hat = np.zeros((nr,N_fm_new)) 
-		S_hat = np.zeros((nr,N_fm_new))
-		for k in range(N_fm):	
-			ψ_hat[:,k] = X[(0+k)*nr:(1+k)*nr]
-			T_hat[:,k] = X[(1+k)*nr:(2+k)*nr]
-			S_hat[:,k] = X[(2+k)*nr:(3+k)*nr]
-
-	X_new = Vecs_to_X(ψ_hat,T_hat,S_hat, N_fm_new,N_r_new-1)
-
-	return X_new,N_fm_new,N_r_new;
-
-# O(Nr^2 N_theta) complexity & Memory have errors
+# O(Nr^2 N_theta) complexity
 def NAB2_TSTEP_MATS(dt,N_fm,nr,D,R):
 
-
-	N = nr*N_fm; 
-	M0 = np.zeros((nr,nr,N_fm));
-	
-	N2R = np.diag(R[1:-1]**2) -dt*Nabla2(D,R); 
-	I   = -dt*np.eye(nr);
+	N = nr*N_fm
+	M0 = List()
+	I = np.eye(nr)
+	R2 = np.diag(R[1:-1]**2)
+	R2_Nab2 = Nabla2(D,R)
 
 	for jj in range(N_fm):		
 		
-		j = (N_fm - (jj + 1) );
-		ind_j = j*nr;
+		j = (N_fm - (jj + 1) )
+		ind_j = j*nr
 		
-		bj = -float(j)*( float(j) + 1.0)
+		bj = -j*(j + 1.0)
+		A  = R2 - dt*(R2_Nab2 + bj*I)
 
-		if j == 0:
-			M0[:,:,jj] = np.linalg.inv( 2.0*N2R  );	
-		else:
-			M0[:,:,jj] = np.linalg.inv( N2R + bj*I  );
+		M0.append( np.ascontiguousarray(np.linalg.inv(A)) )
 	
-	return M0;
-
-def A4_TSTEP_MATS(  dt,N_fm,nr,D,R):
-	
-	M0 = np.zeros((nr,nr,N_fm));
-
-	IR2 = np.diag( 1.0/(R**2) ); 
-	IR  = np.diag(1.0/R); 
-	IR4 = np.diag( 1.0/(R[1:-1]**4) );
-	D_sq= np.matmul(D,D); 
-	D4  = Nabla4(D,R); 
-	D2  = np.matmul( IR2 , 2.0*D_sq - 4.0*np.matmul(IR,D) + 6.0*IR2 )[1:-1,1:-1]; 
-	A2  = D_sq[1:-1,1:-1]; 
-	IR2 = IR2[1:-1,1:-1];
-
-	for jj in range(N_fm):
-
-		row = (N_fm - (jj + 1) ); 
-		ind_j = row*nr; # Row ind
-		j = float(N_fm-jj); # Remeber sine counting is from 1 - N_theta
-		bj = -j*(j + 1.); bjt = -2.*j;
-		
-		L1 = D2 + bj*IR4; 
-
-		L = (A2 + bj*IR2) - dt*(D4 + bj*L1);
-
-		M0[:,:,jj] = np.linalg.inv(L);
-
-	return M0;
+	return M0
 
 @njit(fastmath=True)
 def NAB2_BSub_TSTEP_V2(g, L_inv,N_fm,nr,dt, symmetric = False):
@@ -1151,21 +1044,13 @@ def NAB2_BSub_TSTEP_V2(g, L_inv,N_fm,nr,dt, symmetric = False):
 			
 			j = (N_fm - (jj + 1) );
 			ind_j = j*nr;
-			A  = np.ascontiguousarray(L_inv[:,:,jj]);
-
-			#print("Odds Row j=%i"%j)
-			bj = -j*(j + 1.0)
 
 			if j < (N_fm - 2 ):
 				ßk = -2.*(j + 2.);
-				#print("ßk =%e, by k=%i:%i"%(ßk,j + 2,j + 3) )
 				ßk = -dt*ßk;
 				b += ßk*f[(j+2)*nr:(j+3)*nr];
 
-			#if j == 0:	
-			#	f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr] - .5*b);	
-			#else:
-			f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr] - b);
+			f[ind_j:ind_j+nr] = L_inv[jj]@(g[ind_j:ind_j+nr] - b);
 
 	# ~~~~~~~~~ Evens ~~~~~~~~~~~~			
 	b = np.zeros(nr);
@@ -1173,23 +1058,47 @@ def NAB2_BSub_TSTEP_V2(g, L_inv,N_fm,nr,dt, symmetric = False):
 		
 		j = (N_fm - (jj + 1) );
 		ind_j = j*nr;
-		A  = np.ascontiguousarray(L_inv[:,:,jj]);
-
-		#print("Evens Row j=%i"%j)
-		bj = -j*(j + 1.0)
 		
 		if j < (N_fm - 2 ):
 			ßk = -2.*(j + 2.);
-			#print("ßk =%e, by k=%i:%i"%(ßk,j + 2,j + 3) )
 			ßk = -dt*ßk;
 			b += ßk*f[(j+2)*nr:(j+3)*nr];
 		
-		#if j == 0:	
-		#	f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr] - .5*b);	
-		#else:
-		f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr] - b);	
+		if j == 0:	
+			f[ind_j:ind_j+nr] = L_inv[jj]@(g[ind_j:ind_j+nr] - 0.5*b);	
+		else:
+			f[ind_j:ind_j+nr] = L_inv[jj]@(g[ind_j:ind_j+nr] - b);
+	
 
 	return f;
+
+def A4_TSTEP_MATS(dt,N_fm,nr,D,R):
+	
+	M0 = List()
+
+	D4  = Nabla4(D, R)
+	IR4 = np.diag( 1.0/(R[1:-1]**4) )
+
+	IR2 = np.diag( 1.0/(R**2) ) 
+	IR  = np.diag(1.0/R)
+	D_sq= D@D 
+	D2  = np.matmul(IR2, 2*D_sq - 4*IR@D + 6*IR2 )[1:-1,1:-1] 
+
+	A2  = D_sq[1:-1,1:-1] 
+	IR2 = IR2[1:-1,1:-1]
+
+	for jj in range(N_fm):
+
+		row = N_fm - (jj + 1)
+		ind_j = row * nr
+		j = N_fm - jj
+		bj = -j*(j + 1)
+		L1 = D2 + bj*IR4 
+		L = (A2 + bj*IR2) - dt*(D4 + bj*L1)
+
+		M0.append( np.ascontiguousarray(np.linalg.inv(L)) )
+
+	return M0
 
 @njit(fastmath=True)
 def A4_BSub_TSTEP_V2(g,  L_inv,D,R,N_fm,nr,dt, symmetric = False):
@@ -1213,64 +1122,28 @@ def A4_BSub_TSTEP_V2(g,  L_inv,D,R,N_fm,nr,dt, symmetric = False):
 	L_inv = (A^2 - ∆t*Pr*A^2A^2)^-1
 	"""
 
-	N = nr*N_fm; f = np.zeros(N); 
+	IR2 = np.diag( 1.0/(R**2) ) 
+	IR  = np.diag(1.0/R)
+	D_sq= D@D 
+	D2  = np.ascontiguousarray( (IR2@(2*D_sq - 4*IR@D + 6*IR2 ))[1:-1,1:-1] )
+
+	IR2 = np.ascontiguousarray( IR2[1:-1,1:-1] )
+	IR4 = np.ascontiguousarray( np.diag( 1.0/(R[1:-1]**4) ) )
+
+	N = nr*N_fm; f = np.zeros(N) 
 	
-	IR  = np.diag(1.0/R); 
-	IR  = np.ascontiguousarray(IR);
-	IR2	= IR@IR;
-	D   = np.ascontiguousarray(D);
-	D2  = ( IR2@(2.0*(D@D) - 4.0*IR@D + 6.0*IR2 ) )[1:-1,1:-1];
-	IR2 = IR2[1:-1,1:-1];
-	IR2 = np.ascontiguousarray(IR2);
-	IR4 = IR2@IR2;
-
-	if symmetric == False:
-		# ~~~~~~~~~~~~~~~ EVENS ~~~~~~~~~~~~~~~~~~~~
-		f_e = np.zeros(nr); bf_e = np.zeros(nr); 
-		for jj in range(0,N_fm,2):
-
-			row = (N_fm - (jj + 1) ); 
-			ind_j = row*nr; # Row ind
-			j = N_fm-jj; # Remeber sine counting is from 1 - N_theta
-			bj = -j*(j + 1.); bjt = -2.*j;
-			
-			L1 = D2 + bj*IR4;
-			A  = np.ascontiguousarray(L_inv[:,:,jj]);
-			
-			#print("Evens Row row=%i"%row)
-			#print("Sine mode j=%i"%j)
-
-			if row < (N_fm - 2 ):
-			
-				f_e += f[(row+2)*nr:(row+3)*nr];
-
-				# Add time component
-				b_test = dt*bjt*( L1.dot( f_e ) + IR4.dot( bf_e) ) - bjt*IR2.dot(f_e);
-				f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]+b_test);   #O(Nr^2 N_theta)
-
-
-				# Add sums after to get +2 lag
-				bf_e += bj*f[ind_j:ind_j+nr] + bjt*f_e;
-
-			else:
-				f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]);
-				bf_e += bj*f[ind_j:ind_j+nr];
-
-
-	# ~~~~~~~~~~~~~~~ ODDS ~~~~~~~~~~~~~~~~~~~~		
+	
+	# ~~~~~~~~~~~~~~~ EVENS ~~~~~~~~~~~~~~~~~~~~
 	f_e = np.zeros(nr); bf_e = np.zeros(nr); 
-	for jj in range(1,N_fm,2):
+	for jj in range(0,N_fm,2):
 
-		row = (N_fm - (jj + 1) ); 
-		ind_j = row*nr; # Row ind
-		j = N_fm-jj; # Remeber sine counting is from 1 - N_theta
-		bj = -j*(j + 1.); bjt = -2.*j;
+		row = N_fm - (jj + 1) 
+		ind_j = row*nr
+		j = N_fm-jj
+		bj = -j*(j + 1)
+		bjt = -2*j
 		
-		#print("Odds Row row=%i"%row)
-		#print("Sine mode j=%i"%j)
-
-		L1 = D2 + bj*IR4
-		A  = np.ascontiguousarray(L_inv[:,:,jj]);
+		L1 = D2 + bj*IR4 
 
 		if row < (N_fm - 2 ):
 		
@@ -1278,15 +1151,44 @@ def A4_BSub_TSTEP_V2(g,  L_inv,D,R,N_fm,nr,dt, symmetric = False):
 
 			# Add time component
 			b_test = dt*bjt*( L1.dot( f_e ) + IR4.dot( bf_e) ) - bjt*IR2.dot(f_e);
-			f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]+b_test);   #O(Nr^2 N_theta)
+			
+			f[ind_j:ind_j+nr] = L_inv[jj]@(g[ind_j:ind_j+nr]+b_test);   #O(Nr^3 N_theta)
+
 
 			# Add sums after to get +2 lag
 			bf_e += bj*f[ind_j:ind_j+nr] + bjt*f_e;
 
 		else:
-
-			#f[ind_j:ind_j+nr] = np.linalg.solve(L,g[ind_j:ind_j+nr]);
-			f[ind_j:ind_j+nr] = A.dot(g[ind_j:ind_j+nr]);
+			f[ind_j:ind_j+nr] = L_inv[jj]@(g[ind_j:ind_j+nr]);
 			bf_e += bj*f[ind_j:ind_j+nr];
+
+	if symmetric == False:
+		# ~~~~~~~~~~~~~~~ ODDS ~~~~~~~~~~~~~~~~~~~~		
+		f_e = np.zeros(nr); bf_e = np.zeros(nr); 
+		for jj in range(1,N_fm,2):
+
+			row = N_fm - (jj + 1)
+			ind_j = row*nr
+			j = N_fm-jj
+			bj = -j*(j + 1)
+			bjt = -2*j
+			L1 = D2 + bj*IR4
+			
+			if row < (N_fm - 2 ):
+			
+				f_e += f[(row+2)*nr:(row+3)*nr];
+
+				# Add time component
+				b_test = dt*bjt*( L1.dot( f_e ) + IR4.dot( bf_e) ) - bjt*IR2.dot(f_e);
+				
+				f[ind_j:ind_j+nr] = L_inv[jj]@(g[ind_j:ind_j+nr]+b_test);   #O(Nr^3 N_theta)
+
+				# Add sums after to get +2 lag
+				bf_e += bj*f[ind_j:ind_j+nr] + bjt*f_e;
+
+			else:
+
+				f[ind_j:ind_j+nr] = L_inv[jj]@(g[ind_j:ind_j+nr]);
+				bf_e += bj*f[ind_j:ind_j+nr];
 
 	return f;
