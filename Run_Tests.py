@@ -12,44 +12,38 @@ from Transforms import test_Sine_Transform_NL, test_Sine_Transform_deal
 
 
 def slope(filename):
-    
+    """Compute the slope to estimate the growth rate."""
     st_pt = 1000
-    f = h5py.File(filename, 'r');
-    Time  = f['Scalar_Data/Time'][()][-st_pt:]
-    KE    = f['Scalar_Data/Norm'][()][-st_pt:]
+    f = h5py.File(filename, 'r')
+    Time = f['Scalar_Data/Time'][()][-st_pt:]
+    KE = f['Scalar_Data/Norm'][()][-st_pt:]
     f.close()
 
-    slope,_ = np.polyfit(Time,np.log(KE),1)
+    slope, _ = np.polyfit(Time, np.log(KE), 1)
 
-    return slope;
+    return slope
 
 
 def test_Linear():
 
     # Validation Case l=2
-    Tau = 1
-    Ra_s = 500
-    Pr = 1
-    d = 2
-    Ra = 7268.365
     N_fm = 10
     N_r = 20
 
-    μ_args = [Ra, Ra_s, Tau, Pr]
-
-    D, R = cheb_radial(N_r, d)
     nr = N_r - 1
     N = nr*N_fm
 
     X = np.random.rand(3*N)
     X = 1e-03*(X/np.linalg.norm(X, 2))
 
-    Time_steps = [5e-3, 2.5e-03, 1.25e-03, 6.125e-04]
+    Time_steps = [5e-3, 2.5e-03, 1.25e-03]#, 6.125e-04]
     Slopes = []
     for dt in Time_steps:
         filename = 'Linear_Test_dt'+str(dt)+'.h5'
-        kwargs = {"Ra": Ra, "Ra_s": Ra_s, "Tau": Tau, "Pr": Pr, "d": d, "N_fm": N_fm, "N_r": N_r}
-        _Time_Step(X, **kwargs, save_filename=filename, start_time=0, Total_time=20, dt=dt, symmetric=False, linear=True, Verbose=False)
+        kwargs = {"Ra": 7268.365, "Ra_s": 500, "Tau": 1, "Pr": 1, "d": 2,
+                  "N_fm": N_fm, "N_r": N_r}
+        _Time_Step(X, **kwargs, save_filename=filename, start_time=0,
+                   Total_time=40, dt=dt, symmetric=True, linear=True, Verbose=False)
         Slopes.append(slope(filename))
 
     print('\n')
@@ -63,66 +57,62 @@ def test_Linear():
 def test_Nonlinear_Tstep():
 
     #~~~~~~~~~~~ Wide Gap l=2 ~~~~~~~~~~~
-    Tau = 1.; Ra_s = 0.0; Pr = 10.;  
-    d   = 2.; Ra   = 6780.; 
+    d = 2
+    N_fm = 32
+    N_r = 16
+    dt = 0.075
 
-    N_fm = 32;
-    N_r  = 16;
-    dt   = 0.075;
+    D, R = cheb_radial(N_r, d)
+    nr = len(R[1:-1])
+    N = nr*N_fm
 
-    D,R  = cheb_radial(N_r,d); 
-    nr   = len(R[1:-1]);
-    N 	 = nr*N_fm;
-
-    X = np.random.rand(3*N);
-    X = 1e-03*(X/np.linalg.norm(X,2))
+    X = np.random.rand(3*N)
+    X = 1e-03*(X/np.linalg.norm(X, 2))
 
     filename = 'Non_Linear_Test_wide_gap_dt'+str(dt)+'.h5'
-    kwargs   = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm,"N_r":N_r}
-    X_new    = _Time_Step(X,**kwargs, save_filename = filename ,start_time=0., Total_time=2*(10**3), dt=dt, symmetric=False,linear=False,Verbose=False);
+    kwargs = {"Ra": 6780, "Ra_s": 0, "Tau": 1, "Pr": 10, "d": d, "N_fm": N_fm, "N_r": N_r}
+    X_new = _Time_Step(X, **kwargs, symmetric=True, save_filename=filename, start_time=0, Total_time=2*(10**3), dt=dt, linear=False, Verbose=False)
 
-    T_hat  = X_new[N:2*N];
-    Nu_avg = Nusselt(T_hat, d,     R,D,N_fm,nr);
-    KE_avg = Kinetic_Energy(X_new, R,D,N_fm,nr);
+    T_hat = X_new[N:2*N]
+    Nu_avg = Nusselt(T_hat, d,     R, D, N_fm, nr)
+    KE_avg = Kinetic_Energy(X_new, R, D, N_fm, nr, symmetric=True)
 
     print('\n')
-    print('Ra,Pr,d =%d,%d,%d'%(Ra,Pr,d))
-    print('N_r,N_θ,∆t =%d,%d,%2.3f'%(N_r,N_fm,dt))
-    print('<Nu> = ',Nu_avg)
-    print('<KE> = ',KE_avg)
+    print('Ra,Pr,d =%d,%d,%d' % (kwargs["Ra"], kwargs["Pr"], d))
+    print('N_r,N_θ,∆t =%d,%d,%2.3f' % (N_r, N_fm, dt))
+    print('<Nu> = ', Nu_avg)
+    print('<KE> = ', KE_avg)
     print('\n')
 
     #~~~~~~~~~~~ Narrow Gap l=10 ~~~~~~~~~~~
-    Tau = 1.;    Ra_s = 0.0; Pr = 1.;  
-    d   = 0.353; Ra   = 2360.0; 
+    d = 0.353
+    N_fm = 48
+    N_r = 24
+    dt = 0.075
 
-    N_fm = 48;
-    N_r  = 24;
-    dt   = 0.075;
+    D, R = cheb_radial(N_r, d)
+    nr = len(R[1:-1])
+    N = nr*N_fm
 
-    D,R  = cheb_radial(N_r,d); 
-    nr   = len(R[1:-1]);
-    N 	 = nr*N_fm;
-
-    X = np.random.rand(3*N);
-    X = 1e-03*(X/np.linalg.norm(X,2))
+    X = np.random.rand(3*N)
+    X = 1e-03*(X/np.linalg.norm(X, 2))
 
     filename = 'Non_Linear_Test_thin_gap_dt'+str(dt)+'.h5'
-    kwargs   = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm,"N_r":N_r}
-    X_new    = _Time_Step(X,**kwargs, save_filename = filename ,start_time=0., Total_time=2*(10**3), dt=dt, symmetric=False,linear=False,Verbose=False);
+    kwargs = {"Ra": 2360, "Ra_s": 0, "Tau": 1, "Pr": 1, "d": d, "N_fm": N_fm, "N_r": N_r}
+    X_new = _Time_Step(X, **kwargs, symmetric=True, save_filename=filename, start_time=0, Total_time=2*(10**3), dt=dt, linear=False, Verbose=False)
 
-    T_hat  = X_new[N:2*N];
-    Nu_avg = Nusselt(T_hat, d,     R,D,N_fm,nr);
-    KE_avg = Kinetic_Energy(X_new, R,D,N_fm,nr);
+    T_hat = X_new[N:2*N]
+    Nu_avg = Nusselt(T_hat, d, R, D, N_fm, nr)
+    KE_avg = Kinetic_Energy(X_new, R, D, N_fm, nr, symmetric=True)
 
     print('\n')
-    print('Ra,Pr,d =%d,%d,%d'%(Ra,Pr,d))
-    print('N_r,N_θ,∆t =%d,%d,%2.3f'%(N_r,N_fm,dt))
-    print('<Nu> = ',Nu_avg)
-    print('<KE> = ',KE_avg)
+    print('Ra,Pr,d =%d,%d,%d' % (kwargs["Ra"], kwargs["Pr"], d))
+    print('N_r,N_θ,∆t =%d,%d,%2.3f' % (N_r, N_fm, dt))
+    print('<Nu> = ', Nu_avg)
+    print('<KE> = ', KE_avg)
     print('\n')
 
-    return None;
+    return None
 
 
 def test_Nonlinear_Newton():
