@@ -1194,8 +1194,7 @@ if __name__ == "__main__":
 
 	# %%
 	#filename = 'EigVec_l10.npy'
-	#Newton(fac=-1e-02,open_filename=file	D = np.ascontiguousarray(D)
-name,frame=-1);
+	#Newton(fac=-1e-02,open_filename=filename,frame=-1);
 
 	# %%
 	#from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
