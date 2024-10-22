@@ -39,7 +39,7 @@ def Base_State_Coeffs(d):
 
 
 @njit(fastmath=True)
-def Nusselt(T_hat, d, R, D, N_fm, nr):
+def Nusselt(T_hat, d, R, D, N_fm, nr, check=True):
 
 	"""
 	Compute the convective Nusselt number:
@@ -50,22 +50,22 @@ def Nusselt(T_hat, d, R, D, N_fm, nr):
 	"""
 
 	# Compute coefficients
-	R_1 = 1./d; 
-	R_2 = (1. + d)/d;
-	A_T = (R_1*R_2)/(R_1 - R_2);
+	R_1 = 1/d 
+	R_2 = (1 + d)/d
+	A_T = (R_1*R_2)/(R_1 - R_2)
 
 	NuM1 = 0.*R
-	for k in range(0,N_fm,2):
-		TT      = 0.*R;
+	for k in range(0, N_fm, 2):
+		TT      = 0*R
 		TT[1:-1]= T_hat[k*nr:(k+1)*nr]
-		NuM1   += (D@TT)/(1.-(k**2));
-	NuM1 = ((R**2)/A_T)*NuM1;
+		NuM1   += (D@TT)/(1.-(k**2))
+	NuM1 = ((R**2)/A_T)*NuM1
 
-	# error = abs(NuM1[-1] - NuM1[0])/abs(NuM1[-1]);	
-	# if error > 1e-03:
-	# 	print("|Nu(R_1) - Nu(R_2)|/|Nu(R_1)| = ",error," > .1%, Increase Nr \n" )
-	
-	return NuM1[0];
+	error = abs(NuM1[-1] - NuM1[0])/abs(NuM1[-1])	
+	if (check is True) and (error > 1e-03):
+		raise ValueError("|Nu(R_1) - Nu(R_2)|/|Nu(R_1)| = ", error, " > .1%, Increase Nr \n")
+
+	return NuM1[0]
 
 
 def Kinetic_Energy(X_hat, R, D, N_fm, nr, symmetric):
@@ -291,8 +291,8 @@ def _Time_Step(X, Ra, Ra_s, Tau, Pr, d,	N_fm, N_r, symmetric, save_filename='Tim
 		
 		Norm.append(np.linalg.norm(X_new, 2))
 		KE.append(Kinetic_Energy(X_new, R, D, N_fm, nr, symmetric))
-		NuT.append(Nusselt(X_new[N:2*N], d, R, D, N_fm, nr))
-		NuS.append(Nusselt(X_new[2*N:3*N], d, R, D, N_fm, nr))
+		NuT.append(Nusselt(X_new[N:2*N], d, R, D, N_fm, nr, check=False))
+		NuS.append(Nusselt(X_new[2*N:3*N], d, R, D, N_fm, nr, check=False))
 		Time.append(start_time + dt*iteration)
 
 		if (iteration%N_print == 0) and (Verbose == True):
@@ -326,7 +326,7 @@ def _Time_Step(X, Ra, Ra_s, Tau, Pr, d,	N_fm, N_r, symmetric, save_filename='Tim
 			timer += END_time - ST_time;
 	print("Avg time = %e \n"%(timer/(iteration-1)) );
 
-	return X_new;
+	return X_new
 
 
 def Time_Step(open_filename=None, frame=-1, delta_Ra=0):
@@ -414,7 +414,7 @@ def Time_Step(open_filename=None, frame=-1, delta_Ra=0):
 	return filename;
 
 
-def _Newton(X, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric, dt=10**4, tol_newton=1e-08, tol_gmres=1e-04, Krylov_Space_Size=150):
+def _Newton(X, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric, dt=10**4, tol_newton=1e-08, tol_gmres=1e-04, Krylov_Space_Size=250):
 	
 	"""
 	Given a starting point and a control parameter compute a new steady-state using Newton iteration
@@ -602,9 +602,10 @@ def Newton(fac, open_filename='NewtonSolve_0.h5', save_filename='NewtonSolve_0.h
 		# Ra = 9851.537357677651; # steady
 		# Ra = 2965.1798389922933; # hopf
 
-		d = 0.36737
-		l = 10
-		Ra = 9889.253292035168
+		# ~~~~~# L = 12 Gap #~~~~~~~~~#
+		d = 0.285
+		l=12.0
+		Ra = 9721.960152818841
 
 
 		Ra    -=1e-02
@@ -729,7 +730,7 @@ def _NewtonC(Y, sign, ds, **kwargs_f):
 		return Y    ,sign,ds,	Norm,KE,NuT,NuS,	exitcode;
 
 
-def _ContinC(Y_0_dot, Y_0, sign, ds, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric, dt=10**4, tol_newton=1e-08, tol_gmres=1e-04, Krylov_Space_Size=150):
+def _ContinC(Y_0_dot, Y_0, sign, ds, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric, dt=10**4, tol_newton=1e-08, tol_gmres=1e-04, Krylov_Space_Size=250):
 
 	"""
 	Given a starting point and a control parameter compute a new steady-state using Newton iteration
@@ -1081,14 +1082,14 @@ def Continuation(open_filename, frame=-1):
 
 		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
 		from Matrix_Operators import INTERP_RADIAL,INTERP_THETAS
-		N_r_n  = 20; X = INTERP_RADIAL(N_r_n,N_r,X,d);
-		N_fm_n = 128; X = INTERP_THETAS(N_fm_n,N_fm,X);
+		N_r_n  = 32; X = INTERP_RADIAL(N_r_n,N_r,X,d);
+		N_fm_n = 256; X = INTERP_THETAS(N_fm_n,N_fm,X);
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	sign   = -1;
-	N_steps= 1000;
+	N_steps= 500;
 	Y      = np.hstack( (X,Ra) );
-	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r_n, "symmetric":True}
+	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau/2.,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r_n, "symmetric":True}
 
 	save_filename = uniquify(open_filename)
 	
@@ -1165,8 +1166,8 @@ def _plot_bif(filename, point = -1):
 	plt.semilogy(obj.Ra[idx],obj.KE[idx],'ro')
 	
 	D,R = cheb_radial(N_r,d); 
-	KE = Kinetic_Energy(obj.X_DATA[point], R,D,N_fm,N_r-1,symmetric)
-	plt.semilogy(obj.Ra[point*5],obj.KE[point*5],'y*')
+	KE = Kinetic_Energy(obj.X_DATA[point], R,D,N_fm,N_r-1,symmetric=False)
+	#plt.semilogy(obj.Ra[point*5],obj.KE[point*5],'y*')
 	plt.semilogy(obj.Ra_DATA[point], KE ,'bs')
 
 	plt.title(r'Kinetic Energy',fontsize=25)
@@ -1174,8 +1175,10 @@ def _plot_bif(filename, point = -1):
 	plt.xlabel(r'$Ra$',fontsize=25)
 	
 	plt.tight_layout()
-	plt.savefig("Bifurcation_Series.png",format='png', dpi=200)
-	plt.show()        
+	fname,_ = os.path.splitext(filename)
+	plt.savefig(fname + ".png",format='png', dpi=200)
+	plt.show()
+	plt.close()  
 
 	return None;
 
@@ -1187,19 +1190,20 @@ if __name__ == "__main__":
 	print("Initialising the code for running...")
 
 	# %%
-	#Continuation(open_filename='NewtonSolveMinus_0.h5',frame=-1)
+	#Continuation(open_filename='ContinuationMinusRas350_0.h5',frame=0)
 	#trim(filename='NewtonSolve_5.h5',point=45)
 	#_plot_bif(filename='ContinuationMinus_0.h5',point=-35) #  Good start point
-	_plot_bif(filename='ContinuationPlus_0.h5',point=30) #  Good start point
+	#_plot_bif(filename='ContinuationPlus_0.h5',point=30) #  Good start point
 
 	# %%
-	#filename = 'EigVec_l10.npy'
+	#filename = 'EigVec_l12.npy'
 	#Newton(fac=-1e-02,open_filename=filename,frame=-1);
 
 	# %%
-	#from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
-	#_plot_bif(filename='ContinuationL11Large_8.h5',point=-1)
-	#Cartesian_Plot(filename='ContinuationL11Large_8.h5',frame=-1,Include_Base_State=False)
-	#Energy(filename='ContinuationL11Large_8.h5',frame=-1)
+	from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
+	_plot_bif(filename='ContinuationMinusRas350_1.h5',point=-1)
+	Cartesian_Plot(filename='ContinuationMinusRas350_1.h5',frame=-1,Include_Base_State=False)
+	Energy(filename='ContinuationMinusRas350_1.h5',frame=-1)
 
+    # Fix these they should be the same
 # %%

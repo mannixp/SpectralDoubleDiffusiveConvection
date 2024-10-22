@@ -74,7 +74,7 @@ def test_Nonlinear_Tstep():
     X_new = _Time_Step(X, **kwargs, symmetric=True, save_filename=filename, start_time=0, Total_time=2*(10**3), dt=dt, linear=False, Verbose=False)
 
     T_hat = X_new[N:2*N]
-    Nu_avg = Nusselt(T_hat, d,     R, D, N_fm, nr)
+    Nu_avg = Nusselt(T_hat, d,     R, D, N_fm, nr, check=False)
     KE_avg = Kinetic_Energy(X_new, R, D, N_fm, nr, symmetric=True)
 
     print('\n')
@@ -102,7 +102,7 @@ def test_Nonlinear_Tstep():
     X_new = _Time_Step(X, **kwargs, symmetric=True, save_filename=filename, start_time=0, Total_time=2*(10**3), dt=dt, linear=False, Verbose=False)
 
     T_hat = X_new[N:2*N]
-    Nu_avg = Nusselt(T_hat, d, R, D, N_fm, nr)
+    Nu_avg = Nusselt(T_hat, d, R, D, N_fm, nr, check=False)
     KE_avg = Kinetic_Energy(X_new, R, D, N_fm, nr, symmetric=True)
 
     print('\n')

@@ -334,11 +334,15 @@ def main_program():
 	# Ra_c_hopf   = 2879.0503253066827
 
 	# ~~~~~# L = 10 Gap #~~~~~~~~~#
-	d = 0.3521; l=10.0; 
-	Ra_c_steady = 9851.537357677651; Nvals=1
+	#d = 0.3521; l=10.0; 
+	#Ra_c_steady = 9851.537357677651; Nvals=1
+	#Ra_c_hopf   = 2965.1798389922933; Nvals=0
+
+	# ~~~~~# L = 12 Gap #~~~~~~~~~#
+	d = 0.285; l=12.0; 
+	Ra_c_steady = 9721.960152818841; Nvals=1
 	Ra_c_hopf   = 2965.1798389922933; Nvals=0
 	
-	d =  0.36737
 	Ra = Critical_Eigval(Ra_c_steady,l,d,Nvals=1)
 	#Ra = Critical_Eigval(Ra_c_hopf,l,d,Nvals=0)
 
@@ -358,7 +362,7 @@ def main_program():
 	print('Chose Eigenvector for \lambda_%d = %e'%(lambda_i,Eig_val[lambda_i]) )
 	print('#~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~# \n')
 
-	filename = 'EigVec_l10.npy'
+	filename = 'EigVec_l12.npy'
 	N_fm = 64
 	X    = Full_Eig_Vec(Eig_vec,l,N_fm,nr=Nr-1,symmetric=False)
 	np.save(filename,X)

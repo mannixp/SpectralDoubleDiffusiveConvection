@@ -450,7 +450,7 @@ def Energy(filename,frame=-1):
 		N_r = 20
 
 	from Matrix_Operators import X_to_Vecs
-	ψ_hat,T_hat,S_hat = X_to_Vecs(X,N_fm,N_r - 1)
+	ψ_hat,T_hat,S_hat = X_to_Vecs(X,N_fm,N_r - 1,symmetric=False)
 
 
 	fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2,figsize=(12, 6))
@@ -572,7 +572,7 @@ def Spectral_To_Gridpoints(X, R,xx,N_fm,d):
 	
 	# 1) Transform vector to sq grid
 	nr = len(R[1:-1]) 
-	ψ_hat,T_hat,S_hat = X_to_Vecs(X,N_fm,nr)
+	ψ_hat,T_hat,S_hat = X_to_Vecs(X,N_fm,nr,symmetric=False)
 
 	# 2) Take the idct, idst of each radial level set
 	ψ = np.zeros((len(R),N_fm)); ψ[1:-1,:] = IDST(ψ_hat)
@@ -660,7 +660,7 @@ def Ur(X,N_fm,N_r,d):
 
 	IR  	= np.diag(1./R[1:-1]);
 	IR2 	= IR@IR;
-	Jψ_hat  = J_theta_RT(X[0:N], nr,N_fm)
+	Jψ_hat  = J_theta_RT(X[0:N], nr,N_fm, symmetric=False)
 	u_r_hat = np.zeros((nr, N_fm)); 
 
 	for ii in range(N_fm):
@@ -872,14 +872,14 @@ if __name__ == "__main__":
 	print("Initialising the code for plotting ...")
 	#%matplotlib inline
 	
-	dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_l11_d0.33069/'
-	folder=dir + 'Large/'
+	#dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_l11_d0.33069/'
+	#folder=dir + 'Large/'
 
-	# dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_l11_d0.31325/'
-	# folder=dir + 'Small/'
+	dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_l10_d0.353/'
+	folder=dir + 'Branch_l10_Minus_d0.353_Ra_s350/'
 
-	# dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_l11_d0.3161/'
-	# folder=dir + 'Small/'
+	#dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_l10_d0.353/'
+	#folder=dir + 'Branch_l10_Minus_d0.353_Ra_s350_0.5Tau/'
 
 	#folder=dir #+ 'Plus/'
 	#folder=dir + 'Minus/'
