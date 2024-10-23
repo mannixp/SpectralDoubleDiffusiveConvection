@@ -1086,10 +1086,10 @@ def Continuation(open_filename, frame=-1):
 		N_fm_n = 256; X = INTERP_THETAS(N_fm_n,N_fm,X);
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	sign   = -1;
+	sign   = 1;
 	N_steps= 500;
 	Y      = np.hstack( (X,Ra) );
-	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau/2.,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r_n, "symmetric":True}
+	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r_n, "symmetric":True}
 
 	save_filename = uniquify(open_filename)
 	
@@ -1190,7 +1190,7 @@ if __name__ == "__main__":
 	print("Initialising the code for running...")
 
 	# %%
-	#Continuation(open_filename='ContinuationMinusRas350_0.h5',frame=0)
+	Continuation(open_filename='Continuationl10LargeRas450_0.h5',frame=-1)
 	#trim(filename='NewtonSolve_5.h5',point=45)
 	#_plot_bif(filename='ContinuationMinus_0.h5',point=-35) #  Good start point
 	#_plot_bif(filename='ContinuationPlus_0.h5',point=30) #  Good start point
@@ -1201,9 +1201,9 @@ if __name__ == "__main__":
 
 	# %%
 	from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
-	_plot_bif(filename='ContinuationMinusRas350_1.h5',point=-1)
-	Cartesian_Plot(filename='ContinuationMinusRas350_1.h5',frame=-1,Include_Base_State=False)
-	Energy(filename='ContinuationMinusRas350_1.h5',frame=-1)
+	_plot_bif(filename='Continuationl10LargeRas450_0.h5',point=-1)
+	#Cartesian_Plot(filename='Continuationl10LargeRa_s450_0.h5',frame=-1,Include_Base_State=False)
+	#Energy(filename='Continuationl10LargeRa_s450_0.h5',frame=-1)
 
     # Fix these they should be the same
 # %%
