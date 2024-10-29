@@ -13,7 +13,7 @@ from Linear_Matrix_Operators import ML_0, Ll_0, cheb_radial
 
 Γ = lambda d,R_1 = 1: (R_1*np.pi)/d
 
-def Eig_Vals(Ra1,l,d,Nvals, Ra_s=500,Pr=1,Tau=1./15., Nr = 30):	
+def Eig_Vals(Ra1,l,d,Nvals, Ra_s=300,Pr=1,Tau=1./30., Nr = 30):	
 	
 	"""
 	Solve the EVP for a given 
@@ -53,7 +53,7 @@ def Eig_Vals(Ra1,l,d,Nvals, Ra_s=500,Pr=1,Tau=1./15., Nr = 30):
 	else:
 		return eigenValues[idx][0:Nvals];	
 
-def Eig_Vec( Ra1,l,d,    k, Ra_s=500,Pr=1,Tau=1./15., Nr = 30):
+def Eig_Vec( Ra1,l,d,    k, Ra_s=300,Pr=1,Tau=1./30., Nr = 30):
 	
 	"""
 	Solve the EVP for a given 
@@ -190,11 +190,11 @@ def Neutral(Ra_c_hopf,Ra_c_steady,l_org,d_org):
 
 	"""
 
-	l_left  =l_org - 1
-	l_right =l_org 
+	l_left  =l_org - 2
+	l_right =l_org + 2
 
 
-	def Neutrals_Ra_D(Ra_org,l, d_org, k, width=0.05,N_iters = 50):	
+	def Neutrals_Ra_D(Ra_org,l, d_org, k, width=0.05,N_iters = 30):	
 		
 		d_for  = np.linspace(d_org,d_org+width,N_iters);
 		Ra_for = np.zeros(N_iters);
@@ -219,7 +219,7 @@ def Neutral(Ra_c_hopf,Ra_c_steady,l_org,d_org):
 
 		return Ra_l,d_l
 
-	L = np.arange(l_org-2,l_org+4,1);
+	L = np.arange(l_org-3,l_org+3,1);
 
 	# 1 Generate a figure
 	fig, (ax1, ax2) = plt.subplots(nrows=2,figsize=(16,8),dpi=200,layout="constrained")
@@ -268,24 +268,24 @@ def Neutral(Ra_c_hopf,Ra_c_steady,l_org,d_org):
 	d_mid = d_l[index]
 	print('l=%d,%d intersection, d_mid = %3.5f, Γ(d_mid) = %3.3f'%(l_left,l_right,d_mid,Γ(d_mid)),'\n')
 
-	ax2.set_title(r'$\lambda = \pm i \omega$',fontsize=25);
-	ax2.set_xlabel(r'$\Gamma$',fontsize=30)
-	ax2.set_ylabel(r'$Ra$',fontsize=30)
+	# ax2.set_title(r'$\lambda = \pm i \omega$',fontsize=25);
+	# ax2.set_xlabel(r'$\Gamma$',fontsize=30)
+	# ax2.set_ylabel(r'$Ra$',fontsize=30)
 
-	ax2.grid()
-	ax2.legend(loc=2,fontsize=20)
-	ax2.tick_params(axis="both", labelsize=25,length=2,width=2)
+	# ax2.grid()
+	# ax2.legend(loc=2,fontsize=20)
+	# ax2.tick_params(axis="both", labelsize=25,length=2,width=2)
 
-	ax1.set_title(r'$\lambda = 0$', fontsize=25)
-	#ax1.set_xlabel(r'$\Gamma$',fontsize=20)
-	ax1.set_ylabel(r'$Ra$',fontsize=30)
+	# ax1.set_title(r'$\lambda = 0$', fontsize=25)
+	# #ax1.set_xlabel(r'$\Gamma$',fontsize=20)
+	# ax1.set_ylabel(r'$Ra$',fontsize=30)
 
-	ax1.grid()
-	ax1.legend(loc=2,fontsize=20)
-	ax1.tick_params(axis="both", labelsize=25,length=2,width=2)
+	# ax1.grid()
+	# ax1.legend(loc=2,fontsize=20)
+	# ax1.tick_params(axis="both", labelsize=25,length=2,width=2)
 
-	ax2.set_ylim([2800,3200])
-	ax1.set_ylim([9700,10000])
+	# ax2.set_ylim([2800,3200])
+	# ax1.set_ylim([9700,10000])
 
 	plt.savefig("NeutralCurves_TauI15_Pr1_Ras500.png", format='png', dpi=200)
 	plt.show()
@@ -323,10 +323,22 @@ def main_program():
 	#Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=500,Pr=1.,Tau=1., Nr = 20);
 	#print(Eig_val)
 
-	# # ~~~~~# Validation Case (2) # ~~~~~#
-	# d    = 2.0; Ra_c = 6.77*(10**3) - 10.; l=2;
-	# Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=0,Pr=1.,Tau=1., Nr = 30);
-	# print(Eig_val)
+	# ~~~~~# Validation Case (2) # ~~~~~#
+	# Vary Tau
+	d = 2; l = 2
+	Ra_c = 6900; Ra_s = 500; Pr = 1; Tau = 10;
+	Eig_val = Eig_Vals(Ra_c,l,d,Nvals=2,Ra_s=500,Pr=1,Tau=10, Nr = 20);
+	print(Eig_val)
+
+	# Vary Tau
+	Ra_c = 7800; Ra_s = 500; Pr = 1; Tau = .5
+	Eig_val = Eig_Vals(Ra_c,l,d,Nvals=2,Ra_s=500,Pr=1,Tau=.5, Nr = 20);
+	print(Eig_val)
+
+	# Vary Ra_s
+	Ra_c = 7100; Ra_s=250; Pr=1; Tau=1;
+	Eig_val = Eig_Vals(Ra_c,l,d,Nvals=2,Ra_s=250,Pr=1,Tau=1, Nr = 20);
+	print(Eig_val)
 
 	# ~~~~~# L = 11 Gap #~~~~~~~~~#
 	# d = 0.31325; l=11.0; 
@@ -338,38 +350,39 @@ def main_program():
 	#Ra_c_steady = 9851.537357677651; Nvals=1
 	#Ra_c_hopf   = 2965.1798389922933; Nvals=0
 
-	# ~~~~~# L = 12 Gap #~~~~~~~~~#
-	d = 0.285; l=12.0; 
-	Ra_c_steady = 9721.960152818841; Nvals=1
-	Ra_c_hopf   = 2965.1798389922933; Nvals=0
+	# # ~~~~~# L = 12 Gap #~~~~~~~~~#
+	# d = 0.10778
+	# l = 30 
+	# Ra_c_steady = 9721.960152818841; Nvals=1
+	# Ra_c_hopf   = 2965.1798389922933; Nvals=0
 	
-	Ra = Critical_Eigval(Ra_c_steady,l,d,Nvals=1)
-	#Ra = Critical_Eigval(Ra_c_hopf,l,d,Nvals=0)
+	# Ra = Critical_Eigval(Ra_c_steady,l,d,Nvals=1)
+	# #Ra = Critical_Eigval(Ra_c_hopf,l,d,Nvals=0)
 
-	print('Ra = ',Ra)
-	#d = 0.3341; # Half of the two avbove
-	#Neutral(Ra_c_hopf,Ra_c_steady,l,d_org=d)
+	# print('Ra = ',Ra)
+	# #d = 0.3341; # Half of the two avbove
+	# #Neutral(Ra_c_hopf,Ra_c_steady,l,d_org=d)
 
-	# Compute the eigenvector
-	Nr = 20
-	lambda_i = 1 # For steady-bifurcation
-	#lambda_i = 0 # For Hopf-bifurcation
-	Eig_val = Eig_Vals(Ra,l,d,Nvals = 2 ,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
-	Eig_vec = Eig_Vec( Ra,l,d,k=lambda_i,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
+	# # Compute the eigenvector
+	# Nr = 20
+	# lambda_i = 1 # For steady-bifurcation
+	# #lambda_i = 0 # For Hopf-bifurcation
+	# Eig_val = Eig_Vals(Ra,l,d,Nvals = 2 ,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
+	# Eig_vec = Eig_Vec( Ra,l,d,k=lambda_i,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
 	
-	print('\n #~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~#')
-	print('Eigen Values = ',Eig_val)
-	print('Chose Eigenvector for \lambda_%d = %e'%(lambda_i,Eig_val[lambda_i]) )
-	print('#~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~# \n')
+	# print('\n #~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~#')
+	# print('Eigen Values = ',Eig_val)
+	# print('Chose Eigenvector for \lambda_%d = %e'%(lambda_i,Eig_val[lambda_i]) )
+	# print('#~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~# \n')
 
-	filename = 'EigVec_l12.npy'
-	N_fm = 64
-	X    = Full_Eig_Vec(Eig_vec,l,N_fm,nr=Nr-1,symmetric=False)
-	np.save(filename,X)
+	# filename = 'EigVec_l30.npy'
+	# N_fm = 64
+	# X    = Full_Eig_Vec(Eig_vec,l,N_fm,nr=Nr-1,symmetric=False)
+	# np.save(filename,X)
 
-	from Plot_Tools import Cartesian_Plot,Energy
-	Energy(filename,frame=-1)
-	Cartesian_Plot(filename,frame=-1,Include_Base_State=False)
+	# from Plot_Tools import Cartesian_Plot,Energy
+	# Energy(filename,frame=-1)
+	# Cartesian_Plot(filename,frame=-1,Include_Base_State=False)
 
 	return None;
 
@@ -585,18 +598,31 @@ def figure_2():
 
 	return None
 
+def large_aspect_neutrals():
+
+	# ~~~~~# L = 30 Gap #~~~~~~~~~#
+	l = 10
+	d = np.pi/9 
+	Ra_c_steady = 9851.537357677651
+	Ra_c_hopf = 2965.1798389922933
+	
+	# Create figure 1
+	Neutral(Ra_c_hopf,Ra_c_steady,l,d_org=d)
+
+	return None
 
 # Execute main
 if __name__ == "__main__":
 
 	# %%
-	%matplotlib inline
+	#%matplotlib inline
 
 	# %%
 	#figure_1()
 	#figure_2()
+	large_aspect_neutrals()
 
 	# %%
-	main_program();
+	#main_program();
 
 # %%

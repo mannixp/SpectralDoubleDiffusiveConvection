@@ -26,13 +26,13 @@ def slope(filename):
 
 def test_Linear():
 
-    # Validation Case l=2
     N_fm = 10
     N_r = 20
 
     nr = N_r - 1
     N = nr*N_fm
 
+    # Validation Case l=2, Pr = 1, Tau = 1, Ra_s = 500
     X = np.random.rand(3*N)
     X = 1e-03*(X/np.linalg.norm(X, 2))
 
@@ -47,9 +47,83 @@ def test_Linear():
         Slopes.append(slope(filename))
 
     print('\n')
+    print('Validation Case l=2, Pr=1, Tau = 1, Ra_s = 500')
     print('dt     = ', Time_steps)
     print('lambda = ', Slopes)
+    print('Target = ', 0.0018195)
     print('\n')
+    #~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~
+
+    # Validation Case l=2, Pr=1, Tau = 10, Ra_s = 500
+    X = np.random.rand(3*N)
+    X = 1e-03*(X/np.linalg.norm(X, 2))
+
+    Time_steps = [5e-3, 2.5e-03, 1.25e-03]#, 6.125e-04]
+    Slopes = []
+    for dt in Time_steps:
+
+        filename = 'Linear_Test_dt'+str(dt)+'.h5'
+        kwargs = {"Ra": 6900, "Ra_s": 500, "Tau": 10., "Pr": 1, "d": 2,
+                  "N_fm": N_fm, "N_r": N_r}
+        _Time_Step(X, **kwargs, save_filename=filename, start_time=0,
+                   Total_time=40, dt=dt, symmetric=True, linear=True, Verbose=False)
+        Slopes.append(slope(filename))
+
+    print('\n')
+    print('Validation Case l=2, Pr=1, Tau = 10, Ra_s = 500')
+    print('dt     = ', Time_steps)
+    print('lambda = ', Slopes)
+    print('Target = ', 0.14937553)
+    print('\n')
+    #~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~
+
+
+    # Validation Case l=2, Pr=1, Tau = 1/2, Ra_s = 500
+    X = np.random.rand(3*N)
+    X = 1e-03*(X/np.linalg.norm(X, 2))
+
+    Time_steps = [5e-3, 2.5e-03, 1.25e-03]#, 6.125e-04]
+    Slopes = []
+    for dt in Time_steps:
+
+        filename = 'Linear_Test_dt'+str(dt)+'.h5'
+        kwargs = {"Ra": 7800, "Ra_s": 500, "Tau": 1/2, "Pr": 1, "d": 2,
+                  "N_fm": N_fm, "N_r": N_r}
+        _Time_Step(X, **kwargs, save_filename=filename, start_time=0,
+                   Total_time=40, dt=dt, symmetric=True, linear=True, Verbose=False)
+        Slopes.append(slope(filename))
+
+    print('\n')
+    print('Validation Case l=2, Pr=1, Tau = 1/2, Ra_s = 500')
+    print('dt     = ', Time_steps)
+    print('lambda = ', Slopes)
+    print('Target = ', 0.06596539)
+    print('\n')
+    #~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~
+
+
+    # Validation Case l=2, Pr=1, Tau = 1, Ra_s = 250
+    X = np.random.rand(3*N)
+    X = 1e-03*(X/np.linalg.norm(X, 2))
+
+    Time_steps = [5e-3, 2.5e-03, 1.25e-03]#, 6.125e-04]
+    Slopes = []
+    for dt in Time_steps:
+
+        filename = 'Linear_Test_dt'+str(dt)+'.h5'
+        kwargs = {"Ra": 7100, "Ra_s": 250, "Tau": 1, "Pr": 1, "d": 2,
+                  "N_fm": N_fm, "N_r": N_r}
+        _Time_Step(X, **kwargs, save_filename=filename, start_time=0,
+                   Total_time=40, dt=dt, symmetric=True, linear=True, Verbose=False)
+        Slopes.append(slope(filename))
+
+    print('\n')
+    print('Validation Case l=2, Pr=1, Tau = 1, Ra_s = 250')
+    print('dt     = ', Time_steps)
+    print('lambda = ', Slopes)
+    print('Target = ', 0.15005375)
+    print('\n')
+    #~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~
 
     return None
 

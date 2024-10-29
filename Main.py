@@ -602,11 +602,10 @@ def Newton(fac, open_filename='NewtonSolve_0.h5', save_filename='NewtonSolve_0.h
 		# Ra = 9851.537357677651; # steady
 		# Ra = 2965.1798389922933; # hopf
 
-		# ~~~~~# L = 12 Gap #~~~~~~~~~#
-		d = 0.285
-		l=12.0
-		Ra = 9721.960152818841
-
+		# ~~~~~# L = 30 Gap #~~~~~~~~~#
+		d = 0.10778
+		l = 30 
+		Ra = 9395.753729596969
 
 		Ra    -=1e-02
 		Ra_s   = 500.
@@ -1082,12 +1081,12 @@ def Continuation(open_filename, frame=-1):
 
 		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
 		from Matrix_Operators import INTERP_RADIAL,INTERP_THETAS
-		N_r_n  = 32; X = INTERP_RADIAL(N_r_n,N_r,X,d);
-		N_fm_n = 256; X = INTERP_THETAS(N_fm_n,N_fm,X);
+		N_r_n  = 36; X = INTERP_RADIAL(N_r_n,N_r,X,d);
+		N_fm_n = 512 + 256; X = INTERP_THETAS(N_fm_n,N_fm,X);
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	sign   = 1;
-	N_steps= 500;
+	sign   = -1;
+	N_steps= 1000;
 	Y      = np.hstack( (X,Ra) );
 	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r_n, "symmetric":True}
 
@@ -1190,20 +1189,21 @@ if __name__ == "__main__":
 	print("Initialising the code for running...")
 
 	# %%
-	Continuation(open_filename='Continuationl10LargeRas450_0.h5',frame=-1)
+	#Continuation(open_filename='NewtonSolveMinusl30Ras300Tau0.033_2.h5',frame=-1)
 	#trim(filename='NewtonSolve_5.h5',point=45)
 	#_plot_bif(filename='ContinuationMinus_0.h5',point=-35) #  Good start point
 	#_plot_bif(filename='ContinuationPlus_0.h5',point=30) #  Good start point
 
 	# %%
-	#filename = 'EigVec_l12.npy'
-	#Newton(fac=-1e-02,open_filename=filename,frame=-1);
+	#filename = 'EigVec_l30.npy'
+	#Newton(fac=1e-02,open_filename=filename,frame=-1);
 
 	# %%
 	from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
-	_plot_bif(filename='Continuationl10LargeRas450_0.h5',point=-1)
-	#Cartesian_Plot(filename='Continuationl10LargeRa_s450_0.h5',frame=-1,Include_Base_State=False)
-	#Energy(filename='Continuationl10LargeRa_s450_0.h5',frame=-1)
+	filename = "Continuationl10LargeRas440_1.h5"
+	_plot_bif(filename,point=-1)
+	#Cartesian_Plot(filename,frame=-1,Include_Base_State=False)
+	#Energy(filename,frame=-1)
 
     # Fix these they should be the same
 # %%

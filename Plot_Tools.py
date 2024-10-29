@@ -875,48 +875,45 @@ if __name__ == "__main__":
 	#dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_l11_d0.33069/'
 	#folder=dir + 'Large/'
 
-	dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_l10_d0.353/'
-	folder=dir + 'Branch_l10_Minus_d0.353_Ra_s350/'
-
-	#dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_l10_d0.353/'
-	#folder=dir + 'Branch_l10_Minus_d0.353_Ra_s350_0.5Tau/'
-
 	#folder=dir #+ 'Plus/'
 	#folder=dir + 'Minus/'
-	os.chdir(folder)
-	print(glob.glob(folder + '/*.h5'))
-	Plot_full_bif(folder, plotting=True)
+	#os.chdir(folder)
+	#print(glob.glob(folder + '/*.h5'))
+	#Plot_full_bif(folder, plotting=True)
 	#Fold_Points_Ur(folder)
-	Fold_Points_Psi(folder)
+	#Fold_Points_Psi(folder)
 
 	# %%
-	# fig, ax = plt.subplots(figsize=(8,6),layout='constrained')
-	# ax.set_ylabel(r'$\mathcal{E}$',fontsize=25)
-	# ax.set_xlabel(r'$Ra$',fontsize=25)
+
+	dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_l10_d0.3521/Branches/'
+
+	fig, ax = plt.subplots(figsize=(8,6),layout='constrained')
+	ax.set_ylabel(r'$\mathcal{E}$',fontsize=25)
+	ax.set_xlabel(r'$Ra$',fontsize=25)
 	
-	# files = ['Large/','Plus/','Minus/']
-	# lines = ['k-','b-','g-']
-	# for file,line in zip(files,lines): 
-	# 	Plot_full_bif(dir+file, ax, line)
+	files = ['Large/','Plus/','Minus/']
+	lines = ['k-','b-','g-']
+	for file,line in zip(files,lines): 
+		Plot_full_bif(dir+file, ax, line)
 
-	# folder=dir + 'Periodic/'
-	# Ra_list = []
-	# ke_list = []
-	# for filename in glob.glob(folder + '/*.h5'):
-	# 	ke_avg, Ra = Plot_Time_Step(filename,logscale=True,plotting=False,st_pt=-50000);
-	# 	ke_list.append(ke_avg)
-	# 	Ra_list.append(Ra)
+	folder=dir + 'Periodic/'
+	Ra_list = []
+	ke_list = []
+	for filename in glob.glob(folder + '/*.h5'):
+		ke_avg, Ra = Plot_Time_Step(filename,logscale=True,plotting=False,st_pt=-50000);
+		ke_list.append(ke_avg)
+		Ra_list.append(Ra)
 
-	# 	print(filename)
-	# 	print(Ra,ke_avg)
+		print(filename)
+		print(Ra,ke_avg)
 
-	# Ra_list = np.asarray(Ra_list)
-	# ke_list = np.asarray(ke_list)
-	# idx = np.argsort(Ra_list)
-	# #ax.plot(Ra_list[idx],ke_list[idx],'k:')
-	# ax.semilogy(Ra_list[idx],ke_list[idx],'k:')
-	# plt.savefig('Bifurcation_Series.png',format='png',dpi=200)
-	# plt.show()
+	Ra_list = np.asarray(Ra_list)
+	ke_list = np.asarray(ke_list)
+	idx = np.argsort(Ra_list)
+	#ax.plot(Ra_list[idx],ke_list[idx],'ko')
+	ax.semilogy(Ra_list[idx],ke_list[idx],'ko')
+	plt.savefig('Bifurcation_Series.png',format='png',dpi=200)
+	plt.show()
 	
 	# %%
 	# filename = 'Continuationl10MinusTest_3.h5'

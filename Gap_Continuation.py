@@ -31,17 +31,17 @@ def Gap_Vary(Ra_s_new, open_filename, frame):
     X = INTERP_THETAS(N_fm_n, N_fm, X)
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    print("\n Loading Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(Ra,d,N_fm,N_r))    
-
+    print("\n Loading Ra = %e, Ra_s=%e, Pr=%2.5f, Tau=%2.5f, d=%2.5f and resolution N_fm, N_r = %d,%d \n"%(Ra,Ra_s,Pr,Tau,d,N_fm,N_r))    
+    
     sign = -1
-    N_steps = 500
+    N_steps = 250
     Y = np.hstack((X, Ra))
     kwargs = {"Ra":Ra,"Ra_s":Ra_s_new,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r_n, "symmetric":True}
     
     # Generate a new path
     filename, extension = os.path.splitext(open_filename)
     counter = int(filename.split('_')[1])
-    save_filename = filename.split('_')[0] + "Ra_s" + str(Ra_s_new) + "_" + str(counter) + extension
+    save_filename = filename.split('_')[0] + "Ras" + str(Ra_s_new) + "_" + str(counter) + extension
 
     _Continuation(save_filename, N_steps, sign, Y, **kwargs)
     _plot_bif(save_filename)
@@ -53,18 +53,12 @@ def main():
 
     print('Creating a test directory .... \n')
 
-    Ra_s_max = 500
-    Ra_s_min = 450
-    Ra_s_tests = np.arange(Ra_s_min, Ra_s_max, 25)
-
-    #open_filename = 'Continuationl10MinusTest_1.h5'
-    #frame = 90
-
-    open_filename = 'Continuationl10Large_0.h5'
-    frame = 0
-
-    for Ra_s_i in Ra_s_tests:
-        Gap_Vary(Ra_s_i, open_filename, frame)
+    open_filename = "Continuationl10Large_1.h5"
+    frame = 22
+    
+    for Ra_s in range(440,390,-10):
+        print("\n Ra_s new = %e \n" % Ra_s)
+        Gap_Vary(Ra_s, open_filename, frame)
 
     return None
 
@@ -73,8 +67,7 @@ if __name__ == "__main__":
 
     # %%
     print('Setup')
-    main()
 
     # %%
-    #main_plus()
+    main()
 # %%
