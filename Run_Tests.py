@@ -27,6 +27,7 @@ def slope(filename):
 def test_Linear_even():
 
     symmetric = True
+    Time_steps = [5e-3, 2.5e-03, 1.25e-03, 6.125e-04]
 
     N_fm = 10
     N_r = 20
@@ -38,7 +39,6 @@ def test_Linear_even():
     X = np.random.rand(3*N)
     X = 1e-03*(X/np.linalg.norm(X, 2))
 
-    Time_steps = [5e-3, 2.5e-03, 1.25e-03]#, 6.125e-04]
     Slopes = []
     for dt in Time_steps:
         filename = 'Linear_Test_dt'+str(dt)+'.h5'
@@ -60,7 +60,6 @@ def test_Linear_even():
     X = np.random.rand(3*N)
     X = 1e-03*(X/np.linalg.norm(X, 2))
 
-    Time_steps = [5e-3, 2.5e-03, 1.25e-03]#, 6.125e-04]
     Slopes = []
     for dt in Time_steps:
 
@@ -84,7 +83,6 @@ def test_Linear_even():
     X = np.random.rand(3*N)
     X = 1e-03*(X/np.linalg.norm(X, 2))
 
-    Time_steps = [5e-3, 2.5e-03, 1.25e-03]#, 6.125e-04]
     Slopes = []
     for dt in Time_steps:
 
@@ -108,7 +106,6 @@ def test_Linear_even():
     X = np.random.rand(3*N)
     X = 1e-03*(X/np.linalg.norm(X, 2))
 
-    Time_steps = [5e-3, 2.5e-03, 1.25e-03]#, 6.125e-04]
     Slopes = []
     for dt in Time_steps:
 
@@ -267,6 +264,7 @@ def test_Nonlinear_Newton_even():
 def test_Linear_odd():
 
     symmetric = False
+    Time_steps = [5e-3, 2.5e-03, 1.25e-03, 6.125e-04]
     N_fm = 16
     N_r = 20
 
@@ -277,7 +275,6 @@ def test_Linear_odd():
     X = np.random.rand(3*N)
     X = 1e-03*(X/np.linalg.norm(X, 2))
 
-    Time_steps = [5e-3, 2.5e-03, 1.25e-03]#, 6.125e-04]
     Slopes = []
     for dt in Time_steps:
         filename = 'Linear_Test_dt'+str(dt)+'.h5'
@@ -299,7 +296,6 @@ def test_Linear_odd():
     X = np.random.rand(3*N)
     X = 1e-03*(X/np.linalg.norm(X, 2))
 
-    Time_steps = [5e-3, 2.5e-03, 1.25e-03]#, 6.125e-04]
     Slopes = []
     for dt in Time_steps:
 
@@ -323,7 +319,6 @@ def test_Linear_odd():
     X = np.random.rand(3*N)
     X = 1e-03*(X/np.linalg.norm(X, 2))
 
-    Time_steps = [5e-3, 2.5e-03, 1.25e-03]#, 6.125e-04]
     Slopes = []
     for dt in Time_steps:
 
@@ -347,6 +342,8 @@ def test_Linear_odd():
 
 def test_Nonlinear_Tstep_odd():
 
+    symmetric = False
+
     #~~~~~~~~~~~ Narrow Gap l=11 ~~~~~~~~~~~
     d = 0.31325
     N_fm = 48
@@ -362,11 +359,11 @@ def test_Nonlinear_Tstep_odd():
 
     filename = 'Non_Linear_Test_thin_gap_odd_dt'+str(dt)+'.h5'
     kwargs = {"Ra": 2280, "Ra_s": 0, "Tau": 1, "Pr": 1, "d": d, "N_fm": N_fm, "N_r": N_r}
-    X_new = _Time_Step(X, **kwargs, symmetric=False, save_filename=filename, start_time=0, Total_time=3*(10**3), dt=dt, linear=False, Verbose=False)
+    X_new = _Time_Step(X, **kwargs, symmetric, save_filename=filename, start_time=0, Total_time=3*(10**3), dt=dt, linear=False, Verbose=False)
 
     T_hat = X_new[N:2*N]
     Nu_avg = Nusselt(T_hat, d, R, D, N_fm, nr, check=False)
-    KE_avg = Kinetic_Energy(X_new, R, D, N_fm, nr, symmetric=True)
+    KE_avg = Kinetic_Energy(X_new, R, D, N_fm, nr, symmetric)
 
     print('\n')
     print('Ra,Pr,d =%d,%d,%d' % (kwargs["Ra"], kwargs["Pr"], d))
@@ -380,6 +377,7 @@ def test_Nonlinear_Tstep_odd():
 
 def test_Nonlinear_Newton_odd():
 
+    symmetric = False
     dt   = 0.075;
 
     #~~~~~~~~~~~ Narrow Gap l=11 ~~~~~~~~~~
@@ -406,7 +404,7 @@ def test_Nonlinear_Newton_odd():
         print("\n Loading time-step %e with parameters Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(st_time,Ra,d,N_fm,N_r))
     
     kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm,"N_r":N_r}
-    X_new,norm,ke,nuS,nuT,BOOL = _Newton(X,**kwargs,symmetric=False,tol_newton = 1e-8)
+    X_new,norm,ke,nuS,nuT,BOOL = _Newton(X,**kwargs,symmetric,tol_newton = 1e-8)
     
     print('\n')
     print('Ra,Pr,d =%d,%d,%d'%(Ra,Pr,d))
