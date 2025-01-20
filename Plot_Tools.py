@@ -12,408 +12,57 @@ plt.rcParams.update({
     'text.latex.preamble': r'\usepackage{amsfonts}'
 })
 
-def SPEC_TO_GRID(R,xx,N_fm,X,d): # Fix this code to extend to the boundaries
-
-	
-	# 2) Normalization Weights, must be inverses
-	x = np.linspace(0,np.pi,N_fm);
-	
-		
-	Nr = len(R); t_0 = np.zeros(len(R)); 
-	# Base State
-	R_1 = 1./d; 
-	R_2 = (1. + d)/d;
-
-	A_T = (R_1*R_2)/(R_1 - R_2);
-	B_T =      R_1 /(R_1 - R_2);
-
-	for ii in range(Nr):
-		t_0[ii] = (-A_T/R[ii] + B_T)
-	TR_0 = np.polyval(np.polyfit(R,t_0,Nr),xx)
-	T_0 = np.outer(TR_0,np.ones(N_fm));
-	
-
-	# A) Computational grid
-	nr = len(R[1:-1])
-	s = (nr,N_fm); N = nr*N_fm
-	Vort = np.zeros(s); Temp = np.zeros(s); Conc = np.zeros(s)
-	
-	# 1) Transform vector to sq grid
-	for ii in range(N_fm):	
-		ind = ii*nr
-		Vort[:,ii] = X[ind:ind+nr,0].reshape(nr);
-			
-		ind = N + ii*nr
-		Temp[:,ii] = X[ind:ind+nr,0].reshape(nr);
-
-		ind = 2*N + ii*nr
-		Conc[:,ii] = X[ind:ind+nr,0].reshape(nr);
-
-	
-	#Temp[:,0] += t_0
-	#Conc[:,0] += t_0
-	# 2) Take the idct, idst of each radial level set
-	Vort = idst(Vort/N_fm,type=2,axis=-1)
-	Temp = idct(Temp/N_fm,type=2,axis=-1) # Assuming these must be normalized?
-	Conc = idct(Conc/N_fm,type=2,axis=-1)
 
 
-	# B) Visualisation grid
-	s = (len(xx),N_fm);
-	PSI, T, C = np.zeros(s), np.zeros(s), np.zeros(s); 	
-	
-	# 3) Polyfti
-	for ii in range(N_fm):
-		
-		psi = np.hstack((0,Vort[:,ii],0));
-		PSI[:,ii] = np.polyval(np.polyfit(R,psi,Nr),xx)
-		
-		t = np.hstack((0,Temp[:,ii],0))
-		T[:,ii] = np.polyval(np.polyfit(R,t,Nr),xx)
-		
-		c = np.hstack((0,Conc[:,ii],0))
-		C[:,ii] = np.polyval(np.polyfit(R,c,Nr),xx)
-		
-	return PSI, T, 0.*C,T_0;
-
-def Plot_Package_CHE(R,theta,omega,psi,thermal,sigma): # Returns Array accepted by contourf - function
-
-	#-- Make Really Narrow Slice to form Axis ---------------
-	NN = 20
-	azimuths = np.linspace(0,1e-08, NN)
-	zeniths = np.linspace(0,5, NN )
-	s = (NN,NN)
-	ww = np.zeros(s) 
-
-	alpha = 1.0+sigma;
-
-	'''#---- Repackage AA into omega[i,j] -------------
-	nr, nth = len(R), len(theta)
-	s = (nr,nth)
-	omega, psi, thermal = np.zeros(s), np.zeros(s),np.zeros(s)
-	row, col = 0,0
-	for i in range(len(R)):
-		col = i;
-		for j in range(len(theta)): # Very Bottom and top rows must remain Zero therefore 
-			omega[i,j] = OMEGA[col,t];
-			psi[i,j] = PSI[col,t];
-			thermal[i,j] = THERMAL[col,t];
-			col = col + nr; 
-	'''
-	#if plot_out == True:
-	fig, ax = plt.subplots(1,3,subplot_kw=dict(projection='polar'),figsize=(16,6))  
-	###fig.suptitle(r'Reynolds Number $Re_1 = %.1f$, Rayleigh Number $Ra = %.1f$, Separation $d = %s$'%(Re1,Ra,sigma), fontsize=16)      
-	
-	# --------------- Plot Omega -----------
-	ax[0].contourf(azimuths,zeniths,ww)
-	try:
-		#matplotlib.rcParams['contour.negative_linestyle'] = 'solid'
-		p1 = ax[0].contourf(theta,R,omega,RES) 
-		ax[0].contour(theta,R,omega,RES)
-		ax[0].contourf(2.0*np.pi-theta,R,omega,RES) 
-		ax[0].contour(2.0*np.pi-theta,R,omega,RES)
-		#p1 = ax[0].contourf(theta,R,omega,RES) 
-		#ax[0].contour(theta,R,omega,RES)#	, colors = 'k',linewidths=0.7) #,RES)	
-		#ax[0].clabel(p1, fmt='%2.1f', colors='w', fontsize=14)	
-	except ValueError:
-		pass
-	ax[0].set_theta_zero_location("S")
-	ax[0].bar(math.pi, 0.0 )
-
-	# Adjust the axis
-	ax[0].set_ylim(0,alpha)
-	ax[0].set_rgrids([0.5,1,alpha], angle=345.,fontsize=12)
-	plt.rc('text', usetex=True)
-	plt.rc('font', family='serif')
-	# ax.set_ylabel(r'\textbf{Radial position} (R)')
-	#print omega.ax(axis=1).max()
-	#print omega.min(axis=1).min()
-	ax[0].set_xlabel(r'$C_{max,min} = (%.3f,%.3f)$'%(omega.max(axis=1).max(),omega.min(axis=1).min()), fontsize=20) #, color='gray')
-
-	# Make space for title to clear
-	plt.subplots_adjust(top=0.8)
-	ax[0].set_title(r'$C$', fontsize=16, va='bottom')
-	cbaxes = fig.add_axes([0.05, 0.25, 0.015, 0.4]) # left, bottom, height, width
-	cbar1 = plt.colorbar(p1, cax = cbaxes)
-
-	# ---------------- PSI Stream Function --------------------       
-	ax[1].contourf(azimuths,zeniths,ww)
-
-	#matplotlib.rcParams['contour.negative_linestyle'] = 'solid'
-	try:
-		p2 = ax[1].contourf(theta,R,psi,RES) 
-		ax[1].contour(theta,R,psi,RES)
-		ax[1].contourf(2.0*np.pi-theta,R,psi,RES) 
-		ax[1].contour(2.0*np.pi-theta,R,psi,RES) #-TT	
-		#p2 = ax[1].contourf(theta,R,psi,RES) 
-		#ax[1].contour(theta,R,psi,RES)#	, colors = 'k',linewidths=0.7) #
-	except ValueError:
-		pass	
-	ax[1].set_theta_zero_location("S")
-	ax[1].bar(math.pi, 0.0 )
-
-	# Adjust the axis
-	ax[1].set_ylim(0,alpha)
-	ax[1].set_rgrids([0.5,1,alpha], angle=345.,fontsize=12)
-	plt.rc('text', usetex=True)
-	plt.rc('font', family='serif')
-	# ax.set_ylabel(r'\textbf{Radial position} (R)')
-	ax[1].set_xlabel(r'$\Psi_{max,min} = (%.3f,%.3f)$'%(psi.max(axis=1).max(),psi.min(axis=1).min()), fontsize=20)
-
-	# Make space for title to clear
-	plt.subplots_adjust(top=0.8)
-	ax[1].set_title(r'$\Psi$', fontsize=16, va='bottom')
-	#cbaxes1 = fig.add_axes([0.6, 0.25, 0.015, 0.4]) # left, bottom, height, width
-	#cbar2 = plt.colorbar(p2, cax = cbaxes1)
-
-	# ----------------- Temperature Field -----------------
-	ax[2].contourf(azimuths,zeniths,ww)
-
-	#matplotlib.rcParams['contour.negative_linestyle'] = 'solid'
-	try:
-		## TO modify for low value contours
-		p3 = ax[2].contourf(theta,R,thermal,RES) #-TT
-		ax[2].contour(theta,R,thermal,RES) #-TT	
-		ax[2].contourf(2.0*np.pi-theta,R,thermal,RES) #-TT	
-		ax[2].contour(2.0*np.pi-theta,R,thermal,RES) #-TT	
-		#p3 = ax[2].contourf(theta,R,thermal,RES) 
-		#ax[2].contour(theta,R,thermal,RES)#	, colors = 'k',linewidths=0.7) #,RES )
-		#ax[2].clabel(CS, inline=1, fontsize=10)		
-	except ValueError:
-		pass
-	ax[2].set_theta_zero_location("S")
-	ax[2].bar(math.pi, 0.0 )
-
-	# Adjust the axis
-	ax[2].set_ylim(0,alpha)
-	ax[2].set_rgrids([0.5,1,alpha], angle=345.,fontsize=12)
-	plt.rc('text', usetex=True)
-	plt.rc('font', family='serif')
-	# ax.set_ylabel(r'\textbf{Radial position} (R)')
-	#ax[2].set_xlabel(r'\textit{Polar Angel} ($\theta$) \quad\quad \textit{Radial position} (r)', fontsize=12) #, color='gray')
-	ax[2].set_xlabel(r'$T_{max,min} = (%.3f,%.3f)$'%(thermal.max(axis=1).max(),thermal.min(axis=1).min()), fontsize=20)
-
-	# Make space for title to clear
-	plt.subplots_adjust(top=0.8)
-	ax[2].set_title(r'$T$', fontsize=16, va='bottom')
-	cbaxes2 = fig.add_axes([0.95, 0.25, 0.015, 0.4]) # left, bottom, height, width
-	cbar3 = plt.colorbar(p3, cax=cbaxes2)
-	
-	#branch = 'RL'; # 'SL' 'RL'
-	#STR = "".join([branch,'_Solution_Re',str(int(Re1)),'_Pr',str(int(Pr)),'.eps'])
-	'''
-	if Pr >= 1.0:
-		STR = "".join([branch,'_Solution_Re',str(int(Re1)),'_Pr',str(int(Pr)),'.eps'])
-	elif Pr == 0.1:
-		STR = "".join([branch,'_Solution_Re',str(int(Re1)),'_Pr01.eps']) 
-	elif Pr == 0.01:
-		STR = "".join([branch,'_Solution_Re',str(int(Re1)),'_Pr001.eps']) 
-	'''	
-	#plt.savefig(STR, format='eps', dpi=1800)
-	plt.show()
-				
-	#return omega, ksi, psi	
-
-def Plot_Package_CHE_sd(R,theta,omega,psi,thermal,sigma): # Returns Array accepted by contourf - function
-
-	#-- Make Really Narrow Slice to form Axis ---------------
-	NN = 20
-	azimuths = np.linspace(0,1e-08, NN)
-	zeniths = np.linspace(0,5, NN )
-	s = (NN,NN)
-	ww = np.zeros(s) 
-
-	d = sigma;
-
-	GIRD = [0.5*(1./d),1./d,(1.+d)/d]
-
-	'''#---- Repackage AA into omega[i,j] -------------
-	nr, nth = len(R), len(theta)
-	s = (nr,nth)
-	omega, psi, thermal = np.zeros(s), np.zeros(s),np.zeros(s)
-	row, col = 0,0
-	for i in range(len(R)):
-		col = i;
-		for j in range(len(theta)): # Very Bottom and top rows must remain Zero therefore 
-			omega[i,j] = OMEGA[col,t];
-			psi[i,j] = PSI[col,t];
-			thermal[i,j] = THERMAL[col,t];
-			col = col + nr; 
-	'''
-	#if plot_out == True:
-	fig, ax = plt.subplots(1,3,subplot_kw=dict(projection='polar'),figsize=(16,6))  
-	###fig.suptitle(r'Reynolds Number $Re_1 = %.1f$, Rayleigh Number $Ra = %.1f$, Separation $d = %s$'%(Re1,Ra,sigma), fontsize=16)      
-	
-	# --------------- Plot Omega -----------
-	ax[0].contourf(azimuths,zeniths,ww)
-	try:
-		#matplotlib.rcParams['contour.negative_linestyle'] = 'solid'
-		p1 = ax[0].contourf(theta,R,omega,RES) 
-		ax[0].contour(theta,R,omega,RES)
-		ax[0].contourf(2.0*np.pi-theta,R,omega,RES) 
-		ax[0].contour(2.0*np.pi-theta,R,omega,RES)
-		#p1 = ax[0].contourf(theta,R,omega,RES) 
-		#ax[0].contour(theta,R,omega,RES)#	, colors = 'k',linewidths=0.7) #,RES)	
-		#ax[0].clabel(p1, fmt='%2.1f', colors='w', fontsize=14)	
-	except ValueError:
-		pass
-	ax[0].set_theta_zero_location("S")
-	ax[0].bar(math.pi, 0.0 )
-
-	# Adjust the axis
-	ax[0].set_ylim(0,(1.+d)/d)
-	ax[0].set_rgrids(GIRD, angle=345.,fontsize=12)
-	#plt.rc('text', usetex=True)
-	plt.rc('font', family='serif')
-	# ax.set_ylabel(r'\textbf{Radial position} (R)')
-	#print omega.ax(axis=1).max()
-	#print omega.min(axis=1).min()
-	ax[0].set_xlabel(r'$C_{max,min} = (%.3f,%.3f)$'%(omega.max(axis=1).max(),omega.min(axis=1).min()), fontsize=20) #, color='gray')
-
-	# Make space for title to clear
-	plt.subplots_adjust(top=0.8)
-	ax[0].set_title(r'$C$', fontsize=16, va='bottom')
-	cbaxes = fig.add_axes([0.05, 0.25, 0.015, 0.4]) # left, bottom, height, width
-	cbar1 = plt.colorbar(p1, cax = cbaxes)
-
-	# ---------------- PSI Stream Function --------------------       
-	ax[1].contourf(azimuths,zeniths,ww)
-
-	#matplotlib.rcParams['contour.negative_linestyle'] = 'solid'
-	try:
-		p2 = ax[1].contourf(theta,R,psi,RES) 
-		ax[1].contour(theta,R,psi,RES)
-		ax[1].contourf(2.0*np.pi-theta,R,psi,RES) 
-		ax[1].contour(2.0*np.pi-theta,R,psi,RES) #-TT	
-		#p2 = ax[1].contourf(theta,R,psi,RES) 
-		#ax[1].contour(theta,R,psi,RES)#	, colors = 'k',linewidths=0.7) #
-	except ValueError:
-		pass	
-	ax[1].set_theta_zero_location("S")
-	ax[1].bar(math.pi, 0.0 )
-
-	# Adjust the axis
-	ax[1].set_ylim(0,(1.+d)/d)
-	ax[1].set_rgrids(GIRD, angle=345.,fontsize=12)
-	#plt.rc('text', usetex=True)
-	plt.rc('font', family='serif')
-	# ax.set_ylabel(r'\textbf{Radial position} (R)')
-	ax[1].set_xlabel(r'$\Psi_{max,min} = (%.3f,%.3f)$'%(psi.max(axis=1).max(),psi.min(axis=1).min()), fontsize=20)
-
-	# Make space for title to clear
-	plt.subplots_adjust(top=0.8)
-	ax[1].set_title(r'$\Psi$', fontsize=16, va='bottom')
-	#cbaxes1 = fig.add_axes([0.6, 0.25, 0.015, 0.4]) # left, bottom, height, width
-	#cbar2 = plt.colorbar(p2, cax = cbaxes1)
-
-	# ----------------- Temperature Field -----------------
-	ax[2].contourf(azimuths,zeniths,ww)
-
-	#matplotlib.rcParams['contour.negative_linestyle'] = 'solid'
-	try:
-		## TO modify for low value contours
-		p3 = ax[2].contourf(theta,R,thermal,RES) #-TT
-		ax[2].contour(theta,R,thermal,RES) #-TT	
-		ax[2].contourf(2.0*np.pi-theta,R,thermal,RES) #-TT	
-		ax[2].contour(2.0*np.pi-theta,R,thermal,RES) #-TT	
-		#p3 = ax[2].contourf(theta,R,thermal,RES) 
-		#ax[2].contour(theta,R,thermal,RES)#	, colors = 'k',linewidths=0.7) #,RES )
-		#ax[2].clabel(CS, inline=1, fontsize=10)		
-	except ValueError:
-		pass
-	ax[2].set_theta_zero_location("S")
-	ax[2].bar(math.pi, 0.0 )
-
-	# Adjust the axis
-	ax[2].set_ylim(0,(1.+d)/d)
-	ax[2].set_rgrids(GIRD, angle=345.,fontsize=12)
-	#plt.rc('text', usetex=True)
-	plt.rc('font', family='serif')
-	# ax.set_ylabel(r'\textbf{Radial position} (R)')
-	#ax[2].set_xlabel(r'\textit{Polar Angel} ($\theta$) \quad\quad \textit{Radial position} (r)', fontsize=12) #, color='gray')
-	ax[2].set_xlabel(r'$T_{max,min} = (%.3f,%.3f)$'%(thermal.max(axis=1).max(),thermal.min(axis=1).min()), fontsize=20)
-
-	# Make space for title to clear
-	plt.subplots_adjust(top=0.8)
-	ax[2].set_title(r'$T$', fontsize=16, va='bottom')
-	cbaxes2 = fig.add_axes([0.95, 0.25, 0.015, 0.4]) # left, bottom, height, width
-	cbar3 = plt.colorbar(p3, cax=cbaxes2)
-	
-	#branch = 'RL'; # 'SL' 'RL'
-	#STR = "".join([branch,'_Solution_Re',str(int(Re1)),'_Pr',str(int(Pr)),'.eps'])
-	'''
-	if Pr >= 1.0:
-		STR = "".join([branch,'_Solution_Re',str(int(Re1)),'_Pr',str(int(Pr)),'.eps'])
-	elif Pr == 0.1:
-		STR = "".join([branch,'_Solution_Re',str(int(Re1)),'_Pr01.eps']) 
-	elif Pr == 0.01:
-		STR = "".join([branch,'_Solution_Re',str(int(Re1)),'_Pr001.eps']) 
-	'''	
-	#plt.savefig(STR, format='eps', dpi=1800)
-	plt.show()
-				
-	#return omega, ksi, psi		
-
-def SPECT_INT(D,f):
-
-	Dt = D[0:-1,0:-1];
-	return np.linalg.solve(Dt,f[0:-1])[0];#?
-
-def Plot_Package_SPLIT(R,theta,psi,C,d): # Returns Array accepted by contourf - function
-
-	#-- Make Really Narrow Slice to form Axis ---------------
-	NN = 20
-	azimuths = np.linspace(0,1e-08, NN)
-	zeniths = np.linspace(0,5, NN )
-	s = (NN,NN)
-	ww = np.zeros(s) 
-
-	GIRD = [0.5*(1./d),1./d,(1.+d)/d]
-	
-	fig1, ax1 = plt.subplots(subplot_kw=dict(projection='polar'), figsize=(10,8))
-	
-	ax1.contourf(azimuths,zeniths,ww)
-
-	#matplotlib.rcParams['contour.negative_linestyle'] = 'solid'
-	try:
-		p2 = ax1.contourf(theta, R, psi,25,cmap="RdBu_r") 
-		pp = ax1.contourf(2.*np.pi - theta,R, C,25,cmap="RdBu_r")
-		ax1.contour(theta,R, psi,8,cmap="RdBu_r")#colors = 'k',linewidths=0.7)
-		ax1.contour(2.*np.pi - theta, R, C,8,cmap="RdBu_r")#, colors = 'k',linewidths=0.7)
-		#p1 = ax[0].contourf(theta,R,omega,RES) 
-		#ax[0].contour(theta,R,omega,RES)#	, colors = 'k',linewidths=0.7) #,RES)	
-		#ax[0].clabel(p1, fmt='%2.1f', colors='w', fontsize=14)		
-	except ValueError:
-		pass
-	ax1.set_theta_zero_location("S")
-	ax1.bar(math.pi, 0.0 )
-
-	ax1.set_ylim(0,(1.+d)/d)
-	ax1.set_rgrids(GIRD, angle=345.,fontsize=12)
-	plt.rc('text', usetex=True)
-	plt.rc('font', family='serif')
-	# ax.set_ylabel(r'\textbf{Radial position} (R)')
-	#ax1.set_xlabel(r'\textit{Polar Angle } ($\theta$) \quad\quad \textit{Radial position} (r)', fontsize=12) #, color='gray')
-
-	# Make space for title to clear
-	plt.subplots_adjust(top=0.8)
-	ax1.set_title(r'$T(r,\theta) + T_0(r) \quad\quad \quad\quad  \Psi(r,\theta)$ ',fontsize=20, va='bottom')
-	#ax1.set_title(r'$C$', fontsize=20, va='bottom')
-	plt.tight_layout()
-	plt.savefig('SPLIT_PSI_C.eps', format='eps', dpi=1800)
-	plt.show()	
-
-
-	#plt.savefig(STR, format='eps', dpi=1800)
-	plt.show()
-				
-	#return omega, ksi, psi			
-
-
-# All checked below here
-	
-RES = 25
+# All checked below here	
+RES = 10
 count_s = 12
+
+def Spherical_Plot(filename, frame, Include_Base_State=True):
+	
+	if filename.endswith('.h5'):
+		f    = h5py.File(filename, 'r');
+		X    = f['Checkpoints/X_DATA'][frame,:];
+		N_fm = f['Parameters']["N_fm"][()];
+		N_r  = f['Parameters']["N_r"][()];
+		d    = f['Parameters']["d"][()];
+		f.close()
+
+	from Matrix_Operators import cheb_radial
+	D, R = cheb_radial(N_r, d)
+	Theta_grid = np.linspace(0, np.pi, N_fm)  
+	r_grid = np.linspace(R[0], R[-1], 50)
+
+	PSI, Θ, Σ, T_0 = Spectral_To_Gridpoints(X, R,r_grid,N_fm,d)
+
+	if Include_Base_State is True:
+		Σ = Σ + S_0 
+		Θ = Θ + T_0
+
+	# Make the plot
+	fig, ax = plt.subplots(1, 2, subplot_kw=dict(projection='polar'), figsize=(16, 6), layout='constrained')  	
+	for ax_i in ax:
+		ax_i.set_theta_zero_location("S")
+		ax_i.set_ylim(0, R[-1])
+		ax_i.axis("off")
+
+	# --------------- Solute Function -----------
+	p1 = ax[0].contourf(Theta_grid,r_grid,Σ,RES, cmap="RdBu_r") 
+	ax[0].contourf(2.0*np.pi-Theta_grid,r_grid,Σ,RES, cmap="RdBu_r") 
+	ax[0].contour(Theta_grid,r_grid,Σ,RES, colors='k')
+	ax[0].contour(2.0*np.pi-Theta_grid,r_grid,Σ,RES, colors='k')
+	
+	# ---------------- Temperature Function --------------------       
+	p2 = ax[1].contourf(Theta_grid,r_grid,Θ,RES, cmap="RdBu_r") 
+	ax[1].contourf(2.0*np.pi-Theta_grid,r_grid,Θ,RES, cmap="RdBu_r") 
+	ax[1].contour(Theta_grid,r_grid,T,RES, colors='k')
+	ax[1].contour(2.0*np.pi-Theta_grid,r_grid,T,RES, colors='k')
+
+	plt.savefig('Localised_Solutions_Plot.png', format='png', dpi=1800)
+	plt.show()
+
+	return None	
+
 
 def Energy(filename,frame=-1):
 
@@ -521,6 +170,7 @@ def Plot_Time_Step(filename, logscale=True, st_pt=0, plotting=False):
 	f.close()
 
 	print('Ra = ',Ra)
+	print('dt = ',dt)
 
 	if plotting:
 		fig, (ax0, ax1, ax2) = plt.subplots(nrows=1, ncols=3,figsize=(12, 6))
@@ -884,6 +534,11 @@ if __name__ == "__main__":
 	#Fold_Points_Psi(folder)
 
 	# %%
+	filename = 'Continuationl11Ras150_1.h5'
+	frame=-1
+	Spherical_Plot(filename, frame, Include_Base_State=False)
+
+	# %%
 
 	dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_l10_d0.3521/Branches/'
 
@@ -914,12 +569,5 @@ if __name__ == "__main__":
 	ax.semilogy(Ra_list[idx],ke_list[idx],'ko')
 	plt.savefig('Bifurcation_Series.png',format='png',dpi=200)
 	plt.show()
-	
-	# %%
-	# filename = 'Continuationl10MinusTest_3.h5'
-	# frame=-1
-	# Uradial_plot(filename,frame)
-	# Energy(filename, frame)
-	# Cartesian_Plot(filename, frame, Include_Base_State=False)
 
 # %%

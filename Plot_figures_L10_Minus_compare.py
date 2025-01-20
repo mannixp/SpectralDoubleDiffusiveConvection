@@ -123,21 +123,21 @@ fig, axs = plt.subplots(nrows=1, ncols=6, figsize=(16, 6), layout='constrained',
 
 
 # A) Plot the bifurcation diagram
-X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras350_Convecton/', axs[0], line='k-')
-X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras350_AntiConvecton/', axs[0], line='k:')
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras250_Convecton/', axs[0], line='k-')
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras250_AntiConvecton/', axs[0], line='k:')
 
 axs[0].set_ylabel(r'$\mathcal{E}$', fontsize=25)
 axs[0].set_xlabel(r'$Ra$', fontsize=25)
 axs[0].tick_params(axis='both', labelsize=25)
-axs[0].set_title(r'$Ra_s = 350$', fontsize=25)
+axs[0].set_title(r'$Ra_s = 250$', fontsize=25)
 
-X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras380_Convecton/', axs[1], line='k-')
-X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras380_AntiConvecton/', axs[1], line='k:')
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras350_Convecton/', axs[1], line='k-')
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras350_AntiConvecton/', axs[1], line='k:')
 
 #axs[1].set_ylabel(r'$\mathcal{E}$', fontsize=25)
 axs[1].set_xlabel(r'$Ra$', fontsize=25)
 axs[1].tick_params(axis='both', labelsize=25)
-axs[1].set_title(r'$Ra_s = 380$', fontsize=25)
+axs[1].set_title(r'$Ra_s = 350$', fontsize=25)
 
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras400_Convecton/', axs[2], line='k-')
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras400_AntiConvecton/', axs[2], line='k:')
@@ -169,10 +169,10 @@ X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras420_AntiConvect
 #axs[4].set_ylabel(r'$\mathcal{E}$', fontsize=25)
 axs[5].set_xlabel(r'$Ra$', fontsize=25)
 axs[5].tick_params(axis='both', labelsize=25)
-axs[5].set_title(r'$Ra_s = 410$', fontsize=25)
+axs[5].set_title(r'$Ra_s = 420$', fontsize=25)
 
 for ax in axs:
-    ax.set_xlim([3000, 3900])
+    ax.set_xlim([2875, 3900])
     ax.set_ylim([0, 7])
 
 plt.savefig('Bifurcation_L10Minus_Ras_Compare.png', format='png', dpi=400)

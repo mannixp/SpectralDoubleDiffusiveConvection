@@ -329,7 +329,7 @@ def _Time_Step(X, Ra, Ra_s, Tau, Pr, d,	N_fm, N_r, symmetric, save_filename='Tim
 	return X_new
 
 
-def Time_Step(open_filename=None, frame=-1, delta_Ra=0):
+def Time_Step(open_filename=None, frame=-1, d_new=0.31325, Ra_new = 3750.00):
 
 	"""
 	Given an initial condition and full parameter specification time-step the system
@@ -343,8 +343,8 @@ def Time_Step(open_filename=None, frame=-1, delta_Ra=0):
 
 	# ~~~~~# L = 11 Gap #~~~~~~~~~#
 	# Ra = 9775.905436191546 # steady
-	Ra  = 2879.0503253066827 # hopf
-	d = 0.31325;
+	# Ra  = 2879.0503253066827 # hopf
+	# d = 0.31325;
 	
 	# ~~~~~~~~~~~~~~~ Gap widths l=10~~~~~~~~~~~~~~~
 	# l10
@@ -352,15 +352,30 @@ def Time_Step(open_filename=None, frame=-1, delta_Ra=0):
 	# Ra   = 2965.1798389922933
 	# d	   = 0.3521
 
-	Ra_s   = 500.
-	Tau    = 1./15.;
-	Pr     = 1.
+	# Ra_s   = 500.
+	# Tau    = 1./15.;
+	# Pr     = 1.
 
-	N_fm = 32;
-	N_r  = 15;
+	Ra = 2280.0
+	d = 0.31325 
+	Tau = 1.
+	Pr = 1.
+	Ra_s = 0.
 
-	N_fm_n = 32;
-	N_r_n  = 15;
+	# Ra = 2360.0
+	# d = 0.353 
+	# Tau = 1.
+	# Pr = 1.
+	# Ra_s = 0.
+
+
+	N_fm = 48;
+	N_r  = 24;
+
+	N_fm_n = 48;
+	N_r_n  = 24;
+
+
 
 	# ~~~~~~~~~ Random Initial Conditions ~~~~~~~~~~~~~~~~
 	N = (N_r - 1)*N_fm;
@@ -393,11 +408,11 @@ def Time_Step(open_filename=None, frame=-1, delta_Ra=0):
 		st_time= 0#f['Scalar_Data/Time'][()][frame]
 		f.close();    
 
-		print("\n Loading time-step %e with parameters Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(st_time,Ra,d,N_fm,N_r))    
+		print("\n Loading time-step %e with parameters Ra = %e, Ra_s = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(st_time,Ra,Ra_s,d,N_fm,N_r))    
 
 		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
 		from Matrix_Operators import INTERP_RADIAL, INTERP_THETAS
-		N_r_n  = 20;  X = INTERP_RADIAL(N_r_n, N_r, X, d)
+		N_r_n  = 32;  X = INTERP_RADIAL(N_r_n, N_r, X, d)
 		N_fm_n = 256; X = INTERP_THETAS(N_fm_n, N_fm, X)
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -406,15 +421,13 @@ def Time_Step(open_filename=None, frame=-1, delta_Ra=0):
 	except:
 		filename = uniquify('TimeStep_0.h5')
 
-	Ra = Ra + delta_Ra;
-	print('Ra simulation = %e \n'%Ra)
-	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r_n}
-	X_new  = _Time_Step(X,**kwargs,save_filename=filename,start_time=0,Total_time=100,dt=2.5e-03,symmetric=False,linear=False,Verbose=True);
+	kwargs = {"Ra":Ra_new,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d_new,"N_fm":N_fm_n,"N_r":N_r_n}
+	X_new  = _Time_Step(X,**kwargs,save_filename=filename,start_time=0,Total_time=1000,dt=0.001,symmetric=False,linear=False,Verbose=True);
 
 	return filename;
 
 
-def _Newton(X, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric, dt=10**4, tol_newton=1e-08, tol_gmres=1e-04, Krylov_Space_Size=250):
+def _Newton(X, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric, dt=10**4, tol_newton=1e-08, tol_gmres=1e-04, Krylov_Space_Size=300):
 	
 	"""
 	Given a starting point and a control parameter compute a new steady-state using Newton iteration
@@ -580,38 +593,35 @@ def Newton(fac, open_filename='NewtonSolve_0.h5', save_filename='NewtonSolve_0.h
 		f.close();
 
 		symmetric = False
-		print("\n Loading time-step %e with parameters Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(st_time,Ra,d,N_fm,N_r))    
+		print("\n Loading time-step %e with parameters Ra_s = %e, Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(st_time,Ra_s, Ra,d,N_fm,N_r))    
 
-		# # ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
-		# from Matrix_Operators import INTERP_RADIAL, INTERP_THETAS
-		# fac_R =1; X = INTERP_RADIAL(int(fac_R*N_r),N_r,X,d);  N_r  = int(fac_R*N_r);
-		# fac_T =1; X = INTERP_THETAS(int(fac_T*N_fm),N_fm,X);  N_fm = int(fac_T*N_fm)
-		# # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	
+		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
+		from Matrix_Operators import INTERP_RADIAL,INTERP_THETAS
+		N_r_n  = 32; X = INTERP_RADIAL(N_r_n,N_r,X,d); N_r = N_r_n
+		N_fm_n = 256; X = INTERP_THETAS(N_fm_n,N_fm,X); N_fm = N_fm_n
+		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 	# ~~~~~~~~~ Old Initial Conditions ~~~~~~~~~~~~~~~~~~
 	if open_filename.endswith('.npy'):
 		X  = np.load(open_filename);
 
 		# ~~~~~# L = 11 Gap #~~~~~~~~~#
-		#d = 0.31325; l=11.0; 
-		#Ra = 9775.905436191546 # steady
-		#Ra  = 2879.0503253066827 # hopf
+		d = 0.31325
+		Ra_s = 150
+		
+		#Ra   = 4525.905436208907; l = 11.0
+
+		Ra   = 4619.4177321044945; l = 13.0
 
 		# ~~~~~# L = 10 Gap #~~~~~~~~~#
-		# d = 0.3521; l=10.0; 
+		#d = 0.3521; l=10.0; 
 		# Ra = 9851.537357677651; # steady
 		# Ra = 2965.1798389922933; # hopf
 
-		# ~~~~~# L = 30 Gap #~~~~~~~~~#
-		d = 0.10778
-		l = 30 
-		Ra = 9395.753729596969
-
-		Ra    -=1e-02
-		Ra_s   = 500.
+		Ra    -=5e-03
+		
 		Tau    = 1./15.;
 		Pr     = 1.
-		
 		N_fm   = 64; #300
 		N_r    = 20; #30
 
@@ -628,7 +638,7 @@ def Newton(fac, open_filename='NewtonSolve_0.h5', save_filename='NewtonSolve_0.h
 	# Run Code
 	#~~~~~~~~~~#~~~~~~~~~~#
 	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm,"N_r":N_r}
-	X_new,Norm,KE,NuT,NuS,_ = _Newton(X,**kwargs,symmetric = symmetric,tol_newton = 5e-8,tol_gmres = 1e-04,Krylov_Space_Size = 250)
+	X_new,Norm,KE,NuT,NuS,_ = _Newton(X,**kwargs,symmetric = symmetric,tol_newton = 5e-8,tol_gmres = 1e-04,Krylov_Space_Size=300)
 
 	
 	#~~~~~~~~~~#~~~~~~~~~~#
@@ -729,7 +739,7 @@ def _NewtonC(Y, sign, ds, **kwargs_f):
 		return Y    ,sign,ds,	Norm,KE,NuT,NuS,	exitcode;
 
 
-def _ContinC(Y_0_dot, Y_0, sign, ds, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric, dt=10**4, tol_newton=1e-08, tol_gmres=1e-04, Krylov_Space_Size=250):
+def _ContinC(Y_0_dot, Y_0, sign, ds, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric, dt=10**4, tol_newton=1e-08, tol_gmres=1e-04, Krylov_Space_Size=300):
 
 	"""
 	Given a starting point and a control parameter compute a new steady-state using Newton iteration
@@ -1077,18 +1087,18 @@ def Continuation(open_filename, frame=-1):
 
 		f.close();
 
-		print("\n Loading Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(Ra,d,N_fm,N_r))    
+		print("\n Loading Ra = %e, Ra_s = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(Ra,Ra_s,d,N_fm,N_r))    
 
 		# ~~~~~~~~~ Interpolate ~~~~~~~~~~~~~~~~~~~
 		from Matrix_Operators import INTERP_RADIAL,INTERP_THETAS
-		N_r_n  = 36; X = INTERP_RADIAL(N_r_n,N_r,X,d);
-		N_fm_n = 512 + 256; X = INTERP_THETAS(N_fm_n,N_fm,X);
+		N_r_n  = 32; X = INTERP_RADIAL(N_r_n,N_r,X,d);
+		N_fm_n = 256; X = INTERP_THETAS(N_fm_n,N_fm,X);
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	sign   = -1;
-	N_steps= 1000;
+	N_steps= 500;
 	Y      = np.hstack( (X,Ra) );
-	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r_n, "symmetric":True}
+	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r_n, "symmetric":False}
 
 	save_filename = uniquify(open_filename)
 	
@@ -1189,20 +1199,20 @@ if __name__ == "__main__":
 	print("Initialising the code for running...")
 
 	# %%
-	#Continuation(open_filename='NewtonSolveMinusl30Ras300Tau0.033_2.h5',frame=-1)
+	#file = "Continuationl11Ras400_0.h5"
+	#Continuation(open_filename=file,frame=0)
 	#trim(filename='NewtonSolve_5.h5',point=45)
 	#_plot_bif(filename='ContinuationMinus_0.h5',point=-35) #  Good start point
-	#_plot_bif(filename='ContinuationPlus_0.h5',point=30) #  Good start point
 
 	# %%
-	#filename = 'EigVec_l30.npy'
-	#Newton(fac=1e-02,open_filename=filename,frame=-1);
+	#filename = "Continuationl11Ras500_0.h5"
+	#Newton(fac=5e-3,open_filename=filename,frame=0);
 
 	# %%
 	from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
-	filename = "Continuationl10LargeRas440_1.h5"
+	filename = "Continuationl11Ras500_0.h5"
 	_plot_bif(filename,point=-1)
-	#Cartesian_Plot(filename,frame=-1,Include_Base_State=False)
+	Cartesian_Plot(filename,frame=-1,Include_Base_State=False)
 	#Energy(filename,frame=-1)
 
     # Fix these they should be the same

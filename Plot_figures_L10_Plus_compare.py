@@ -30,7 +30,11 @@ def Plot_full_bif(folder, ax, line='k-'):
         Ra_f = obj.Ra[index][idx]
         KE_f = obj.KE[index][idx]
 
+        #ax.semilogy(obj.Ra, obj.KE, line)
+        #ax.semilogy(Ra_f, KE_f, 'ro', markersize=markersize)
+
         ax.plot(obj.Ra, obj.KE, line)
+        #ax.plot(Ra_f, KE_f, 'ro', markersize=markersize)
 
         # Return Saddles
         if len(obj.Y_FOLD) != 0:
@@ -106,71 +110,57 @@ def Add_Label(X_folds, Nr_folds, Nfm_folds, Ra_folds, ax):
 
 # %%
 print('Load above')
-dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Figure_L10_Full_Bif_Ras400/'
+dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Figure_L10_Plus/'
 
 
 # %%
 
-fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 6), layout='constrained', sharey=True)
+# ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~~~
+# L = 10 Large
+# ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig, axs = plt.subplots(nrows=1, ncols=5, figsize=(16, 6), layout='constrained', sharey=True)
+
 
 # A) Plot the bifurcation diagram
-X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Convecton_L10_Plus/', ax[0], line='k-')
-X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'AntiConvecton_L10_Plus/', ax[0], line='k:')
 
-ax[0].set_ylabel(r'$\mathcal{E}$', fontsize=25)
-ax[0].set_xlabel(r'$Ra$', fontsize=25)
-ax[0].tick_params(axis='both', labelsize=25)
-#ax[0].set_title(r'$\ell=10^{+}$', fontsize=25)
-ax[0].set_ylim([0, 12.5])
-ax[0].set_xlim([3000, 8500])
-ax[0].annotate('(a)', xy=(0.0, 1.05), xycoords='axes fraction', fontsize=25)
-
-# B) Create the transcritical inset
-axins_0 = inset_axes(ax[0], width="70%", height="70%", loc='upper right', borderpad=2)
-
-X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Convecton_L10_Plus/', axins_0, line='k-')
-X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'AntiConvecton_L10_Plus/', axins_0, line='k:')
-
-axins_0.annotate(r'$\ell = 10$', xy=(8300,-0.0006), textcoords='data', fontsize=20, rotation =0)
-axins_0.annotate(r'$\ell = 8$', xy=(8425,-0.0006), textcoords='data', fontsize=20, rotation =0)
-axins_0.annotate(r'$L_{10}^{C+}$', xy=(8125,0.005), textcoords='data', fontsize=25, rotation =0)
-axins_0.annotate(r'$L_{10}^{A+}$', xy=(8200,0.0006), textcoords='data', fontsize=25, rotation =0)
+i = 0
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras175_Convectons/Upper/', axs[i], line='c-')
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras175_Convectons/Lower/', axs[i], line='k-')
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras175_AntiConvectons/', axs[i], line='k:') # Low Res
+axs[i].set_ylabel(r'$\mathcal{E}$', fontsize=25)
+axs[i].set_title(r'$Ra_s = 175$', fontsize=25)
 
 
-axins_0.tick_params(axis='both', labelsize=25)
-axins_0.set_ylim([-0.00075, 0.006])
-axins_0.set_xlim([8000, 8500])
-axins_0.plot(np.arange(8000, 8500), 0*np.arange(8000, 8500), 'k-')
+i = 1
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras200_Convectons/Upper/', axs[i], line='c-')
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras200_Convectons/Lower/', axs[i], line='k-')
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras200_AntiConvectons/', axs[i], line='k:') # Low Res
+axs[i].set_title(r'$Ra_s = 200$', fontsize=25)
 
+i = 2
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras250_Convectons/Upper/', axs[i], line='c-')
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras250_Convectons/Lower/', axs[i], line='k-')
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras250_AntiConvectons/', axs[i], line='k:')
+axs[i].set_title(r'$Ra_s = 250$', fontsize=25)
 
-# C) Plot the bifurcation diagram
-X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Convecton_L10_Minus/', ax[1], line='k-')
-X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'AntiConvecton_L10_Minus/', ax[1], line='k:')
+i = 3
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras300_Convectons/Upper/', axs[i], line='c-')
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras300_Convectons/Lower/', axs[i], line='k-')
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras300_AntiConvectons/', axs[i], line='k:')
+axs[i].set_title(r'$Ra_s = 300$', fontsize=25)
 
-#ax[1].set_ylabel(r'$\mathcal{E}$', fontsize=25)
-ax[1].set_xlabel(r'$Ra$', fontsize=25)
-ax[1].tick_params(axis='both', labelsize=25)
-#ax[1].set_title(r'$\ell=10^{-}$', fontsize=25)
-ax[1].set_ylim([0, 12.5])
-ax[1].set_xlim([3000, 8500])
-ax[1].annotate('(b)', xy=(0.0, 1.05), xycoords='axes fraction', fontsize=25)
+i = 4
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras400_Convectons/', axs[i], line='k-')
+X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras400_AntiConvectons/', axs[i], line='k:')
+axs[i].set_title(r'$Ra_s = 400$', fontsize=25)
 
-# D) Create the transcritical inset
+for ax in axs:
+    ax.set_xlabel(r'$Ra$', fontsize=25)
+    ax.tick_params(axis='both', labelsize=25)
+    ax.set_xlim([2700, 3750])
+    ax.set_ylim([0, 7])
 
-axins_1 = inset_axes(ax[1], width="70%", height="70%", loc='upper right', borderpad=2)
-
-X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Convecton_L10_Minus/', axins_1, line='k-')
-X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'AntiConvecton_L10_Minus/', axins_1, line='k:')
-
-axins_1.annotate(r'$\ell = 10$', xy=(8300,-0.0006), textcoords='data', fontsize=20, rotation =0)
-axins_1.annotate(r'$\ell = 12$', xy=(8425,-0.0006), textcoords='data', fontsize=20, rotation =0)
-axins_1.annotate(r'$L_{10}^{C-}$', xy=(8180,0.003), textcoords='data', fontsize=25, rotation =0)
-axins_1.annotate(r'$L_{10}^{A-}$', xy=(8200,0.0006), textcoords='data', fontsize=25, rotation =0)
-
-axins_1.tick_params(axis='both', labelsize=25)
-axins_1.set_ylim([-0.00075, 0.006])
-axins_1.set_xlim([8000, 8500])
-axins_1.plot(np.arange(8000, 8500), 0*np.arange(8000, 8500), 'k-')
-
-plt.savefig('Bifurcation_L10_Ras400.png', format='png', dpi=400)
-#plt.show()
+plt.savefig('Bifurcation_L10Plus_Ras_Compare.png', format='png', dpi=400)
+plt.show()
+# %%

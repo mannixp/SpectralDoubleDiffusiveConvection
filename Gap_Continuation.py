@@ -1,4 +1,4 @@
-from Main import _Continuation, _plot_bif, _Newton
+from Main import _Continuation, _plot_bif
 import h5py
 import numpy as np
 import os
@@ -34,7 +34,7 @@ def Gap_Vary(Ra_s_new, open_filename, frame):
     print("\n Loading Ra = %e, Ra_s=%e, Pr=%2.5f, Tau=%2.5f, d=%2.5f and resolution N_fm, N_r = %d,%d \n"%(Ra,Ra_s,Pr,Tau,d,N_fm,N_r))    
     
     sign = -1
-    N_steps = 250
+    N_steps = 350
     Y = np.hstack((X, Ra))
     kwargs = {"Ra":Ra,"Ra_s":Ra_s_new,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r_n, "symmetric":True}
     
@@ -46,17 +46,33 @@ def Gap_Vary(Ra_s_new, open_filename, frame):
     _Continuation(save_filename, N_steps, sign, Y, **kwargs)
     _plot_bif(save_filename)
 
-    return None
+    return save_filename
 
 
 def main():
 
     print('Creating a test directory .... \n')
 
-    open_filename = "Continuationl10Large_1.h5"
-    frame = 22
+    open_filename = "ConvectonL10PlusRas200_1.h5"
+    frame = -1
+    Ra_s = 175
+    open_filename = Gap_Vary(Ra_s, open_filename, frame)
+
+    # for Ra_s in range(200, 450, 50):
+    #     print("\n Ra_s new = %e \n" % Ra_s)
+    #     open_filename = Gap_Vary(Ra_s, open_filename, frame)
     
-    for Ra_s in range(440,390,-10):
+    return None
+
+
+def main_Large():
+
+    print('Creating a test directory .... \n')
+
+    open_filename = "Continuationl11Test_2.h5"
+    frame = 30
+   
+    for Ra_s in range(500, 100, -50):
         print("\n Ra_s new = %e \n" % Ra_s)
         Gap_Vary(Ra_s, open_filename, frame)
 
@@ -70,4 +86,7 @@ if __name__ == "__main__":
 
     # %%
     main()
+
+    # %%
+    #main_Large()
 # %%

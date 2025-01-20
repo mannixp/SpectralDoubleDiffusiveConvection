@@ -13,7 +13,7 @@ from Linear_Matrix_Operators import ML_0, Ll_0, cheb_radial
 
 Γ = lambda d,R_1 = 1: (R_1*np.pi)/d
 
-def Eig_Vals(Ra1,l,d,Nvals, Ra_s=300,Pr=1,Tau=1./30., Nr = 30):	
+def Eig_Vals(Ra1,l,d,Nvals, Ra_s=150,Pr=1,Tau=1./15., Nr = 20):	
 	
 	"""
 	Solve the EVP for a given 
@@ -48,12 +48,12 @@ def Eig_Vals(Ra1,l,d,Nvals, Ra_s=300,Pr=1,Tau=1./30., Nr = 30):
 	# Sort eigenvalues
 	idx = eigenValues.real.argsort()[::-1]   
 
-	if (Nvals == 0) or (Nvals == 1):
+	if (Nvals == 0) or (Nvals == 1) or (Nvals == 2):
 		return eigenValues[idx][Nvals].real;
 	else:
 		return eigenValues[idx][0:Nvals];	
 
-def Eig_Vec( Ra1,l,d,    k, Ra_s=300,Pr=1,Tau=1./30., Nr = 30):
+def Eig_Vec( Ra1,l,d,    k, Ra_s=150,Pr=1,Tau=1./15., Nr = 20):
 	
 	"""
 	Solve the EVP for a given 
@@ -318,71 +318,46 @@ def Full_Eig_Vec(f,l,N_fm,nr,symmetric=False):
 
 def main_program():
 
-	# # ~~~~~# Validation Case (1) # ~~~~~#
-	#d = 2; Ra_c = 7268.365; l =2;
-	#Eig_val = Eig_Vals(Ra_c,l,d,0,Ra_s=500,Pr=1.,Tau=1., Nr = 20);
-	#print(Eig_val)
-
-	# ~~~~~# Validation Case (2) # ~~~~~#
-	# Vary Tau
-	d = 2; l = 2
-	Ra_c = 6900; Ra_s = 500; Pr = 1; Tau = 10;
-	Eig_val = Eig_Vals(Ra_c,l,d,Nvals=2,Ra_s=500,Pr=1,Tau=10, Nr = 20);
-	print(Eig_val)
-
-	# Vary Tau
-	Ra_c = 7800; Ra_s = 500; Pr = 1; Tau = .5
-	Eig_val = Eig_Vals(Ra_c,l,d,Nvals=2,Ra_s=500,Pr=1,Tau=.5, Nr = 20);
-	print(Eig_val)
-
-	# Vary Ra_s
-	Ra_c = 7100; Ra_s=250; Pr=1; Tau=1;
-	Eig_val = Eig_Vals(Ra_c,l,d,Nvals=2,Ra_s=250,Pr=1,Tau=1, Nr = 20);
-	print(Eig_val)
-
 	# ~~~~~# L = 11 Gap #~~~~~~~~~#
-	# d = 0.31325; l=11.0; 
-	# Ra_c_steady = 9775.905436191546
-	# Ra_c_hopf   = 2879.0503253066827
+	d = 0.31325; l=13.0; 
+
+	#Ra_s = 500
+	#Ra_c_steady = 9775.905436191546
+	#Ra_c_hopf   = 2879.0503253066827
+
+	Ra_s = 150
+	Ra_c_steady = 4525.905436209724
 
 	# ~~~~~# L = 10 Gap #~~~~~~~~~#
-	#d = 0.3521; l=10.0; 
-	#Ra_c_steady = 9851.537357677651; Nvals=1
-	#Ra_c_hopf   = 2965.1798389922933; Nvals=0
-
-	# # ~~~~~# L = 12 Gap #~~~~~~~~~#
-	# d = 0.10778
-	# l = 30 
-	# Ra_c_steady = 9721.960152818841; Nvals=1
+	# d = 0.3521; l=10.0; 
+	# Ra_c_steady = 9851.537357677651; Nvals=1
 	# Ra_c_hopf   = 2965.1798389922933; Nvals=0
 	
-	# Ra = Critical_Eigval(Ra_c_steady,l,d,Nvals=1)
-	# #Ra = Critical_Eigval(Ra_c_hopf,l,d,Nvals=0)
-
-	# print('Ra = ',Ra)
-	# #d = 0.3341; # Half of the two avbove
-	# #Neutral(Ra_c_hopf,Ra_c_steady,l,d_org=d)
-
-	# # Compute the eigenvector
-	# Nr = 20
-	# lambda_i = 1 # For steady-bifurcation
-	# #lambda_i = 0 # For Hopf-bifurcation
-	# Eig_val = Eig_Vals(Ra,l,d,Nvals = 2 ,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
-	# Eig_vec = Eig_Vec( Ra,l,d,k=lambda_i,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
 	
-	# print('\n #~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~#')
-	# print('Eigen Values = ',Eig_val)
-	# print('Chose Eigenvector for \lambda_%d = %e'%(lambda_i,Eig_val[lambda_i]) )
-	# print('#~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~# \n')
+	Ra = Critical_Eigval(Ra_c_steady,l,d,Nvals=1)
+	#Ra = Critical_Eigval(Ra_c_hopf,l,d,Nvals=0)
+	print('Ra = ',Ra)
+	
+	# Compute the eigenvector
+	Nr = 20
+	lambda_i = 1 # For steady-bifurcation
+	#lambda_i = 0 # For Hopf-bifurcation
+	Eig_val = Eig_Vals(Ra,l,d,Nvals = 3 ,Ra_s=Ra_s,Pr=1.0,Tau=1./15.,Nr=Nr)
+	Eig_vec = Eig_Vec( Ra,l,d,k=lambda_i,Ra_s=Ra_s,Pr=1.0,Tau=1./15.,Nr=Nr)
+	
+	print('\n #~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~#')
+	print('Eigen Values = ',Eig_val)
+	print('Chose Eigenvector for \lambda_%d = %e'%(lambda_i,Eig_val[lambda_i]) )
+	print('#~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~# \n')
 
-	# filename = 'EigVec_l30.npy'
-	# N_fm = 64
-	# X    = Full_Eig_Vec(Eig_vec,l,N_fm,nr=Nr-1,symmetric=False)
-	# np.save(filename,X)
+	filename = 'EigVec_l13.npy'
+	N_fm = 64
+	X    = Full_Eig_Vec(Eig_vec,l,N_fm,nr=Nr-1,symmetric=False)
+	np.save(filename,X)
 
-	# from Plot_Tools import Cartesian_Plot,Energy
-	# Energy(filename,frame=-1)
-	# Cartesian_Plot(filename,frame=-1,Include_Base_State=False)
+	from Plot_Tools import Cartesian_Plot,Energy
+	Energy(filename,frame=-1)
+	Cartesian_Plot(filename,frame=-1,Include_Base_State=False)
 
 	return None;
 
@@ -451,7 +426,7 @@ def velocity_field(X_hat, D, R,xx, N_fm):
 	IR2 = np.diag(1./R[1:-1]**2);
 
 	ψ_hat=X_hat[0:N]
-	JPSI =J_theta_RT(ψ_hat, nr,N_fm)
+	JPSI =J_theta_RT(ψ_hat, nr,N_fm, symmetric=False)
 
 	Jψ_hat = np.zeros((nr, N_fm)) 	
 	Dψ_hat = np.zeros((nr, N_fm))
@@ -494,8 +469,9 @@ def figure_1():
 
 def figure_2():
 	
-	Nr = 20
-	N_fm = 64
+	nr = 24
+	Nr = 32
+	N_fm = 128
 	RES = 20
 
 	from Matrix_Operators import cheb_radial
@@ -508,7 +484,7 @@ def figure_2():
 	Ra_c_hopf   = 2965.1798389922933
 	
 	lambda_i = 1 # For steady-bifurcation
-	Eig_val = Eig_Vals(Ra_c_steady,l,d,Nvals = 2 ,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
+	Eig_val = Eig_Vals(Ra_c_steady,l,d,Nvals = 3 ,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
 	Eig_vec = Eig_Vec( Ra_c_steady,l,d,k=lambda_i,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
 	
 	print('\n #~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~#')
@@ -520,7 +496,7 @@ def figure_2():
 
 	D,R = cheb_radial(Nr, d) 
 	Theta_grid = np.linspace(0,np.pi,N_fm) 
-	r_grid     = np.linspace(R[0],R[-1],50)
+	r_grid     = np.linspace(R[0],R[-1],nr)
 	
 	PSI, T, S, T_0 = Spectral_To_Gridpoints(X,R,r_grid,N_fm,d)
 	
@@ -528,7 +504,7 @@ def figure_2():
 	fig, ax = plt.subplots(nrows=3, ncols=2, figsize=(24,8), dpi=200, layout='constrained')
 
 	x_0 = np.linspace(0,np.pi,N_fm) 
-	x_1 = np.linspace(R[0],R[-1],50)
+	x_1 = np.linspace(R[0],R[-1],nr)
 	U = velocity_field(X,D,R,x_1,N_fm)
 	ax[0,0].streamplot(x_0, x_1, U[1], U[0], density=.75,arrowsize=2)
 
@@ -545,7 +521,7 @@ def figure_2():
 	Ra_c_hopf   = 2879.0503253066827
 
 	lambda_i = 1 # For steady-bifurcation
-	Eig_val = Eig_Vals(Ra_c_steady,l,d,Nvals = 2 ,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
+	Eig_val = Eig_Vals(Ra_c_steady,l,d,Nvals = 3 ,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
 	Eig_vec = Eig_Vec( Ra_c_steady,l,d,k=lambda_i,Ra_s=500.0,Pr=1.0,Tau=1./15.,Nr=Nr)
 	
 	print('\n #~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~#~~~~~~~~~~~~~~~~~~~~~~~~~#')
@@ -557,12 +533,12 @@ def figure_2():
 
 	D, R = cheb_radial(Nr, d)
 	Theta_grid = np.linspace(0,np.pi,N_fm) 
-	r_grid     = np.linspace(R[0],R[-1],50)
+	r_grid     = np.linspace(R[0],R[-1],nr)
 
 	PSI, T, S, T_0 = Spectral_To_Gridpoints(X,R,r_grid,N_fm,d)
 
 	x_0 = np.linspace(0,np.pi,N_fm) 
-	x_1 = np.linspace(R[0],R[-1],50)
+	x_1 = np.linspace(R[0],R[-1],nr)
 	U = velocity_field(X,D,R,x_1,N_fm)
 	ax[0,1].streamplot(x_0, x_1, U[1], U[0], density=.75,arrowsize=2)
 
@@ -615,14 +591,14 @@ def large_aspect_neutrals():
 if __name__ == "__main__":
 
 	# %%
-	#%matplotlib inline
+	%matplotlib inline
 
 	# %%
 	#figure_1()
-	#figure_2()
-	large_aspect_neutrals()
+	figure_2()
+	#large_aspect_neutrals()
 
 	# %%
-	#main_program();
+	main_program();
 
 # %%
