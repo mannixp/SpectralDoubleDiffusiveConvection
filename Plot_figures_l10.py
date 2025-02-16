@@ -393,4 +393,149 @@ Psi_Plot(X_folds[:9], Nr_folds[:9], Nfm_folds[:9], axs=axs[::-1, 1])
 plt.savefig('Bifurcation_L10_Large.png', format='png', dpi=400)
 plt.show()
 
+
+
+
+# %%
+# ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~~~
+# L = 10 minus full Ra_s = 350 Tau = Tau/2
+# ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~~~
+
+dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_l10_d0.353/'
+folder = dir + 'Branch_l10_Minus_d0.353_Ra_s350_0.5Tau/'
+
+
+fig, axs = plt.subplots(nrows=9, ncols=2, figsize=(16, 6), layout='constrained')
+
+# remove the underlying Axes in the right column
+gs = axs[1, 0].get_gridspec()
+for axl in axs[:, 0]:
+    axl.remove()
+ax = fig.add_subplot(gs[:, 0])
+
+# A) Plot the bifurcation diagram
+X_folds, Nr_folds, Nfm_folds = Plot_full_bif(folder, ax)
+
+ax.set_ylabel(r'$\mathcal{E}$', fontsize=25)
+ax.set_xlabel(r'$Ra$', fontsize=25)
+ax.tick_params(axis='both', labelsize=25)
+ax.set_ylim([1e-02, 5])
+ax.set_xlim([3000, 4000])
+ax.tick_params(axis='both', labelsize=25)
+
+
+# L=10 Minus eigenvector from KE = 0
+obj = result()
+with h5py.File(folder + "ContinuationMinusRas350_1.h5", 'r') as f:
+    ff = f["Bifurcation"]
+    for key in ff.keys():
+        setattr(obj, key, ff[key][()])
+    N_fm = f['Parameters']["N_fm"][()]
+    N_r = f['Parameters']["N_r"][()]
+
+    D, R = cheb_radial(N_r, d)
+    
+    point = 37
+    KE = Kinetic_Energy(obj.X_DATA[point], R, D, N_fm, N_r-1, symmetric=False)
+    ax.semilogy(obj.Ra_DATA[point], KE, 'bs')
+
+    X_folds.insert(2, obj.X_DATA[point])
+    Nr_folds.insert(2, N_r)
+    Nfm_folds.insert(2, N_fm)
+
+    point = 39
+    KE = Kinetic_Energy(obj.X_DATA[point], R, D, N_fm, N_r-1, symmetric=False)
+    ax.semilogy(obj.Ra_DATA[point], KE, 'bs')
+
+    X_folds.insert(3, obj.X_DATA[point])
+    Nr_folds.insert(3, N_r)
+    Nfm_folds.insert(3, N_fm)
+
+
+# D) Plot the points out in terms of their stream-function
+Psi_Plot(X_folds, Nr_folds, Nfm_folds, axs=axs[::-1, 1])
+
+plt.savefig('Bifurcation_L10_Minus_Ras350_0.5Tau.png', format='png', dpi=400)
+plt.show()
+
+
+# %%
+# ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~~~
+# L = 10 minus full Ra_s = 350
+# ~~~~~~~~~~~~~~~~~~~~~~ # ~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Branches_l10_d0.353/'
+folder = dir + 'Branch_l10_Minus_d0.353_Ra_s350/'
+
+fig, axs = plt.subplots(nrows=9, ncols=2, figsize=(16, 6), layout='constrained')
+
+# remove the underlying Axes in the right column
+gs = axs[1, 0].get_gridspec()
+for axl in axs[:, 0]:
+    axl.remove()
+ax = fig.add_subplot(gs[:, 0])
+
+# A) Plot the bifurcation diagram
+X_folds, Nr_folds, Nfm_folds = Plot_full_bif(folder, ax)
+
+ax.set_ylabel(r'$\mathcal{E}$', fontsize=25)
+ax.set_xlabel(r'$Ra$', fontsize=25)
+ax.tick_params(axis='both', labelsize=25)
+ax.set_ylim([2e-02, 2e01])
+ax.set_xlim([3000, 4000])
+ax.tick_params(axis='both', labelsize=25)
+
+
+# L=10 Minus eigenvector from KE = 0
+obj = result()
+with h5py.File(folder + "ContinuationMinusRas350_0.h5", 'r') as f:
+    ff = f["Bifurcation"]
+    for key in ff.keys():
+        setattr(obj, key, ff[key][()])
+    N_fm = f['Parameters']["N_fm"][()]
+    N_r = f['Parameters']["N_r"][()]
+    
+    D, R = cheb_radial(N_r, d)
+    
+    point = 33
+    KE = Kinetic_Energy(obj.X_DATA[point], R, D, N_fm, N_r-1, symmetric=False)
+    ax.semilogy(obj.Ra_DATA[point], KE, 'bs')
+
+    X_folds.insert(2, obj.X_DATA[point])
+    Nr_folds.insert(2, N_r)
+    Nfm_folds.insert(2, N_fm)
+
+    point = 35
+    KE = Kinetic_Energy(obj.X_DATA[point], R, D, N_fm, N_r-1, symmetric=False)
+    ax.semilogy(obj.Ra_DATA[point], KE, 'bs')
+
+    X_folds.insert(3, obj.X_DATA[point])
+    Nr_folds.insert(3, N_r)
+    Nfm_folds.insert(3, N_fm)
+
+
+    point = 51
+    KE = Kinetic_Energy(obj.X_DATA[point], R, D, N_fm, N_r-1, symmetric=False)
+    ax.semilogy(obj.Ra_DATA[point], KE, 'bs')
+
+    X_folds.insert(6, obj.X_DATA[point])
+    Nr_folds.insert(6, N_r)
+    Nfm_folds.insert(6, N_fm)
+
+    point = 52
+    KE = Kinetic_Energy(obj.X_DATA[point], R, D, N_fm, N_r-1, symmetric=False)
+    ax.semilogy(obj.Ra_DATA[point], KE, 'bs')
+
+    X_folds.insert(7, obj.X_DATA[point])
+    Nr_folds.insert(7, N_r)
+    Nfm_folds.insert(7, N_fm)
+
+
+# D) Plot the points out in terms of their stream-function
+Psi_Plot(X_folds, Nr_folds, Nfm_folds, axs=axs[::-1, 1])
+
+plt.savefig('Bifurcation_L10_Minus_Ras350.png', format='png', dpi=400)
+plt.show()
+
 # %%
