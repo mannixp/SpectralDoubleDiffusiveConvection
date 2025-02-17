@@ -6,7 +6,6 @@ __pycache__/
 # Data files
 *.h5
 *.vtr
-*.txt
 *.npy
 
 # Ouptut images & Movies
