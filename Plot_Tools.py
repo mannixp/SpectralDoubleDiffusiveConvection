@@ -5,12 +5,12 @@ from Main import result
 from Matrix_Operators import cheb_radial
 
 import matplotlib.pyplot as plt
-plt.rcParams.update({
-    "text.usetex": True,
-    "font.family": "sans-serif",
-    "font.sans-serif": "Helvetica",
-    'text.latex.preamble': r'\usepackage{amsfonts}'
-})
+# plt.rcParams.update({
+#     "text.usetex": True,
+#     "font.family": "sans-serif",
+#     "font.sans-serif": "Helvetica",
+#     'text.latex.preamble': r'\usepackage{amsfonts}'
+# })
 
 
 
@@ -165,12 +165,14 @@ def Plot_Time_Step(filename, logscale=True, st_pt=0, plotting=False):
 	NuT   = f['Scalar_Data/Nu_T'][()][st_pt:-1]
 	NuS   = f['Scalar_Data/Nu_S'][()][st_pt:-1]
 	Ra    = f['Parameters']["Ra"][()]
+	d     = f['Parameters']["d"][()]
 	dt = Time[1] - Time[0]
 	T  = Time[-1] - Time[0]
 	f.close()
 
 	print('Ra = ',Ra)
 	print('dt = ',dt)
+	print('d = ',d)
 
 	if plotting:
 		fig, (ax0, ax1, ax2) = plt.subplots(nrows=1, ncols=3,figsize=(12, 6))

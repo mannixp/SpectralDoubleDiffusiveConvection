@@ -1,5 +1,20 @@
+"""
+Script that generates the figure 11 for section 5.1
+
+To run this script excute
+
+python3 Plot_figures_L10_Plus_compare.py
+
+from within the Paper_Figures directory.
+"""
 import numpy as np
 import glob, h5py
+
+import sys
+import os
+
+sys.path.append(os.path.abspath("../"))
+
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from Plot_Tools import Spectral_To_Gridpoints
 from Main import result, Kinetic_Energy
@@ -110,7 +125,7 @@ def Add_Label(X_folds, Nr_folds, Nfm_folds, Ra_folds, ax):
 
 # %%
 print('Load above')
-dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Figure_L10_Plus/'
+dir = '/home/pmannix/Spatial_Localisation/SpectralDoubleDiffusiveConvection/Paper_Data/Figure_L10_Plus/'
 
 
 # %%
@@ -129,38 +144,38 @@ X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras175_Convectons/
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras175_Convectons/Lower/', axs[i], line='k-')
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras175_AntiConvectons/', axs[i], line='k:') # Low Res
 axs[i].set_ylabel(r'$\mathcal{E}$', fontsize=25)
-axs[i].set_title(r'$Ra_s = 175$', fontsize=25)
+axs[i].set_title(r'$Ra_S = 175$', fontsize=25)
 
 
 i = 1
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras200_Convectons/Upper/', axs[i], line='c-')
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras200_Convectons/Lower/', axs[i], line='k-')
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras200_AntiConvectons/', axs[i], line='k:') # Low Res
-axs[i].set_title(r'$Ra_s = 200$', fontsize=25)
+axs[i].set_title(r'$Ra_S = 200$', fontsize=25)
 
 i = 2
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras250_Convectons/Upper/', axs[i], line='c-')
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras250_Convectons/Lower/', axs[i], line='k-')
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras250_AntiConvectons/', axs[i], line='k:')
-axs[i].set_title(r'$Ra_s = 250$', fontsize=25)
+axs[i].set_title(r'$Ra_S = 250$', fontsize=25)
 
 i = 3
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras300_Convectons/Upper/', axs[i], line='c-')
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras300_Convectons/Lower/', axs[i], line='k-')
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras300_AntiConvectons/', axs[i], line='k:')
-axs[i].set_title(r'$Ra_s = 300$', fontsize=25)
+axs[i].set_title(r'$Ra_S = 300$', fontsize=25)
 
 i = 4
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras400_Convectons/', axs[i], line='k-')
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Ras400_AntiConvectons/', axs[i], line='k:')
-axs[i].set_title(r'$Ra_s = 400$', fontsize=25)
+axs[i].set_title(r'$Ra_S = 400$', fontsize=25)
 
 for ax in axs:
-    ax.set_xlabel(r'$Ra$', fontsize=25)
+    ax.set_xlabel(r'$Ra_T$', fontsize=25)
     ax.tick_params(axis='both', labelsize=25)
     ax.set_xlim([2700, 3750])
     ax.set_ylim([0, 7])
 
-plt.savefig('Bifurcation_L10Plus_Ras_Compare.png', format='png', dpi=400)
+plt.savefig('Bifurcation_L10Plus_Ras_Compare.png', format='png', dpi=100)
 plt.show()
 # %%

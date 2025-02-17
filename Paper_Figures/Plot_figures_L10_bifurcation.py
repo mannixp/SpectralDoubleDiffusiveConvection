@@ -1,5 +1,20 @@
+"""
+Script that generates the figure 7 for section 5.1
+
+To run this script excute
+
+python3 Plot_figures_L10_bifurcation.py
+
+from within the Paper_Figures directory.
+"""
 import numpy as np
 import glob, h5py
+
+import sys
+import os
+
+sys.path.append(os.path.abspath("../"))
+
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from Plot_Tools import Spectral_To_Gridpoints
 from Main import result, Kinetic_Energy
@@ -106,7 +121,7 @@ def Add_Label(X_folds, Nr_folds, Nfm_folds, Ra_folds, ax):
 
 # %%
 print('Load above')
-dir = '/home/pmannix/SpectralDoubleDiffusiveConvection/Figure_L10_Full_Bif_Ras400/'
+dir = '/home/pmannix/Spatial_Localisation/SpectralDoubleDiffusiveConvection/Paper_Data/Figure_L10_Full_Bif_Ras400/'
 
 
 # %%
@@ -118,7 +133,7 @@ X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Convecton_L10_Plus
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'AntiConvecton_L10_Plus/', ax[0], line='k:')
 
 ax[0].set_ylabel(r'$\mathcal{E}$', fontsize=25)
-ax[0].set_xlabel(r'$Ra$', fontsize=25)
+ax[0].set_xlabel(r'$Ra_T$', fontsize=25)
 ax[0].tick_params(axis='both', labelsize=25)
 #ax[0].set_title(r'$\ell=10^{+}$', fontsize=25)
 ax[0].set_ylim([0, 12.5])
@@ -148,7 +163,7 @@ X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'Convecton_L10_Minu
 X_folds, Nr_folds, Nfm_folds, Ra_folds = Plot_full_bif(dir + 'AntiConvecton_L10_Minus/', ax[1], line='k:')
 
 #ax[1].set_ylabel(r'$\mathcal{E}$', fontsize=25)
-ax[1].set_xlabel(r'$Ra$', fontsize=25)
+ax[1].set_xlabel(r'$Ra_T$', fontsize=25)
 ax[1].tick_params(axis='both', labelsize=25)
 #ax[1].set_title(r'$\ell=10^{-}$', fontsize=25)
 ax[1].set_ylim([0, 12.5])
@@ -172,5 +187,5 @@ axins_1.set_ylim([-0.00075, 0.006])
 axins_1.set_xlim([8000, 8500])
 axins_1.plot(np.arange(8000, 8500), 0*np.arange(8000, 8500), 'k-')
 
-plt.savefig('Bifurcation_L10_Ras400.png', format='png', dpi=400)
+plt.savefig('Bifurcation_L10_Ras400.png', format='png', dpi=100)
 #plt.show()

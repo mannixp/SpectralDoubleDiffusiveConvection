@@ -34,9 +34,9 @@ def Gap_Vary(Ra_s_new, open_filename, frame):
     print("\n Loading Ra = %e, Ra_s=%e, Pr=%2.5f, Tau=%2.5f, d=%2.5f and resolution N_fm, N_r = %d,%d \n"%(Ra,Ra_s,Pr,Tau,d,N_fm,N_r))    
     
     sign = -1
-    N_steps = 350
+    N_steps = 250
     Y = np.hstack((X, Ra))
-    kwargs = {"Ra":Ra,"Ra_s":Ra_s_new,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r_n, "symmetric":True}
+    kwargs = {"Ra":Ra,"Ra_s":Ra_s_new,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r_n, "symmetric":False}
     
     # Generate a new path
     filename, extension = os.path.splitext(open_filename)
@@ -53,29 +53,14 @@ def main():
 
     print('Creating a test directory .... \n')
 
-    open_filename = "ConvectonL10PlusRas200_1.h5"
+    filenames = ["NewtonSolveRas400d0.345_0.h5", "TimeStepd0.34_0.h5", "TimeStepd0.335_0.h5", "TimeStepd0.33_0.h5"]
     frame = -1
-    Ra_s = 175
-    open_filename = Gap_Vary(Ra_s, open_filename, frame)
+    Ra_s = 400
 
-    # for Ra_s in range(200, 450, 50):
-    #     print("\n Ra_s new = %e \n" % Ra_s)
-    #     open_filename = Gap_Vary(Ra_s, open_filename, frame)
-    
-    return None
-
-
-def main_Large():
-
-    print('Creating a test directory .... \n')
-
-    open_filename = "Continuationl11Test_2.h5"
-    frame = 30
-   
-    for Ra_s in range(500, 100, -50):
-        print("\n Ra_s new = %e \n" % Ra_s)
+    for open_filename in filenames:
+        print("\n file = ",open_filename)
         Gap_Vary(Ra_s, open_filename, frame)
-
+    
     return None
 
 
