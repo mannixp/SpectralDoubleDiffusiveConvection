@@ -1,6 +1,6 @@
-# SphericalDoubleDiffusiveConvection
+# DoubleDiffusiveConvection
 
-This code solves the system of partial differential equations
+This code solves the following system of partial differential equations in an axisymmetric spherical domain
 
 $$
 \begin{align} 
