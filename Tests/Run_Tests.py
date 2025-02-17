@@ -1,10 +1,20 @@
 """
-Script that runs the following suite of verification
-tests & checks
+Script that runs the following suite of verification tests & checks
+
+To run this script excute
+
+python3 Run_Tests.py
+
+from within the Tests directory.
 """
 import numpy as np
 import h5py
+
+import sys
 import os
+
+sys.path.append(os.path.abspath("../"))
+
 from Matrix_Operators import cheb_radial
 from Main import _Time_Step, _Newton, Nusselt, Kinetic_Energy
 from Transforms import test_Cosine_Transform_NL, test_Cosine_Transform_deal
@@ -342,7 +352,7 @@ def test_Linear_odd():
 
 def test_Nonlinear_Tstep_odd():
 
-    symmetric = False
+    #symmetric = False
 
     #~~~~~~~~~~~ Narrow Gap l=11 ~~~~~~~~~~~
     d = 0.31325
@@ -359,11 +369,11 @@ def test_Nonlinear_Tstep_odd():
 
     filename = 'Non_Linear_Test_thin_gap_odd_dt'+str(dt)+'.h5'
     kwargs = {"Ra": 2280, "Ra_s": 0, "Tau": 1, "Pr": 1, "d": d, "N_fm": N_fm, "N_r": N_r}
-    X_new = _Time_Step(X, **kwargs, symmetric, save_filename=filename, start_time=0, Total_time=3*(10**3), dt=dt, linear=False, Verbose=False)
+    X_new = _Time_Step(X, **kwargs, symmetric=False, save_filename=filename, start_time=0, Total_time=3*(10**3), dt=dt, linear=False, Verbose=False)
 
     T_hat = X_new[N:2*N]
     Nu_avg = Nusselt(T_hat, d, R, D, N_fm, nr, check=False)
-    KE_avg = Kinetic_Energy(X_new, R, D, N_fm, nr, symmetric)
+    KE_avg = Kinetic_Energy(X_new, R, D, N_fm, nr, symmetric=False)
 
     print('\n')
     print('Ra,Pr,d =%d,%d,%d' % (kwargs["Ra"], kwargs["Pr"], d))
@@ -377,7 +387,6 @@ def test_Nonlinear_Tstep_odd():
 
 def test_Nonlinear_Newton_odd():
 
-    symmetric = False
     dt   = 0.075;
 
     #~~~~~~~~~~~ Narrow Gap l=11 ~~~~~~~~~~
@@ -404,7 +413,7 @@ def test_Nonlinear_Newton_odd():
         print("\n Loading time-step %e with parameters Ra = %e, d=%e and resolution N_fm = %d, N_r = %d \n"%(st_time,Ra,d,N_fm,N_r))
     
     kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm,"N_r":N_r}
-    X_new,norm,ke,nuS,nuT,BOOL = _Newton(X,**kwargs,symmetric,tol_newton = 1e-8)
+    X_new,norm,ke,nuS,nuT,BOOL = _Newton(X,**kwargs,symmetric=False,tol_newton = 1e-8)
     
     print('\n')
     print('Ra,Pr,d =%d,%d,%d'%(Ra,Pr,d))
@@ -418,12 +427,6 @@ def test_Nonlinear_Newton_odd():
 
 if __name__ == "__main__":
 
-    print('Creating a test directory .... \n')
-    import shutil
-    shutil.rmtree('./Tests', ignore_errors=True)
-    os.mkdir('./Tests')
-    os.chdir('./Tests')
-
     print('Running Transforms Tests ..... \n')
     N = 2**8
     test_Cosine_Transform_NL(N)
@@ -433,10 +436,12 @@ if __name__ == "__main__":
         test_Cosine_Transform_deal(k,N);
         test_Sine_Transform_deal(k+1,N);
 
+    
     print('******** Even parity tests *********')
     test_Linear_even()
     test_Nonlinear_Tstep_even()
     test_Nonlinear_Newton_even()
+
 
     print('******** Odd parity tests *********')
     test_Linear_odd()

@@ -11,4 +11,5 @@ __pycache__/
 
 # Ouptut images & Movies
 *.png
+*.pdf
 *.eps

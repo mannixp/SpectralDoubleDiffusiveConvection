@@ -422,12 +422,12 @@ def Time_Step(open_filename=None, frame=-1, d_new=0.31325, Ra_new = 3750.00):
 		filename = uniquify('TimeStep_0.h5')
 
 	kwargs = {"Ra":Ra_new,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d_new,"N_fm":N_fm_n,"N_r":N_r_n}
-	X_new  = _Time_Step(X,**kwargs,save_filename=filename,start_time=0,Total_time=1000,dt=0.001,symmetric=False,linear=False,Verbose=True);
+	X_new  = _Time_Step(X,**kwargs,save_filename=filename,start_time=0,Total_time=50,dt=0.001,symmetric=False,linear=False,Verbose=True);
 
 	return filename;
 
 
-def _Newton(X, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric, dt=10**4, tol_newton=1e-08, tol_gmres=1e-04, Krylov_Space_Size=300):
+def _Newton(X, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric, dt=1, tol_newton=1e-08, tol_gmres=1e-04, Krylov_Space_Size=300):
 	
 	"""
 	Given a starting point and a control parameter compute a new steady-state using Newton iteration
@@ -668,7 +668,7 @@ def Newton(fac, open_filename='NewtonSolve_0.h5', save_filename='NewtonSolve_0.h
 	f.close();
 
 	from Plot_Tools import Cartesian_Plot, Energy
-	Cartesian_Plot(filename,frame=-1,Include_Base_State=False)
+	Cartesian_Plot(filename,frame=-1,Include_Base_State=True)
 	Energy(filename,frame=-1)
 
 	return None;
@@ -739,7 +739,7 @@ def _NewtonC(Y, sign, ds, **kwargs_f):
 		return Y    ,sign,ds,	Norm,KE,NuT,NuS,	exitcode;
 
 
-def _ContinC(Y_0_dot, Y_0, sign, ds, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric, dt=10**4, tol_newton=1e-08, tol_gmres=1e-04, Krylov_Space_Size=300):
+def _ContinC(Y_0_dot, Y_0, sign, ds, Ra, Ra_s, Tau, Pr, d, N_fm, N_r, symmetric, dt=1, tol_newton=1e-08, tol_gmres=1e-04, Krylov_Space_Size=300):
 
 	"""
 	Given a starting point and a control parameter compute a new steady-state using Newton iteration
@@ -1095,7 +1095,7 @@ def Continuation(open_filename, frame=-1):
 		N_fm_n = 256; X = INTERP_THETAS(N_fm_n,N_fm,X);
 		# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	sign   = -1;
+	sign   = 1;
 	N_steps= 500;
 	Y      = np.hstack( (X,Ra) );
 	kwargs = {"Ra":Ra,"Ra_s":Ra_s,"Tau":Tau,"Pr":Pr,"d":d,"N_fm":N_fm_n,"N_r":N_r_n, "symmetric":False}
@@ -1199,21 +1199,21 @@ if __name__ == "__main__":
 	print("Initialising the code for running...")
 
 	# %%
-	#file = "Continuationl11Ras400_0.h5"
-	#Continuation(open_filename=file,frame=0)
-	#trim(filename='NewtonSolve_5.h5',point=45)
-	#_plot_bif(filename='ContinuationMinus_0.h5',point=-35) #  Good start point
+	#file = "Continuationl11Ras150_0.h5"
+	#Continuation(open_filename=file,frame=-2)
+	#trim(filename='Continuationl11Ras150_0.h5',point=-4)
+	#_plot_bif(filename='Continuationl11Ras150_0.h5',point=-4) #  Good start point
 
 	# %%
-	#filename = "Continuationl11Ras500_0.h5"
-	#Newton(fac=5e-3,open_filename=filename,frame=0);
+	#filename = "/home/pmannix/Spatial_Localisation/SpectralDoubleDiffusiveConvection/Figure_L11/Anti_Convectons/Continuationl11Ras150_0.h5"
+	#Newton(fac=5e-3,open_filename=filename,frame=7)
 
-	# %%
 	from Plot_Tools import Cartesian_Plot, Energy,Uradial_plot
-	filename = "Continuationl11Ras500_0.h5"
-	_plot_bif(filename,point=-1)
-	Cartesian_Plot(filename,frame=-1,Include_Base_State=False)
+	filename = "/home/pmannix/Spatial_Localisation/SpectralDoubleDiffusiveConvection/Figure_L11/Anti_Convectons_Plus/Continuationl11Ras150_1.h5"
+	_plot_bif(filename,point=30)
+	#Cartesian_Plot(filename,frame=-1,Include_Base_State=False)
 	#Energy(filename,frame=-1)
-
+# %%
+	
     # Fix these they should be the same
 # %%
